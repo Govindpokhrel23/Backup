@@ -1,0 +1,62 @@
+/* ============================================================
+   base.css — アプリ全体の「色」と「文字」の決まり
+   ------------------------------------------------------------
+   ・色はここで名前をつけて、ほかのCSSでは名前で使う
+     例：color: var(--ink);
+   ・色を変えたいときは、ここだけ直せば全部の画面が変わる
+   ============================================================ */
+
+:root {
+  /* --- 基本の色 --- */
+  --bg: #F4EEE6;          /* 画面の背景（コメダっぽいベージュ） */
+  --surface: #FFFFFF;     /* カードの白 */
+  --surface-2: #F7F2EC;   /* 少し色のついた白（一覧の行など） */
+  --line: #E6DACB;        /* 区切り線 */
+  --ink: #2B211A;         /* 文字のこげ茶 */
+  --ink-2: #4A3B30;       /* 少し薄い文字 */
+  --ink-3: #6B5B4E;       /* 説明文などの薄い文字 */
+
+  /* --- 意味のある色 --- */
+  --hall: #2A62A8;        /* ホール＝青 */
+  --kitchen: #B5541A;     /* キッチン＝オレンジ */
+  --ok: #2E6B3A;          /* できている＝緑 */
+  --ok-bg: #E5F4E4;
+  --warn: #7A4D00;        /* 注意＝こげた黄色 */
+  --warn-bg: #F9EEDA;
+  --danger: #A33A2A;      /* だめ・不足＝赤 */
+  --danger-bg: #FBE3DE;
+  --hope: #DDE9D3;        /* 希望の時間＝薄い緑 */
+
+  /* --- 大きさ --- */
+  --radius: 12px;         /* 角の丸み */
+  --tap: 44px;            /* 指で押しやすい最小の大きさ */
+  --tabbar-h: 64px;       /* 下のタブバーの高さ */
+
+  /* --- 文字 --- */
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;
+}
+
+/* すべての要素で「幅に枠線と余白を含める」 → 幅の計算がかんたんになる */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 16px;            /* iPhoneで入力時に拡大されないよう16px以上 */
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* hidden 属性がついたものは必ず消す（家計簿アプリで学んだ対策） */
+[hidden] { display: none !important; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+
+/* キーボードで操作したときだけ、分かりやすい枠を出す */
+:focus-visible { outline: 3px solid var(--hall); outline-offset: 2px; }
+
+/* 数字の幅をそろえる（時刻が並んだときにガタガタしない） */
+.num { font-variant-numeric: tabular-nums; }

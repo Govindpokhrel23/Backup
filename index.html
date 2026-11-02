@@ -1,0 +1,54 @@
+<!doctype html>
+<!--
+  ============================================================
+  index.html — アプリの入口（このファイルを開くとアプリが始まる）
+  ------------------------------------------------------------
+  ・画面の中身はここには書かない。js/screens/ の各ファイルが作る
+  ・ここにあるのは「入れ物」だけ：
+      #app      … 今の画面が入る場所
+      #tabbar   … 下のタブバーが入る場所
+      #toast    … 「保存しました」などの小さいお知らせ
+  ============================================================
+-->
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <!-- スマホで文字が小さくならないようにする -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AIシフト</title>
+
+  <!-- ホーム画面に追加したときの設定 -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#2B211A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="AIシフト">
+
+  <!--
+    CSS は役割ごとに分けている（会社でもよくある分け方）
+      base.css       … 色・文字・全体のリセット
+      layout.css     … ヘッダー・タブバーなど画面の枠
+      components.css … ボタン・カード・入力欄など、何度も使う部品
+      screens.css    … 画面ごとの見た目
+  -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/screens.css">
+</head>
+<body>
+  <!-- 今の画面がここに入る（router.js が入れ替える） -->
+  <main id="app" class="app"></main>
+
+  <!-- 下のタブバー（ログイン後だけ表示） -->
+  <nav id="tabbar" class="tabbar" hidden></nav>
+
+  <!-- 小さいお知らせ（数秒で消える） -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!--
+    type="module" にすると、JSファイル同士で import / export が使える
+    main.js が最初に動き、ほかのファイルを読み込む
+  -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

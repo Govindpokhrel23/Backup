@@ -1,0 +1,130 @@
+/* ============================================================
+   components.css — 何度も使う「部品」の見た目
+   ------------------------------------------------------------
+   名前のつけ方：「部品名__中の部分--種類」（BEMという書き方）
+     例：.btn--primary … ボタンの「メイン」の種類
+   ============================================================ */
+
+/* ---------- カード（白い箱） ---------- */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: 0 1px 2px rgba(58, 46, 38, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.card__title { margin: 0; font-size: 16px; font-weight: 700; }
+
+/* ---------- ボタン ---------- */
+.btn {
+  min-height: var(--tap);
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  font-size: 15px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn--primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+.btn--blue    { border-color: var(--hall); color: var(--hall); }
+.btn--danger  { border-color: var(--danger); color: var(--danger); }
+.btn--dashed  { border-style: dashed; border-color: #B89B7A; background: #FBF8F3; }
+.btn--small   { min-height: 36px; font-size: 13px; padding: 0 12px; }
+.btn--block   { width: 100%; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- 選ぶボタン（チップ）：押すと色がつく ---------- */
+.chip {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.chip--hall[aria-pressed="true"]    { background: var(--hall); border-color: var(--hall); }
+.chip--kitchen[aria-pressed="true"] { background: var(--kitchen); border-color: var(--kitchen); }
+.chip--ok[aria-pressed="true"]      { background: var(--ok); border-color: var(--ok); }
+.chip--danger[aria-pressed="true"]  { background: var(--danger); border-color: var(--danger); }
+.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+
+/* ---------- 入力欄 ---------- */
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-3); }
+.input, .select, .textarea {
+  min-height: var(--tap);
+  border-radius: 8px;
+  border: 1px solid #CDB79E;
+  background: var(--surface);
+  padding: 0 10px;
+  font-size: 16px;
+  color: var(--ink);
+  width: 100%;
+}
+.textarea { padding: 10px; min-height: 90px; resize: vertical; }
+.time-range { display: flex; align-items: center; gap: 8px; }
+.time-range .select { flex: 1; }
+
+/* ---------- お知らせの帯 ---------- */
+.notice { padding: 10px 12px; border-radius: 10px; font-size: 14px; font-weight: 700; }
+.notice--ok     { background: var(--ok-bg); color: var(--ok); }
+.notice--warn   { background: var(--warn-bg); color: var(--warn); }
+.notice--danger { background: var(--danger-bg); color: var(--danger); }
+.notice--info   { background: #E7F1FB; color: #1C4680; }
+
+/* ---------- 小さいラベル ---------- */
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ink-3);
+  color: #fff;
+}
+.badge--hall { background: var(--hall); }
+.badge--kitchen { background: var(--kitchen); }
+.badge--warn { background: #C27A00; }
+
+/* ---------- 確認ダイアログ（画面の上に出る箱） ---------- */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(43, 33, 26, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.dialog {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.dialog__title { margin: 0; font-size: 19px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.dialog__title svg { width: 26px; height: 26px; }
+.dialog__actions { display: flex; gap: 10px; }
+.dialog__actions .btn { flex: 1; }
+
+/* ---------- 一覧（チェック結果など） ---------- */
+.check-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.check-list li { padding: 7px 10px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; }
+.check-list .is-ok { background: var(--ok-bg); color: var(--ok); }
+.check-list .is-ng { background: var(--danger-bg); color: var(--danger); }
