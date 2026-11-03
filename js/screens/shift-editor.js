@@ -23,13 +23,14 @@ import { range, snap, timeOptions } from "../lib/time.js";
 
 export async function renderShiftEditor(app) {
   // ---------- 最初に全部読む ----------
-  const [periods, members, positions, requirements, holidays, rules] = await Promise.all([
+  const [periods, members, positions, requirements, holidays, rules, storeHours] = await Promise.all([
     api.listPeriods(), api.listMembers(), api.listPositions(), api.listRequirements(),
-    api.listHolidays(), api.listMemberRules(),
+    api.listHolidays(), api.listMemberRules(), api.getStoreHours(),
   ]);
   const active = members.filter((m) => m.active);
   const ruleOf = (id) => rules.find((r) => r.memberId === id)?.text || "なし";
   const dayTypeOf = (d) => dayType(d, holidays);
+  const hoursOf = (d) => storeHours[dayTypeOf(d)];          // その日の営業時間（マップ画面で店長が決める）
 
   // ---------- 画面の中で持つ状態 ----------
   let period = workingPeriod(periods);
@@ -69,6 +70,7 @@ export async function renderShiftEditor(app) {
     return checkDay({
       date: d,
       dayType: dayTypeOf(d),
+      hours: hoursOf(d),
       assignments: work.filter((a) => a.date === d),
       members, requirements, positions,
       availabilities: hopes.filter((x) => x.date === d),
@@ -99,7 +101,7 @@ export async function renderShiftEditor(app) {
     mount(app,
       screenHeader({
         title: "シフト作成",
-        sub: `${weekLabel(period)} ・ ${STATUS_LABEL[period.status]}`,
+        sub: `${weekLabel(period)} ・ ${STATUS_LABEL[period.status]} ・ この日の営業 ${range(hoursOf(date).open, hoursOf(date).close)}`,
         right: h("select", { class: "select", style: { width: "auto" }, "aria-label": "週を選ぶ", onchange: changeWeek },
           periods.map((p) => h("option", { value: p.id, selected: p.id === period.id }, `${weekLabel(p)}（${STATUS_LABEL[p.status]}）`))),
         extra: h("div", { class: "chip-row" },
@@ -271,7 +273,7 @@ export async function renderShiftEditor(app) {
     const past = prev ? await api.listAssignments(prev.id) : [];
     work = makeDraft({
       dates: datesOf(period), members, availabilities: hopes, requirements, positions,
-      fixed: work.filter((a) => a.fixed), past, dayTypeOf,
+      fixed: work.filter((a) => a.fixed), past, dayTypeOf, hoursOf,
     });
     await persist();
     toast("下書きを作りました（簡易版）。赤い所を直してください");

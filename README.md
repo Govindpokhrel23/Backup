@@ -56,7 +56,7 @@ shift-app/
 │     ├─ shift-editor.js   シフト作成（店長）
 │     ├─ store-menu.js     店舗メニュー（店長）
 │     ├─ staff.js          店員管理（立場・できること％・人ごとのルール）
-│     ├─ map.js            マップ・必要人数
+│     ├─ map.js            マップ・必要人数・営業時間
 │     └─ settings.js       設定・ログアウト
 └─ tests/
    └─ rules.test.mjs       ルールチェックの自動テスト

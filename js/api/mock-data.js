@@ -60,9 +60,9 @@ export function createMockData() {
 
   // ---------- 担当場所（マップの人のマーク） ----------
   const positions = [
-    { id: "p-snack", storeId: "s-fukugama", name: "スナック", area: "kitchen", x: 571, y: 100 },
-    { id: "p-drink", storeId: "s-fukugama", name: "ドリンク", area: "kitchen", x: 650, y: 100 },
-    { id: "p-arai", storeId: "s-fukugama", name: "洗い場", area: "kitchen", x: 730, y: 100 },
+    { id: "p-snack", storeId: "s-fukugama", name: "スナック", area: "kitchen", x: 560, y: 110 },
+    { id: "p-drink", storeId: "s-fukugama", name: "ドリンク", area: "kitchen", x: 665, y: 110 },
+    { id: "p-arai", storeId: "s-fukugama", name: "洗い場", area: "kitchen", x: 770, y: 110 },
     { id: "p-reji", storeId: "s-fukugama", name: "レジ", area: "hall", x: 640, y: 270 },
     { id: "p-chumon", storeId: "s-fukugama", name: "注文", area: "hall", x: 300, y: 300 },
     { id: "p-set", storeId: "s-fukugama", name: "セット", area: "hall", x: 470, y: 250 },

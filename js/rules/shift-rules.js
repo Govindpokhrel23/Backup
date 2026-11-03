@@ -23,6 +23,9 @@ import { STEP, fmt, overlaps } from "../lib/time.js";
  * @property {string}  [date]   どの日か
  */
 
+/** 営業時間が分からない時の初期値（7:00〜22:00） */
+const DEFAULT_HOURS = { open: CONFIG.DAY_START, close: CONFIG.DAY_END };
+
 // ------------------------------------------------------------
 // 必要人数
 // ------------------------------------------------------------
@@ -57,11 +60,11 @@ export function assignedAt(dayAssignments, area, minute) {
  * 15分ごとに「必要」と「実際」を比べて、続いている所はまとめる
  * @returns {{area:string, from:number, to:number, short:number}[]}
  */
-export function findShortages(dayAssignments, requirements, positions, dayType) {
+export function findShortages(dayAssignments, requirements, positions, dayType, hours = DEFAULT_HOURS) {
   const result = [];
   for (const area of ["hall", "kitchen"]) {
     let open = null;                       // 今まとめている不足の時間帯
-    for (let m = CONFIG.DAY_START; m < CONFIG.DAY_END; m += STEP) {
+    for (let m = hours.open; m < hours.close; m += STEP) {          // 営業時間の中だけ見る
       const need = requiredAt(requirements, positions, dayType, area, m);
       const have = assignedAt(dayAssignments, area, m);
       const short = Math.max(0, need - have);
@@ -92,15 +95,17 @@ export function findShortages(dayAssignments, requirements, positions, dayType) 
  * @param {object[]} p.requirements  場所ごとの必要人数
  * @param {object[]} p.positions     担当場所
  * @param {object[]} p.availabilities その日の希望
+ * @param {{open:number,close:number}} [p.hours] その日の営業時間（なければ7:00〜22:00）
  * @returns {Problem[]}
  */
 export function checkDay(p) {
   const out = [];
+  const hours = p.hours || DEFAULT_HOURS;
   const memberOf = new Map(p.members.map((m) => [m.id, m]));
   const nameOf = (id) => memberOf.get(id)?.name || "？";
 
   // ① 必要人数
-  const shortages = findShortages(p.assignments, p.requirements, p.positions, p.dayType);
+  const shortages = findShortages(p.assignments, p.requirements, p.positions, p.dayType, hours);
   if (shortages.length === 0) {
     out.push({ ok: true, code: "shortage", text: "場所ごとの必要人数" });
   } else {
@@ -113,17 +118,17 @@ export function checkDay(p) {
   }
 
   // ② 立ち上げ：開店の時刻に、立ち上げ100％の人がいる
-  const opener = p.assignments.some((a) => a.from <= CONFIG.DAY_START && memberOf.get(a.memberId)?.skills?.open === 100);
+  const opener = p.assignments.some((a) => a.from <= hours.open && memberOf.get(a.memberId)?.skills?.open === 100);
   out.push({
     ok: opener, code: "open", date: p.date,
-    text: opener ? `立ち上げ（${fmt(CONFIG.DAY_START)}）にできる人がいる` : `立ち上げ（${fmt(CONFIG.DAY_START)}）にできる人がいない`,
+    text: opener ? `立ち上げ（${fmt(hours.open)}）にできる人がいる` : `立ち上げ（${fmt(hours.open)}）にできる人がいない`,
   });
 
   // ③ 締め：閉店の時刻に、締め100％の人がいる
-  const closer = p.assignments.some((a) => a.to >= CONFIG.DAY_END && memberOf.get(a.memberId)?.skills?.close === 100);
+  const closer = p.assignments.some((a) => a.to >= hours.close && memberOf.get(a.memberId)?.skills?.close === 100);
   out.push({
     ok: closer, code: "close", date: p.date,
-    text: closer ? `締め（${fmt(CONFIG.DAY_END)}）にできる人がいる` : `締め（${fmt(CONFIG.DAY_END)}）にできる人がいない`,
+    text: closer ? `締め（${fmt(hours.close)}）にできる人がいる` : `締め（${fmt(hours.close)}）にできる人がいない`,
   });
 
   // ④ 休憩：長い勤務には休憩の目安（○）がある

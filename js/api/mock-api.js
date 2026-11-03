@@ -237,6 +237,31 @@ export const mockApi = {
     return reply(load().holidays || []);
   },
 
+  // ---------- 営業時間（store_hours） ----------
+
+  /**
+   * 自分の店舗の営業時間
+   * @returns {{weekday:{open,close}, sat:{open,close}, sun:{open,close}}}
+   */
+  async getStoreHours() {
+    const data = load();
+    const user = me(data);
+    return reply((data.storeHours || {})[user.storeId] || defaultHours());
+  },
+
+  /** 営業時間を保存（店長） */
+  async saveStoreHours(hours) {
+    const data = load();
+    const boss = requireManager(data);
+    for (const key of ["weekday", "sat", "sun"]) {
+      if (hours[key].close <= hours[key].open) return fail("閉店は開店より後にしてください");
+    }
+    data.storeHours = data.storeHours || {};
+    data.storeHours[boss.storeId] = hours;
+    save(data);
+    return reply(true);
+  },
+
   // ---------- 受付（週） ----------
 
   async listPeriods() {
@@ -363,6 +388,12 @@ export const mockApi = {
 // ------------------------------------------------------------
 // 内部で使う小さな関数
 // ------------------------------------------------------------
+
+/** 営業時間がまだ決まっていない時の初期値（7:00〜22:00） */
+function defaultHours() {
+  const d = { open: 7 * 60, close: 22 * 60 };
+  return { weekday: { ...d }, sat: { ...d }, sun: { ...d } };
+}
 
 /** 6桁の初回コードを作って保存する */
 function issueCode(data, loginId) {
