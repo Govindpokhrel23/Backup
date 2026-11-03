@@ -2,6 +2,7 @@
 // components/assignment-panel.js — シフト作成の右の欄（1人分）
 // ------------------------------------------------------------
 // 店長が、選んだ人のその日の勤務を自由に直すための道具：
+//   ・公開したあとは「編集する」を押すまで直せない（locked）
 //   ・時間（5:00〜翌2:00、15分刻み）
 //   ・ホール／キッチン、休憩の目安（あり・なし・時刻）、固定
 //   ・別の人に移す
@@ -12,7 +13,8 @@
 
 import { h } from "../lib/dom.js";
 import { CONFIG } from "../config.js";
-import { range, snap, timeOptions, EDIT_MIN, EDIT_MAX } from "../lib/time.js";
+import { fmt, range, timeOptions, EDIT_MIN, EDIT_MAX } from "../lib/time.js";
+import { defaultBreak, breakWindow } from "../lib/breaks.js";
 
 /**
  * @param {object} p
@@ -26,6 +28,8 @@ import { range, snap, timeOptions, EDIT_MIN, EDIT_MAX } from "../lib/time.js";
  * @param {()=>void} p.onAdd         勤務を足す
  * @param {(a:object)=>void} p.onRemove     勤務を消す
  * @param {()=>void} [p.onApproveSpecial]   特別許可を出す
+ * @param {boolean}  [p.locked]      公開済みで直せない時は見るだけ
+ * @param {object[]} [p.elsewhere]   その日ほかの店舗に入っている勤務（storeShort つき）
  */
 export function assignmentPanel(p) {
   const m = p.member;
@@ -46,10 +50,17 @@ export function assignmentPanel(p) {
       ? h("button", { class: "btn btn--small", onclick: p.onApproveSpecial }, "特別許可を出す（休みにする）")
       : null,
 
-    // この人のその日の勤務（中抜けなら2つ以上）
-    p.assignments.map((a, i) => workEditor(p, a, i, p.assignments.length)),
+    // ほかの店舗に入っている時間（重ねないように見せる）
+    (p.elsewhere || []).map((a) => h("div", { class: "notice notice--info", style: { fontWeight: 400 } }, `この日は ${a.storeShort} に ${range(a.from, a.to)} 入っています`)),
 
-    h("button", { class: "btn btn--dashed", onclick: p.onAdd },
+    // 公開済みで「編集する」を押していない時は、見るだけ
+    p.locked
+      ? p.assignments.map((a) => h("div", { class: "work-edit" },
+          h("strong", { class: "num" }, range(a.from, a.to)),
+          h("span", { class: "home-muted" }, `${a.area === "hall" ? "ホール" : "キッチン"}${a.breakAt != null ? ` ・ 休憩 ${fmt(a.breakAt)}` : ""}`)))
+      : p.assignments.map((a, i) => workEditor(p, a, i, p.assignments.length)),
+
+    p.locked ? null : h("button", { class: "btn btn--dashed", onclick: p.onAdd },
       p.assignments.length
         ? "＋ もう1つ勤務を足す（中抜けなど）"
         : hope?.kind === "time" ? `＋ 希望の時間（${range(hope.from, hope.to)}）で入れる` : "＋ 勤務を追加"),
@@ -72,11 +83,13 @@ function workEditor(p, a, index, count) {
     h("div", { class: "chip-row" },
       h("button", { class: "chip chip--hall", "aria-pressed": String(a.area === "hall"), onclick: () => p.onEdit(() => { a.area = "hall"; }) }, "ホール"),
       h("button", { class: "chip chip--kitchen", "aria-pressed": String(a.area === "kitchen"), onclick: () => p.onEdit(() => { a.area = "kitchen"; }) }, "キッチン"),
-      h("button", { class: "chip", "aria-pressed": String(a.breakAt != null), onclick: () => p.onEdit(() => { a.breakAt = a.breakAt != null ? null : snap((a.from + a.to) / 2); }) }, "休憩 ○"),
+      // 休憩○：押すと真ん中に入る（朝11:00より前には入れない。置けない短い勤務なら入らない）
+      h("button", { class: "chip", "aria-pressed": String(a.breakAt != null), onclick: () => p.onEdit(() => { a.breakAt = a.breakAt != null ? null : defaultBreak(a.from, a.to); }) }, "休憩 ○"),
       h("button", { class: "chip", "aria-pressed": String(!!a.fixed), onclick: () => p.onEdit(() => { a.fixed = !a.fixed; }) }, "固定"),
     ),
-    a.breakAt != null
-      ? h("label", { class: "field" }, "休憩の目安", sel(a.breakAt, (v) => { a.breakAt = v; }, "休憩", a.from, a.to))
+    a.breakAt != null && breakWindow(a.from, a.to)
+      ? h("label", { class: "field" }, "休憩の目安（11:00より後。表の○もドラッグで動かせます）",
+          sel(a.breakAt, (v) => { a.breakAt = v; }, "休憩", breakWindow(a.from, a.to).earliest, breakWindow(a.from, a.to).latest))
       : null,
     h("label", { class: "field" }, "別の人に移す",
       h("select", { class: "select", onchange: (e) => { if (e.target.value) p.onEdit(() => { a.memberId = e.target.value; }); } },

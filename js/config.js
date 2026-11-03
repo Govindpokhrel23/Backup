@@ -22,6 +22,12 @@ export const CONFIG = {
   // 長い勤務とみなす長さ（これ以上なら休憩が必要）
   BREAK_NEEDED_MIN: 6 * 60,
 
+  // 休憩を入れてよい一番早い時刻（朝11:00より前は休憩を入れない）
+  BREAK_EARLIEST: 11 * 60,
+
+  // 希望とシフトを作れる先の長さ（か月）
+  MONTHS_AHEAD: 2,
+
   // 社員の休み希望の上限（週）
   SHAIN_OFF_LIMIT: 2,
 

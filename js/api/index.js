@@ -11,6 +11,7 @@
 
 import { CONFIG } from "../config.js";
 import { mockApi } from "./mock-api.js";
+import { readCache, writeCache } from "../lib/offline-cache.js";
 
 function pickApi() {
   if (CONFIG.API_MODE === "mock") return mockApi;
@@ -18,4 +19,24 @@ function pickApi() {
   throw new Error(`API_MODE "${CONFIG.API_MODE}" はまだ作っていません`);
 }
 
-export const api = pickApi();
+const base = pickApi();
+
+/**
+ * 画面が使う api
+ * 「自分の勤務」だけは、読めたらスマホにも保存し、
+ * サーバーにつながらない時はスマホに保存した分を返す（lib/offline-cache.js）
+ */
+export const api = {
+  ...base,
+  async listMyAssignments() {
+    const user = await base.currentUser().catch(() => null);
+    const id = user?.id;
+    try {
+      const fresh = await base.listMyAssignments();
+      return id ? writeCache(id, fresh) : fresh;
+    } catch (e) {
+      console.warn("サーバーにつながらないので、スマホに保存した自分のシフトを出します", e);
+      return id ? readCache(id) : [];
+    }
+  },
+};

@@ -9,6 +9,7 @@ import { h, mount } from "../lib/dom.js";
 import { api } from "../api/index.js";
 import { screenHeader } from "../components/header.js";
 import { timeline } from "../components/timeline.js";
+import { dayList } from "../components/day-list.js";
 import { weekLabel, datesOf } from "../lib/period.js";
 import { label, today, dayType } from "../lib/date.js";
 import { CONFIG } from "../config.js";
@@ -51,6 +52,7 @@ export async function renderPublished(app) {
             editable: false,
           }),
         ),
+        dayList({ assignments: assignments.filter((a) => a.date === date), members, hours: storeHours[dayType(date, holidays)] }),
       ),
     );
   }

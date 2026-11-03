@@ -3,6 +3,7 @@
 // ============================================================
 
 import { h } from "../lib/dom.js";
+import { isManager, currentStore } from "../store.js";
 
 /**
  * @param {object} p
@@ -12,9 +13,12 @@ import { h } from "../lib/dom.js";
  * @param {Node}   [p.extra]    見出しの下に足すもの（お知らせなど）
  */
 export function screenHeader({ title, sub, right, extra }) {
+  // 店長は3店舗を切り替えるので、どの店舗を見ているか、いつも見出しに出す
+  const store = isManager() ? currentStore() : null;
   return h("header", { class: "screen-header" },
     h("div", { class: "screen-header__row" },
-      h("h1", { class: "screen-header__title" }, title),
+      h("h1", { class: "screen-header__title" }, title,
+        store ? h("span", { class: "store-badge" }, store.name) : null),
       right || null,
     ),
     sub ? h("div", { class: "screen-header__sub" }, sub) : null,

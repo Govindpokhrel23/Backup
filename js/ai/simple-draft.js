@@ -12,18 +12,22 @@
 //   2. 優先順に並べる：毎日入る人・フルのバイト → できる％が高い人 → 過去によく入っている人
 //   3. 足りない時間に重なる希望だけ入れる（希望より短く入れるのもOK）
 //   4. 社員は休みの日以外、毎日入れる（希望なし＝休み週1日／休み希望あり＝その日・週2日まで）
-//   5. 長い勤務には休憩の目安を真ん中に入れる
-//   6. 7日全部入った人は、1日休みにする（週1休み）
+//   5. まだ足りなければ、2nd・3rd でこの店舗に行ける人（応援）を、希望の中で入れる
+//      ほかの店舗に入っている時間とは重ねない
+//   6. 長い勤務には休憩の目安を入れる（真ん中。朝11:00より前には入れない）
+//   7. 7日全部入った人は、1日休みにする（週1休み）
 // ============================================================
 
 import { CONFIG } from "../config.js";
 import { requiredAt, assignedAt } from "../rules/shift-rules.js";
-import { STEP, snap } from "../lib/time.js";
+import { STEP, overlaps } from "../lib/time.js";
+import { defaultBreak } from "../lib/breaks.js";
 
 /**
  * @param {object} p
  * @param {string[]} p.dates
- * @param {object[]} p.members
+ * @param {object[]} p.members        この店舗で働ける人（rankHere：1＝メイン、2以上＝応援）
+ * @param {object[]} [p.elsewhere]    同じ週にほかの店舗に入っている勤務（重ねないため）
  * @param {object[]} p.availabilities
  * @param {object[]} p.requirements
  * @param {object[]} p.positions
@@ -46,11 +50,17 @@ export function makeDraft(p) {
     + Math.max(m.skills.hall, m.skills.kitchen)
     + (pastCount.get(m.id) || 0);
   const members = p.members.filter((m) => m.active).sort((a, b) => score(b) - score(a));
-  const shain = members.filter((m) => m.kind === "shain");
+  const isMain = (m) => (m.rankHere ?? 1) === 1;
+  const shain = members.filter((m) => m.kind === "shain" && isMain(m));
+  const helpers = members.filter((m) => !isMain(m)).sort((a, b) => a.rankHere - b.rankHere || score(b) - score(a));
+  const elsewhere = p.elsewhere || [];
 
   const dayOf = (date) => result.filter((a) => a.date === date);
   const hopeOf = (m, date) => p.availabilities.find((a) => a.memberId === m.id && a.date === date);
   const working = (m, date) => result.some((a) => a.memberId === m.id && a.date === date);
+  /** その時間、ほかの店舗に入っているか */
+  const busyElsewhere = (m, date, from, to) =>
+    elsewhere.some((a) => a.memberId === m.id && a.date === date && overlaps(a.from, a.to, from, to));
 
   // ============================================================
   // ① バイト・フル：希望の中で、足りない時間にだけ入れる（全部の日）
@@ -58,7 +68,7 @@ export function makeDraft(p) {
   for (const date of p.dates) {
     const dayType = p.dayTypeOf(date);
     for (const m of members) {
-      if (m.kind === "shain" || working(m, date)) continue;
+      if (m.kind === "shain" || !isMain(m) || working(m, date)) continue;
       const hope = hopeOf(m, date);
       if (!hope || !["time", "any"].includes(hope.kind)) continue;
       const hrs = p.hoursOf(date);
@@ -66,7 +76,7 @@ export function makeDraft(p) {
       const to = hope.kind === "time" ? hope.to : hrs.close;
       const area = m.skills.kitchen > m.skills.hall ? "kitchen" : "hall";
       const span = neededSpan(dayOf(date), p, dayType, area, from, to);
-      if (span) result.push(work(m, date, span.from, span.to, area));
+      if (span && !busyElsewhere(m, date, span.from, span.to)) result.push(work(m, date, span.from, span.to, area));
     }
   }
 
@@ -100,7 +110,9 @@ export function makeDraft(p) {
     const hrs = p.hoursOf(date);
     const MORNING = [hrs.open, Math.min(hrs.close, hrs.open + 9 * 60)];     // 朝：開店から9時間
     const EVENING = [Math.max(hrs.open, hrs.close - 9 * 60), hrs.close];    // 夜：閉店までの9時間
-    const todo = shain.filter((m) => !offDays.get(m.id)?.has(date) && !working(m, date));
+    // 休みの日・もう入っている日・ほかの店舗に入っている日は入れない
+    const todo = shain.filter((m) => !offDays.get(m.id)?.has(date) && !working(m, date)
+      && !elsewhere.some((a) => a.memberId === m.id && a.date === date));
     const has = (skill, check) => dayOf(date).some((a) => check(a) && p.members.find((m) => m.id === a.memberId)?.skills[skill] === 100);
     const place = (m, [from, to], area) => {
       const hope = hopeOf(m, date);
@@ -133,7 +145,33 @@ export function makeDraft(p) {
   }
 
   // ============================================================
-  // ④ 週1休み：7日全部入った人は、いちばん短い日を休みにする（固定は消さない）
+  // ④ まだ足りなければ、応援（2nd・3rd でこの店舗に行ける人）を入れる
+  //    順番の早い人（2nd → 3rd）から。希望の中で、足りない時間だけ
+  // ============================================================
+  for (const date of p.dates) {
+    const dayType = p.dayTypeOf(date);
+    for (const m of helpers) {
+      if (working(m, date)) continue;
+      const hope = hopeOf(m, date);
+      if (!hope || !["time", "any"].includes(hope.kind)) continue;
+      const hrs = p.hoursOf(date);
+      const from = hope.kind === "time" ? hope.from : hrs.open;
+      const to = hope.kind === "time" ? hope.to : hrs.close;
+      for (const area of ["hall", "kitchen"]) {
+        if (m.skills[area] < 50) continue;
+        const span = neededSpan(dayOf(date), p, dayType, area, from, to);
+        if (span && !busyElsewhere(m, date, span.from, span.to)) {
+          const a = work(m, date, span.from, span.to, area);
+          a.helper = true;                         // 応援として入れた印
+          result.push(a);
+          break;
+        }
+      }
+    }
+  }
+
+  // ============================================================
+  // ⑤ 週1休み：7日全部入った人は、いちばん短い日を休みにする（固定は消さない）
   // ============================================================
   for (const m of p.members) {
     const mine = result.filter((a) => a.memberId === m.id);
@@ -157,7 +195,7 @@ function work(member, date, from, to, area) {
   const long = to - from >= CONFIG.BREAK_NEEDED_MIN;
   return {
     memberId: member.id, date, from, to, area,
-    breakAt: long ? snap((from + to) / 2) : null,
+    breakAt: long ? defaultBreak(from, to) : null,          // 朝11:00より前には入れない
     fixed: false, createdBy: "ai", requested: false,
   };
 }

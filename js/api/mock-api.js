@@ -13,7 +13,7 @@ import { createMockData } from "./mock-data.js";
 import { today, addDays, weekDates } from "../lib/date.js";
 
 // 形を変えたら番号を上げる（古い見本データは自動で作り直される）
-const STORAGE_KEY = "shiftapp-mock-v2";
+const STORAGE_KEY = "shiftapp-mock-v3";
 
 // ------------------------------------------------------------
 // 保存と読み込み
@@ -60,6 +60,26 @@ function me(data) {
   return data.members.find((x) => x.id === data.session.memberId) || null;
 }
 
+/**
+ * 今見ている店舗
+ * ・店長 → ホームで切り替えた店舗（3店舗を管理できる）
+ * ・店員 → メインの店舗
+ */
+function storeOf(data) {
+  return data.session?.storeId || me(data)?.storeId;
+}
+
+/** その人がその店舗に行けるか（店長が決めた「行ける店舗」） */
+function canWorkAt(member, storeId) {
+  return member.storeId === storeId || (member.stores || []).some((s) => s.storeId === storeId);
+}
+
+/** その店舗での順番（1＝メイン、2＝2nd、3＝3rd。行けなければ null） */
+function rankAt(member, storeId) {
+  if (member.stores?.length) return member.stores.find((s) => s.storeId === storeId)?.rank ?? null;
+  return member.storeId === storeId ? 1 : null;
+}
+
 /** 店長でなければエラー */
 function requireManager(data) {
   const user = me(data);
@@ -81,7 +101,7 @@ export const mockApi = {
     if (!user || data.passwords[loginId] !== password) {
       return fail("IDかパスワードが違います");
     }
-    data.session = { memberId: user.id };
+    data.session = { memberId: user.id, storeId: user.storeId };
     save(data);
     return reply(user);
   },
@@ -112,7 +132,7 @@ export const mockApi = {
     if (!password || password.length < 4) return fail("パスワードは4文字以上にしてください");
     hit.used = true;
     data.passwords[loginId] = password;
-    data.session = { memberId: user.id };
+    data.session = { memberId: user.id, storeId: user.storeId };
     save(data);
     return reply(user);
   },
@@ -123,12 +143,34 @@ export const mockApi = {
     return reply(load().stores);
   },
 
-  /** 同じ店舗の店員の一覧 */
+  /** 今見ている店舗のID */
+  async currentStoreId() {
+    return reply(storeOf(load()));
+  },
+
+  /** 店舗を切り替える（店長だけ。ホームから） */
+  async setCurrentStore(storeId) {
+    const data = load();
+    requireManager(data);
+    if (!data.stores.some((s) => s.id === storeId)) return fail("店舗が見つかりません");
+    data.session.storeId = storeId;
+    save(data);
+    return reply(storeId);
+  },
+
+  /**
+   * 今の店舗で働ける店員の一覧
+   * メイン（rank 1）の人に加えて、2nd・3rd でこの店舗に行ける人も入る
+   * 返す時に「この店舗での順番」を rankHere につける
+   */
   async listMembers() {
     const data = load();
     const user = me(data);
     if (!user) return fail("ログインしてください");
-    return reply(data.members.filter((x) => x.storeId === user.storeId));
+    const store = storeOf(data);
+    return reply(data.members
+      .filter((x) => canWorkAt(x, store))
+      .map((x) => ({ ...x, rankHere: rankAt(x, store) })));
   },
 
   /**
@@ -136,14 +178,17 @@ export const mockApi = {
    * 立場（社員／バイト／フル）とできること％は、ここで店長が決める
    * @returns {{member, code}} code＝本人に渡す初回コード（6桁）
    */
-  async createMember({ name, kind, skills, everyday }) {
+  async createMember({ name, kind, skills, everyday, stores }) {
     const data = load();
-    const boss = requireManager(data);
-    // ID は店舗の中で一番大きい番号＋1
+    requireManager(data);
+    // ID は会社の中で一番大きい番号＋1
     const maxId = Math.max(...data.members.map((x) => Number(x.loginId)));
+    // 行ける店舗：決めていなければ、今の店舗だけ（メイン）
+    const list = stores?.length ? stores : [{ storeId: storeOf(data), rank: 1 }];
     const member = {
       id: `m${Date.now()}`,
-      storeId: boss.storeId,
+      storeId: list.find((s) => s.rank === 1)?.storeId || list[0].storeId,
+      stores: list,
       loginId: String(maxId + 1),
       name, role: "staff", kind, skills, everyday: !!everyday, active: true,
     };
@@ -159,7 +204,11 @@ export const mockApi = {
     requireManager(data);
     const i = data.members.findIndex((x) => x.id === member.id);
     if (i < 0) return fail("店員が見つかりません");
-    data.members[i] = { ...data.members[i], ...member };
+    const { rankHere, ...clean } = member;          // 画面用の rankHere は保存しない
+    data.members[i] = { ...data.members[i], ...clean };
+    // メインの店舗（rank 1）を storeId にもそろえる
+    const main = data.members[i].stores?.find((s) => s.rank === 1);
+    if (main) data.members[i].storeId = main.storeId;
     save(data);
     return reply(data.members[i]);
   },
@@ -202,26 +251,25 @@ export const mockApi = {
 
   async listPositions() {
     const data = load();
-    const user = me(data);
-    return reply(data.positions.filter((x) => x.storeId === user.storeId));
+    return reply(data.positions.filter((x) => x.storeId === storeOf(data)));
   },
 
   async savePositions(positions) {
     const data = load();
-    const boss = requireManager(data);
+    requireManager(data);
+    const store = storeOf(data);
     const ids = new Set(positions.map((p) => p.id));
     // 消したマークの必要人数も一緒に消す
-    const mineBefore = new Set(data.positions.filter((p) => p.storeId === boss.storeId).map((p) => p.id));
+    const mineBefore = new Set(data.positions.filter((p) => p.storeId === store).map((p) => p.id));
     data.requirements = data.requirements.filter((r) => !mineBefore.has(r.positionId) || ids.has(r.positionId));
-    data.positions = data.positions.filter((p) => p.storeId !== boss.storeId).concat(positions.map((p) => ({ ...p, storeId: boss.storeId })));
+    data.positions = data.positions.filter((p) => p.storeId !== store).concat(positions.map((p) => ({ ...p, storeId: store })));
     save(data);
     return reply(true);
   },
 
   async listRequirements() {
     const data = load();
-    const user = me(data);
-    const mine = new Set(data.positions.filter((p) => p.storeId === user.storeId).map((p) => p.id));
+    const mine = new Set(data.positions.filter((p) => p.storeId === storeOf(data)).map((p) => p.id));
     return reply(data.requirements.filter((r) => mine.has(r.positionId)));
   },
 
@@ -247,19 +295,18 @@ export const mockApi = {
    */
   async getStoreHours() {
     const data = load();
-    const user = me(data);
-    return reply((data.storeHours || {})[user.storeId] || defaultHours());
+    return reply((data.storeHours || {})[storeOf(data)] || defaultHours());
   },
 
   /** 営業時間を保存（店長） */
   async saveStoreHours(hours) {
     const data = load();
-    const boss = requireManager(data);
+    requireManager(data);
     for (const key of ["weekday", "sat", "sun"]) {
       if (hours[key].close <= hours[key].open) return fail("閉店は開店より後にしてください");
     }
     data.storeHours = data.storeHours || {};
-    data.storeHours[boss.storeId] = hours;
+    data.storeHours[storeOf(data)] = hours;
     save(data);
     return reply(true);
   },
@@ -268,8 +315,24 @@ export const mockApi = {
 
   async listPeriods() {
     const data = load();
-    const user = me(data);
-    return reply(data.periods.filter((p) => p.storeId === user.storeId).sort((a, b) => a.weekStart.localeCompare(b.weekStart)));
+    return reply(data.periods.filter((p) => p.storeId === storeOf(data)).sort((a, b) => a.weekStart.localeCompare(b.weekStart)));
+  },
+
+  /**
+   * その週の受付がなければ作る（店長が先の週のシフトを作る時）
+   * シフト作成の「次の週へ」で使う
+   */
+  async ensurePeriod(weekStart) {
+    const data = load();
+    requireManager(data);
+    const store = storeOf(data);
+    let p = data.periods.find((x) => x.storeId === store && x.weekStart === weekStart);
+    if (!p) {
+      p = { id: `w-${store}-${weekStart}`, storeId: store, weekStart, deadline: `${addDays(weekStart, -1)}T24:00`, status: "open", note: "" };
+      data.periods.push(p);
+      save(data);
+    }
+    return reply(p);
   },
 
   /** 受付の状態を変える（open=受付中 / closed=締切 / published=公開） */
@@ -311,7 +374,7 @@ export const mockApi = {
     const period = data.periods.find((p) => p.id === periodId);
     if (!period) return reply([]);
     const dates = new Set(weekDates(period.weekStart));
-    const storeMembers = new Set(data.members.filter((m) => m.storeId === period.storeId).map((m) => m.id));
+    const storeMembers = new Set(data.members.filter((m) => canWorkAt(m, period.storeId)).map((m) => m.id));
     let list = data.availabilities.filter((a) => dates.has(a.date) && storeMembers.has(a.memberId));
     if (user.role !== "manager") list = list.filter((a) => a.memberId === user.id);
     return reply(list);
@@ -367,6 +430,16 @@ export const mockApi = {
     return reply(data.assignments.filter((a) => a.periodId === periodId));
   },
 
+  /**
+   * 全店舗の勤務（日付の範囲）。店長だけ
+   * 他の店舗に入っている時間と重ならないか確かめるのに使う
+   */
+  async listAssignmentsByDates(from, to) {
+    const data = load();
+    requireManager(data);
+    return reply(data.assignments.filter((a) => a.date >= from && a.date <= to));
+  },
+
   /** 自分の勤務（個人カレンダー用。応援先の店舗も含む） */
   async listMyAssignments() {
     const data = load();
@@ -400,9 +473,10 @@ export const mockApi = {
   /** 公開した時：全員にお知らせ（本物ではプッシュ通知も送る） */
   async notifyPublished(periodId, weekLabel) {
     const data = load();
-    const boss = requireManager(data);
+    requireManager(data);
     data.notifications = data.notifications || [];
-    data.members.filter((x) => x.storeId === boss.storeId && x.active).forEach((x) => {
+    // その店舗で働ける人（2nd・3rd の人も）全員に知らせる
+    data.members.filter((x) => canWorkAt(x, storeOf(data)) && x.active).forEach((x) => {
       data.notifications.push({ memberId: x.id, at: new Date().toISOString(), text: `${weekLabel}のシフトが公開されました` });
     });
     save(data);

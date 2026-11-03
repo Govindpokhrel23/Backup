@@ -7,13 +7,19 @@
 // ============================================================
 
 import { api } from "./api/index.js";
-import { state } from "./store.js";
+import { state, loadStoreInfo } from "./store.js";
 import { startRouter } from "./router.js";
 
 async function start() {
   // 前にログインしていれば、その人の情報を読む
   state.user = await api.currentUser();
+  await loadStoreInfo();
   startRouter();
 }
 
 start();
+
+// 電波がない時もアプリを開けるように、サービスワーカーを登録する（sw.js）
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch((e) => console.warn("サービスワーカーを登録できませんでした", e));
+}

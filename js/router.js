@@ -45,7 +45,7 @@ const TABS = {
   manager: [
     { path: "/home", label: "ホーム", icon: "home" },
     { path: "/shift", label: "シフト作成", icon: "edit" },
-    { path: "/calendar", label: "カレンダー", icon: "calendar" },
+    { path: "/calendar", label: "自分の勤務", icon: "calendar" },   // 店長も仕事に入るので、自分の勤務を見るタブ
     { path: "/store", label: "店舗", icon: "store" },
   ],
   staff: [

@@ -7,6 +7,8 @@
 //   ・「AIで作成」で下書き、「前週コピー」で先週と同じにする
 //   ・ルールのチェックを常に表示（赤＝守れていない）
 //   ・「公開する」：守れていなければ⚠️警告 →「はい」でそのまま公開
+//   ・公開したあとは見るだけ。「編集する」を押すと直せる（2026年11月3日）
+//   ・「前の週／次の週」で2か月先まで作れる。ほかの店舗に入っている時間は灰色で出る
 //   ・店長は何でも自由に直せる（2026年11月3日）：
 //       時間は 5:00〜翌2:00、1日に2つの勤務（中抜け）、別の人に移す、
 //       日のコピー・全部消す、連絡事項、「元に戻す」「やり直す」
@@ -21,10 +23,12 @@ import { timeline } from "../components/timeline.js";
 import { checkDay, checkWeek, onlyProblems, requiredAt, assignedAt } from "../rules/shift-rules.js";
 import { makeDraft } from "../ai/simple-draft.js";
 import { STATUS_LABEL, weekLabel, datesOf, workingPeriod } from "../lib/period.js";
-import { label, dayType, addDays } from "../lib/date.js";
+import { label, dayType, addDays, mondayOf, toIso } from "../lib/date.js";
+import { state } from "../store.js";
 import { range, EDIT_MIN, EDIT_MAX } from "../lib/time.js";
 import { createHistory } from "../lib/history.js";
 import { assignmentPanel } from "../components/assignment-panel.js";
+import { dayList } from "../components/day-list.js";
 
 export async function renderShiftEditor(app) {
   // ---------- 最初に全部読む ----------
@@ -43,7 +47,18 @@ export async function renderShiftEditor(app) {
   let hopes = [];          // この週の希望
   let date = null;         // 表示している日
   let selectedId = null;   // 右の欄で見ている店員
+  let elsewhere = [];      // この週にほかの店舗に入っている勤務（重ねないため・見るだけ）
+  let unlocked = false;    // 公開済みの週で「編集する」を押したか
   const history = createHistory();   // 「元に戻す」用
+
+  /** 公開済みで、まだ「編集する」を押していない＝直せない */
+  const locked = () => period.status === "published" && !unlocked;
+
+  /** 何週先までシフトを作れるか（希望と同じ2か月先まで） */
+  const lastWeek = (() => {
+    const d = new Date(); d.setMonth(d.getMonth() + CONFIG.MONTHS_AHEAD);
+    return mondayOf(toIso(d));
+  })();
 
   if (!period) {
     mount(app, screenHeader({ title: "シフト作成" }), h("div", { class: "screen-body" }, h("div", { class: "card" }, "週がありません")));
@@ -57,7 +72,16 @@ export async function renderShiftEditor(app) {
   // ============================================================
 
   async function loadPeriod() {
-    [work, hopes] = await Promise.all([api.listAssignments(period.id), api.listAvailabilities(period.id)]);
+    const end = addDays(period.weekStart, 6);
+    let all;
+    [work, hopes, all] = await Promise.all([
+      api.listAssignments(period.id),
+      api.listAvailabilities(period.id),
+      api.listAssignmentsByDates(period.weekStart, end),
+    ]);
+    // ほかの店舗の勤務に、店舗の短い名前（福釜・安城・今村）をつける
+    const shortOf = (id) => state.stores.find((s) => s.id === id)?.short || "";
+    elsewhere = all.filter((a) => a.storeId !== period.storeId).map((a) => ({ ...a, storeShort: shortOf(a.storeId) }));
     if (!date || !datesOf(period).includes(date)) date = period.weekStart;
   }
 
@@ -72,6 +96,7 @@ export async function renderShiftEditor(app) {
    * 変える前の状態を覚えておくので「元に戻す」ができる
    */
   function edit(fn) {
+    if (locked()) { toast("公開済みです。直す時は「編集する」を押してください"); return; }
     history.push(work);
     fn();
     persist();
@@ -104,6 +129,8 @@ export async function renderShiftEditor(app) {
       dayType: dayTypeOf(d),
       hours: hoursOf(d),
       assignments: work.filter((a) => a.date === d),
+      // ほかの店舗の勤務も入れて、同じ時間に2つ入っていないか確かめる
+      allStoreAssignments: [...work.filter((a) => a.date === d), ...elsewhere.filter((a) => a.date === d)],
       members, requirements, positions,
       availabilities: hopes.filter((x) => x.date === d),
     });
@@ -111,7 +138,10 @@ export async function renderShiftEditor(app) {
 
   /** 週全体のチェック結果 */
   function weekChecks() {
-    return checkWeek({ dates: datesOf(period), assignments: work, members: active, availabilities: hopes });
+    // 週1休み・社員の休みは、ほかの店舗に入った日も「入った日」として数える
+    // （応援で来ている人は、その人のメインの店舗の画面で数える）
+    const mains = active.filter((m) => (m.rankHere ?? 1) === 1);
+    return checkWeek({ dates: datesOf(period), assignments: [...work, ...elsewhere], members: mains, availabilities: hopes });
   }
 
   /** 守れていないもの全部（公開の確認で使う） */
@@ -133,10 +163,21 @@ export async function renderShiftEditor(app) {
     mount(app,
       screenHeader({
         title: "シフト作成",
-        sub: `${weekLabel(period)} ・ ${STATUS_LABEL[period.status]} ・ この日の営業 ${range(hoursOf(date).open, hoursOf(date).close)}`,
-        right: h("select", { class: "select", style: { width: "auto" }, "aria-label": "週を選ぶ", onchange: changeWeek },
-          periods.map((p) => h("option", { value: p.id, selected: p.id === period.id }, `${weekLabel(p)}（${STATUS_LABEL[p.status]}）`))),
-        extra: h("div", { class: "chip-row" },
+        sub: `${STATUS_LABEL[period.status]} ・ この日の営業 ${range(hoursOf(date).open, hoursOf(date).close)}`,
+        extra: [
+        // 週の移動：前の週／次の週（2か月先まで作れる）
+        h("div", { class: "week-nav" },
+          h("button", { class: "btn btn--small", onclick: () => moveWeek(-1), "aria-label": "前の週" }, "‹ 前の週"),
+          h("strong", { class: "week-nav__label" }, weekLabel(period)),
+          h("button", { class: "btn btn--small", onclick: () => moveWeek(1), disabled: period.weekStart >= lastWeek, "aria-label": "次の週" }, "次の週 ›"),
+        ),
+        locked()
+          // 公開済み：「編集する」を押すまで直せない
+          ? h("div", { class: "chip-row" },
+              h("span", { class: "badge badge--hall", style: { alignSelf: "center" } }, "公開済み（見るだけ）"),
+              h("button", { class: "btn btn--small btn--primary", onclick: () => { unlocked = true; toast("編集できます。直したら「変更を公開」を押してください"); draw(); } }, "✏️ 編集する"),
+            )
+          : h("div", { class: "chip-row" },
           // 受付の切り替え：まちがえて締め切っても、もう一度押せば受付中に戻る
           period.status !== "published"
             ? h("button", { class: "btn btn--small", onclick: toggleIntake }, period.status === "open" ? "受付を締め切る" : "受付を再開する")
@@ -147,6 +188,7 @@ export async function renderShiftEditor(app) {
           h("button", { class: "btn btn--small", onclick: copyLastWeek }, "前週コピー"),
           h("button", { class: "btn btn--small btn--primary", onclick: publish }, period.status === "published" ? "変更を公開" : "公開する"),
         ),
+        ],
       }),
       h("div", { class: "screen-body" },
         dayTabs(),
@@ -157,18 +199,20 @@ export async function renderShiftEditor(app) {
               hours: hoursOf(date),
               members: active,
               assignments: today,
+              elsewhere: elsewhere.filter((a) => a.date === date),
               availabilities: hopes.filter((x) => x.date === date),   // 希望は店長だけに見せる
               needs: needRows(today),
               selectedId,
-              editable: true,
+              editable: !locked(),
               onSelect: (id) => { selectedId = id; draw(); },
               onChange: (a, change) => { selectedId = a.memberId; edit(() => Object.assign(a, change)); },
             }),
             legend(),
           ),
+          h("div", { class: "editor__table" }, dayList({ assignments: today, members, hours: hoursOf(date) })),
           h("div", { class: "editor__side" },
             selectedId ? memberPanel(selectedId) : h("section", { class: "card home-muted" }, "名前か線を押すと、ここで細かく直せます"),
-            dayTools(),
+            locked() ? null : dayTools(),
             h("section", { class: "card" },
               h("h2", { class: "card__title" }, `ルールのチェック（${label(date)}）`),
               h("ul", { class: "check-list" },
@@ -234,6 +278,8 @@ export async function renderShiftEditor(app) {
       hope,
       rule: ruleOf(id),
       others: active.filter((x) => x.id !== id),
+      locked: locked(),
+      elsewhere: elsewhere.filter((a) => a.memberId === id && a.date === date),
       onEdit: (fn) => edit(fn),
       onRemove: (a) => edit(() => { work = work.filter((x) => x !== a); }),
       onAdd: () => edit(() => {
@@ -278,6 +324,7 @@ export async function renderShiftEditor(app) {
       h("h2", { class: "card__title" }, "連絡事項（この週）"),
       h("textarea", {
         class: "textarea",
+        disabled: locked(),
         placeholder: "例：11/12 研修あり、11/14 お祭りで混みます",
         onchange: async (e) => { period.note = e.target.value; await api.savePeriodNote(period.id, period.note); toast("連絡事項を保存しました"); },
       }, period.note || ""),
@@ -308,10 +355,20 @@ export async function renderShiftEditor(app) {
   // ボタンの動き
   // ============================================================
 
-  async function changeWeek(e) {
-    period = periods.find((p) => p.id === e.target.value);
+  /** 前の週／次の週へ（その週がまだなければ作る） */
+  async function moveWeek(n) {
+    const weekStart = addDays(period.weekStart, 7 * n);
+    if (weekStart > lastWeek) return;
+    let next = periods.find((p) => p.weekStart === weekStart);
+    if (!next) {
+      next = await api.ensurePeriod(weekStart);
+      periods.push(next);
+      periods.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+    }
+    period = next;
     date = null;
     selectedId = null;
+    unlocked = false;
     history.clear();
     await loadPeriod();
     draw();
@@ -343,7 +400,7 @@ export async function renderShiftEditor(app) {
     history.push(work);
     work = makeDraft({
       dates: datesOf(period), members, availabilities: hopes, requirements, positions,
-      fixed: work.filter((a) => a.fixed), past, dayTypeOf, hoursOf,
+      fixed: work.filter((a) => a.fixed), past, dayTypeOf, hoursOf, elsewhere,
     });
     await persist();
     toast("下書きを作りました（簡易版）。赤い所を直してください");
@@ -393,6 +450,7 @@ export async function renderShiftEditor(app) {
     await api.setPeriodStatus(period.id, "published");
     await api.notifyPublished(period.id, weekLabel(period));
     period.status = "published";
+    unlocked = false;                              // 公開したら、また「編集する」を押すまで直せない
     toast(problems.length ? "警告があるまま公開しました。全員に知らせます" : "公開しました。全員に知らせます");
     draw();
   }

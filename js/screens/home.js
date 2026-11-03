@@ -4,16 +4,20 @@
 // 店員：①いちばん上に「希望を入れる」ボタン
 //       ②その下に自分のシフト（今日 → 明日 → 明後日 の順。昨日のものは消える）
 //       ③お知らせ
-// 店長：受付の状態（締め切る／再開する）、自分のシフト（店長も仕事に入る）、店舗の設定
+// 店長：店舗の切り替え（3店舗）、受付の状態（締め切る／再開する）、
+//       人が足りない日と時間、自分のシフト（店長も仕事に入る）、店舗の設定
 // ============================================================
 
 import { h, mount, toast } from "../lib/dom.js";
 import { api } from "../api/index.js";
-import { state, isManager } from "../store.js";
+import { state, isManager, switchStore } from "../store.js";
 import { go } from "../router.js";
 import { screenHeader } from "../components/header.js";
 import { myShifts } from "../components/my-shifts.js";
-import { STATUS_LABEL, weekLabel, deadlineLabel, openPeriod, workingPeriod } from "../lib/period.js";
+import { STATUS_LABEL, weekLabel, deadlineLabel, openPeriod, workingPeriod, datesOf } from "../lib/period.js";
+import { findShortages } from "../rules/shift-rules.js";
+import { label, dayType } from "../lib/date.js";
+import { range } from "../lib/time.js";
 
 export async function renderHome(app) {
   if (isManager()) return renderManagerHome(app);
@@ -34,6 +38,7 @@ async function renderManagerHome(app) {
   ]);
   const period = workingPeriod(periods);
   const hopes = period ? await api.listAvailabilities(period.id) : [];
+  const shortCard = period ? await shortageCard(period) : null;
 
   // 希望を出した人（社員は出さなくても休み週1日の扱いなので数えない）
   const needSubmit = members.filter((m) => m.active && m.kind !== "shain");
@@ -69,7 +74,9 @@ async function renderManagerHome(app) {
   mount(app,
     screenHeader({ title: "ホーム", sub: `${state.user.name}（店長）`, right: settingsButton() }),
     h("div", { class: "screen-body" },
+      storeSwitcher(app),
       statusCard,
+      shortCard,
       // 店長も仕事に入るので、自分のシフトも出す
       myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, limit: 5 }),
       h("section", { class: "card" },
@@ -81,6 +88,55 @@ async function renderManagerHome(app) {
       ),
     ),
   );
+}
+
+/**
+ * 店舗の切り替え（3店舗）
+ * 押すと、シフト作成・マップ・店員管理など全部の画面がその店舗になる
+ */
+function storeSwitcher(app) {
+  return h("section", { class: "card" },
+    h("h2", { class: "card__title" }, "見ている店舗"),
+    h("div", { class: "store-switch" },
+      state.stores.map((st) => h("button", {
+        class: "chip store-switch__btn",
+        "aria-pressed": String(st.id === state.storeId),
+        onclick: async () => {
+          if (st.id === state.storeId) return;
+          await switchStore(st.id);
+          toast(`${st.name} に切り替えました`);
+          renderHome(app);
+        },
+      }, st.name))),
+  );
+}
+
+/**
+ * 人が足りない日と時間（作っている週）
+ * 例：「11/9（月） ホール 16:00〜17:00 1人足りない」
+ */
+async function shortageCard(period) {
+  const [work, positions, requirements, storeHours, holidays] = await Promise.all([
+    api.listAssignments(period.id), api.listPositions(), api.listRequirements(), api.getStoreHours(), api.listHolidays(),
+  ]);
+  const title = h("h2", { class: "card__title" }, `人が足りない時間（${weekLabel(period)}）`);
+  if (!work.length) {
+    return h("section", { class: "card" }, title, h("div", { class: "home-muted" }, "まだこの週のシフトを作っていません"));
+  }
+  const rows = [];
+  for (const d of datesOf(period)) {
+    const type = dayType(d, holidays);
+    const list = findShortages(work.filter((a) => a.date === d), requirements, positions, type, storeHours[type]);
+    for (const s of list) {
+      rows.push(h("li", { class: "is-ng" },
+        h("strong", null, label(d)),
+        `${s.area === "hall" ? "ホール" : "キッチン"} ${range(s.from, s.to)} ${s.short}人足りない`));
+    }
+  }
+  return h("section", { class: "card" }, title,
+    rows.length
+      ? h("ul", { class: "check-list" }, rows)
+      : h("div", { class: "notice notice--ok" }, "足りない時間はありません"));
 }
 
 // ------------------------------------------------------------

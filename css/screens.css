@@ -252,3 +252,31 @@
 .week-tab__state { font-size: 10px; font-weight: 400; color: var(--danger); }
 .week-tab__state.is-done { color: var(--ok); }
 .week-tab[aria-pressed="true"] .week-tab__state { color: #fff; }
+
+/* ---------- 3店舗：見ている店舗 ---------- */
+.store-badge { display: inline-block; margin-left: 8px; vertical-align: middle; font-size: 12px; font-weight: 700; color: #fff; background: var(--ink-2); border-radius: 999px; padding: 2px 10px; }
+.store-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.store-switch__btn { min-height: 48px; border-radius: 12px; }
+
+/* ---------- シフト作成：週の移動 ---------- */
+.week-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.week-nav__label { font-size: 15px; text-align: center; flex: 1; }
+
+/* ---------- シフト表：名前を小さく・目盛りを読みやすく・ほかの店舗・○のドラッグ ---------- */
+.tl__name { width: 92px; }
+.tl__person { font-size: 12px; }
+.tl__hour { font-size: 12px; font-weight: 700; color: var(--ink-2); transform: translateX(-2px); }
+.tl__bar--away { background: repeating-linear-gradient(45deg, #C9BFB3, #C9BFB3 6px, #D8D0C6 6px, #D8D0C6 12px); color: var(--ink); cursor: default; }
+.tl__break.is-editable { pointer-events: auto; cursor: ew-resize; width: 18px; height: 18px; margin-left: -9px; top: 1px; touch-action: none; }
+
+/* ---------- その日の一覧 ---------- */
+.day-list { width: 100%; border-collapse: collapse; font-size: 14px; }
+.day-list th, .day-list td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.day-list th { font-weight: 700; }
+.day-list__time { font-weight: 700; font-size: 15px; }
+
+@media (max-width: 600px) {
+  .tl__name { width: 70px; }
+  .tl__person { font-size: 11px; }
+  .day-list { font-size: 13px; }
+}

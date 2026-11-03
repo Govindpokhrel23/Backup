@@ -26,7 +26,7 @@ import { label, shortLabel, weekdayNum, weekDates, mondayOf, addDays, today, toD
 import { range, timeOptions } from "../lib/time.js";
 
 /** 何か月先まで入れられるか */
-const MONTHS_AHEAD = 2;
+const MONTHS_AHEAD = CONFIG.MONTHS_AHEAD;
 
 export async function renderKibou(app) {
   const isShain = state.user.kind === "shain";

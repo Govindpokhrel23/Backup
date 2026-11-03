@@ -9,7 +9,7 @@
 
 import { h, mount } from "../lib/dom.js";
 import { api } from "../api/index.js";
-import { state } from "../store.js";
+import { state, loadStoreInfo } from "../store.js";
 import { go } from "../router.js";
 import { CONFIG } from "../config.js";
 
@@ -29,6 +29,7 @@ export async function renderLogin(app) {
         error.hidden = true;
         try {
           state.user = await api.login(id.value.trim(), pw.value);
+          await loadStoreInfo();
           go("/home");
         } catch (err) {
           error.textContent = err.message;
@@ -60,6 +61,7 @@ export async function renderLogin(app) {
         }
         try {
           state.user = await api.activate(id.value.trim(), code.value.trim(), pw1.value);
+          await loadStoreInfo();
           go("/home");
         } catch (err) {
           error.textContent = err.message;

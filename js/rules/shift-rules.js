@@ -140,6 +140,11 @@ export function checkDay(p) {
     ok: noBreak.length === 0, code: "break", date: p.date,
     text: noBreak.length ? `休憩なし（${CONFIG.BREAK_NEEDED_MIN / 60}時間以上）：${noBreak.map((a) => nameOf(a.memberId)).join("、")}` : "長い勤務には休憩あり",
   });
+  // 朝11:00より前に休憩を入れていないか
+  const early = p.assignments.filter((a) => a.breakAt != null && a.breakAt < CONFIG.BREAK_EARLIEST);
+  if (early.length) {
+    out.push({ ok: false, code: "break-early", date: p.date, text: `休憩が${fmt(CONFIG.BREAK_EARLIEST)}より前：${early.map((a) => nameOf(a.memberId)).join("、")}` });
+  }
 
   // ⑤ 希望：希望の外の時間に入っていない（短く入れるのはOK）
   const outside = [];

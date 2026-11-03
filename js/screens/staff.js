@@ -5,17 +5,24 @@
 //   ・立場：社員／バイト／フルで入るバイト（F-45）
 //   ・できること：ホール・キッチン・立ち上げ・締め を 0〜100％（F-46）
 //   ・人ごとのルール：文章で自由に。店長だけが見られる（F-47）
+//   ・行ける店舗と順番：メイン／2nd／3rd（2026年11月3日）
+//     人が足りない時、2nd・3rd の人を AI がその店舗に入れる
 // 作ると「ID」と「初回コード（6桁）」が出るので、本人に渡す。
 // ============================================================
 
 import { h, mount, toast, confirmDialog } from "../lib/dom.js";
 import { api } from "../api/index.js";
 import { CONFIG } from "../config.js";
+import { state } from "../store.js";
 import { screenHeader } from "../components/header.js";
+
+/** 順番の呼び方 */
+const rankWord = (rank) => ({ 1: "メイン", 2: "2nd", 3: "3rd" }[rank] || "");
 
 export async function renderStaff(app) {
   let members = await api.listMembers();
   let rules = await api.listMemberRules();
+  const stores = state.stores;
   let editing = null;      // 直している店員（新しく作る時は "new"）
 
   draw();
@@ -30,13 +37,14 @@ export async function renderStaff(app) {
       h("div", { class: "screen-body" },
         editing ? form(editing === "new" ? null : members.find((m) => m.id === editing)) : null,
         ...["shain", "full", "baito"].map((kind) => group(kind)),
+        helpers(),
       ),
     );
   }
 
-  /** 立場ごとのまとまり（社員を上に） */
+  /** 立場ごとのまとまり（社員を上に）。この店舗がメインの人だけ */
   function group(kind) {
-    const list = members.filter((m) => m.kind === kind);
+    const list = members.filter((m) => m.kind === kind && m.rankHere === 1);
     if (!list.length) return null;
     return h("section", { class: "card" },
       h("h2", { class: "card__title" }, `${CONFIG.KIND_LABEL[kind]}（${list.length}人）`),
@@ -48,21 +56,66 @@ export async function renderStaff(app) {
           !m.active ? h("span", { class: "badge", style: { marginLeft: "6px", background: "var(--danger)" } }, "停止中") : null,
         ),
         h("div", { class: "home-muted" }, CONFIG.SKILLS.map((s) => `${s.label}${m.skills[s.key]}`).join("・")),
+        h("div", { class: "home-muted" }, `行ける店舗：${storesText(m)}`),
       )),
     );
+  }
+
+  /** ほかの店舗がメインで、この店舗に応援に来られる人（2nd・3rd） */
+  function helpers() {
+    const list = members.filter((m) => m.rankHere > 1);
+    if (!list.length) return null;
+    return h("section", { class: "card" },
+      h("h2", { class: "card__title" }, `応援に来られる人（${list.length}人）`),
+      list.map((m) => h("button", { class: "staff-row", onclick: () => { editing = m.id; draw(); window.scrollTo(0, 0); } },
+        h("div", null, h("strong", null, m.name), " ", h("span", { class: "home-muted" }, `この店舗は ${rankWord(m.rankHere)}`)),
+        h("div", { class: "home-muted" }, `行ける店舗：${storesText(m)}`),
+      )),
+    );
+  }
+
+  /** 「安城福釜店（メイン）・安城店（2nd）」の形 */
+  function storesText(m) {
+    return [...(m.stores || [{ storeId: m.storeId, rank: 1 }])]
+      .sort((a, b) => a.rank - b.rank)
+      .map((x) => `${stores.find((s) => s.id === x.storeId)?.short || ""}（${rankWord(x.rank)}）`)
+      .join("・");
   }
 
   /** 作る／直すフォーム */
   function form(member) {
     // フォームの中の「今の入力」
     const draft = member
-      ? { ...member, skills: { ...member.skills }, rule: rules.find((r) => r.memberId === member.id)?.text || "" }
-      : { name: "", kind: "baito", everyday: false, skills: { hall: 0, kitchen: 0, open: 0, close: 0 }, rule: "" };
+      ? { ...member, skills: { ...member.skills }, rule: rules.find((r) => r.memberId === member.id)?.text || "",
+          stores: (member.stores || [{ storeId: member.storeId, rank: 1 }]).map((x) => ({ ...x })) }
+      : { name: "", kind: "baito", everyday: false, skills: { hall: 0, kitchen: 0, open: 0, close: 0 }, rule: "",
+          stores: [{ storeId: state.storeId, rank: 1 }] };
 
     const box = h("section", { class: "card staff-form" });
     const redraw = () => mount(box, ...fields());
     redraw();
     return box;
+
+    /**
+     * 行ける店舗と順番（メイン＝1、2nd、3rd、行かない）
+     * 人が足りない時、2nd・3rd の人を AI がその店舗に入れる
+     */
+    function storeRanks() {
+      const rankOf = (id) => draft.stores.find((x) => x.storeId === id)?.rank ?? 0;
+      const setRank = (id, rank) => {
+        // 同じ順番は1店舗だけ。選んだ順番を持っていた店舗は「行かない」にする
+        draft.stores = draft.stores.filter((x) => x.storeId !== id && (rank === 0 || x.rank !== rank));
+        if (rank) draft.stores.push({ storeId: id, rank });
+        redraw();
+      };
+      return h("div", { class: "field" }, "行ける店舗と順番（メインは1つ）",
+        stores.map((st) => h("div", { class: "skill-row" },
+          h("span", { class: "skill-row__label" }, st.name),
+          h("div", { class: "chip-row" },
+            [[1, "メイン"], [2, "2nd"], [3, "3rd"], [0, "行かない"]].map(([rank, text]) =>
+              h("button", { class: "chip chip--small", "aria-pressed": String(rankOf(st.id) === rank), onclick: () => setRank(st.id, rank) }, text))),
+        )));
+    }
 
     function fields() {
       const name = h("input", { class: "input", value: draft.name, placeholder: "名前", oninput: (e) => { draft.name = e.target.value; } });
@@ -87,6 +140,8 @@ export async function renderStaff(app) {
                 h("button", { class: "chip chip--small", "aria-pressed": String(draft.skills[s.key] === lv), onclick: () => { draft.skills[s.key] = lv; redraw(); } }, `${lv}%`))),
           ))),
 
+        storeRanks(),
+
         h("label", { class: "field" }, "人ごとのルール（店長だけが見られる）",
           h("textarea", { class: "textarea", placeholder: "例：土曜はNG、週20時間まで", oninput: (e) => { draft.rule = e.target.value; } }, draft.rule)),
 
@@ -108,7 +163,8 @@ export async function renderStaff(app) {
   /** 保存（新しい人なら作って、初回コードを見せる） */
   async function save(member, draft) {
     if (!draft.name.trim()) { toast("名前を入れてください"); return; }
-    const data = { name: draft.name.trim(), kind: draft.kind, everyday: draft.everyday, skills: draft.skills };
+    if (!draft.stores.some((x) => x.rank === 1)) { toast("メインの店舗を1つ選んでください"); return; }
+    const data = { name: draft.name.trim(), kind: draft.kind, everyday: draft.everyday, skills: draft.skills, stores: draft.stores };
     if (member) {
       await api.saveMember({ ...member, ...data });
       await api.saveMemberRule(member.id, draft.rule);

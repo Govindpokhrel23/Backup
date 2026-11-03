@@ -131,3 +131,14 @@ test("社員が休み希望を2日出していれば、休み2日は OK", () => 
   const r = checkWeek({ dates, assignments: workDays(5), members: onlyA, availabilities });
   assert.equal(r.find((x) => x.code === "shain-off").ok, true);
 });
+
+// ---------- 休憩は朝11:00より前に入れない ----------
+test("休憩が11:00より前なら NG", () => {
+  const r = checkDay({ ...base, assignments: [work("a", 7, 16, "hall", 10)] });
+  assert.ok(r.some((x) => x.code === "break-early" && !x.ok));
+});
+
+test("休憩が11:00以降なら OK", () => {
+  const r = checkDay({ ...base, assignments: [work("a", 7, 16, "hall", 11.5)] });
+  assert.ok(!r.some((x) => x.code === "break-early"));
+});

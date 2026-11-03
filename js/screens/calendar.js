@@ -11,6 +11,8 @@ import { h, mount } from "../lib/dom.js";
 import { api } from "../api/index.js";
 import { state } from "../store.js";
 import { screenHeader } from "../components/header.js";
+import { myShifts } from "../components/my-shifts.js";
+import { isManager } from "../store.js";
 import { toIso, today, label } from "../lib/date.js";
 import { fmt, range } from "../lib/time.js";
 
@@ -34,7 +36,7 @@ export async function renderCalendar(app) {
     }
 
     mount(app,
-      screenHeader({ title: "マイカレンダー", sub: state.user.name }),
+      screenHeader({ title: isManager() ? "自分の勤務" : "マイカレンダー", sub: state.user.name }),
       h("div", { class: "screen-body" },
         h("section", { class: "card" },
           h("div", { class: "cal__nav" },
@@ -49,6 +51,8 @@ export async function renderCalendar(app) {
           ),
         ),
         dayDetail(byDate.get(selected) || []),
+        // これからの勤務（どの店舗に何時から何時まで）
+        myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, limit: 14 }),
       ),
     );
   }
