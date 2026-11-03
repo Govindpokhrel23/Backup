@@ -7,6 +7,9 @@
 //   ・「AIで作成」で下書き、「前週コピー」で先週と同じにする
 //   ・ルールのチェックを常に表示（赤＝守れていない）
 //   ・「公開する」：守れていなければ⚠️警告 →「はい」でそのまま公開
+//   ・店長は何でも自由に直せる（2026年11月3日）：
+//       時間は 5:00〜翌2:00、1日に2つの勤務（中抜け）、別の人に移す、
+//       日のコピー・全部消す、連絡事項、「元に戻す」「やり直す」
 // 変えた内容はすぐ下書きとして保存する（閉じても消えない）。
 // ============================================================
 
@@ -19,7 +22,9 @@ import { checkDay, checkWeek, onlyProblems, requiredAt, assignedAt } from "../ru
 import { makeDraft } from "../ai/simple-draft.js";
 import { STATUS_LABEL, weekLabel, datesOf, workingPeriod } from "../lib/period.js";
 import { label, dayType, addDays } from "../lib/date.js";
-import { range, snap, timeOptions } from "../lib/time.js";
+import { range, EDIT_MIN, EDIT_MAX } from "../lib/time.js";
+import { createHistory } from "../lib/history.js";
+import { assignmentPanel } from "../components/assignment-panel.js";
 
 export async function renderShiftEditor(app) {
   // ---------- 最初に全部読む ----------
@@ -38,6 +43,7 @@ export async function renderShiftEditor(app) {
   let hopes = [];          // この週の希望
   let date = null;         // 表示している日
   let selectedId = null;   // 右の欄で見ている店員
+  const history = createHistory();   // 「元に戻す」用
 
   if (!period) {
     mount(app, screenHeader({ title: "シフト作成" }), h("div", { class: "screen-body" }, h("div", { class: "card" }, "週がありません")));
@@ -59,6 +65,32 @@ export async function renderShiftEditor(app) {
   async function persist() {
     await api.saveAssignments(period.id, work);
     draw();
+  }
+
+  /**
+   * 勤務を変える時は必ずこれを通す
+   * 変える前の状態を覚えておくので「元に戻す」ができる
+   */
+  function edit(fn) {
+    history.push(work);
+    fn();
+    persist();
+  }
+
+  /** 元に戻す／やり直す */
+  function undo() { const w = history.undo(work); if (w) { work = w; persist(); } }
+  function redo() { const w = history.redo(work); if (w) { work = w; persist(); } }
+
+  /**
+   * その日の表の左端と右端
+   * 営業時間をもとに、それより外の勤務があれば広げる（1時間単位）
+   */
+  function dayRange(d) {
+    const hrs = hoursOf(d);
+    const day = work.filter((a) => a.date === d);
+    const start = Math.min(hrs.open, ...day.map((a) => a.from));
+    const end = Math.max(hrs.close, ...day.map((a) => a.to));
+    return { start: Math.floor(start / 60) * 60, end: Math.ceil(end / 60) * 60 };
   }
 
   // ============================================================
@@ -108,6 +140,8 @@ export async function renderShiftEditor(app) {
           period.status === "open"
             ? h("button", { class: "btn btn--small", onclick: closeIntake }, "受付を締め切る")
             : null,
+          h("button", { class: "btn btn--small", onclick: undo, disabled: !history.canUndo(), "aria-label": "元に戻す" }, "↶ 元に戻す"),
+          h("button", { class: "btn btn--small", onclick: redo, disabled: !history.canRedo(), "aria-label": "やり直す" }, "↷ やり直す"),
           h("button", { class: "btn btn--small btn--blue", onclick: runDraft }, "AIで作成"),
           h("button", { class: "btn btn--small", onclick: copyLastWeek }, "前週コピー"),
           h("button", { class: "btn btn--small btn--primary", onclick: publish }, period.status === "published" ? "変更を公開" : "公開する"),
@@ -118,6 +152,7 @@ export async function renderShiftEditor(app) {
         h("div", { class: "editor" },
           h("section", { class: "card editor__table" },
             timeline({
+              ...dayRange(date),
               members: active,
               assignments: today,
               availabilities: hopes.filter((x) => x.date === date),   // 希望は店長だけに見せる
@@ -125,17 +160,19 @@ export async function renderShiftEditor(app) {
               selectedId,
               editable: true,
               onSelect: (id) => { selectedId = id; draw(); },
-              onChange: (a, change) => { Object.assign(a, change); selectedId = a.memberId; persist(); },
+              onChange: (a, change) => { selectedId = a.memberId; edit(() => Object.assign(a, change)); },
             }),
             legend(),
           ),
           h("div", { class: "editor__side" },
             selectedId ? memberPanel(selectedId) : h("section", { class: "card home-muted" }, "名前か線を押すと、ここで細かく直せます"),
+            dayTools(),
             h("section", { class: "card" },
               h("h2", { class: "card__title" }, `ルールのチェック（${label(date)}）`),
               h("ul", { class: "check-list" },
                 checks.map((c) => h("li", { class: c.ok ? "is-ok" : "is-ng" }, h("strong", null, c.ok ? "✓" : "!"), c.text))),
             ),
+            noteCard(),
           ),
         ),
       ),
@@ -157,7 +194,8 @@ export async function renderShiftEditor(app) {
     const type = dayTypeOf(date);
     const make = (area, labelText, color) => {
       const slots = [];
-      for (let m = CONFIG.DAY_START; m < CONFIG.DAY_END; m += 60) {
+      const { start, end } = dayRange(date);
+      for (let m = start; m < end; m += 60) {
         // その1時間でいちばん足りない時を出す（15分ごとに見る）
         let need = 0, have = 0, worst = -Infinity;
         for (let q = m; q < m + 60; q += 15) {
@@ -183,59 +221,85 @@ export async function renderShiftEditor(app) {
     );
   }
 
-  /** 右の欄：選んだ店員のくわしい内容と直す道具 */
+  /** 右の欄：選んだ店員のくわしい内容と直す道具（components/assignment-panel.js） */
   function memberPanel(id) {
     const m = members.find((x) => x.id === id);
-    const a = work.find((x) => x.memberId === id && x.date === date);
     const hope = hopes.find((x) => x.memberId === id && x.date === date);
-    const hopeText = !hope
-      ? (m.kind === "shain" ? "出していない（全部入れる）" : "出していない")
-      : { no: "入れない", any: "いつでもOK", off: "休み希望", offx: "休み希望（特別許可の申請中）", time: range(hope.from ?? 0, hope.to ?? 0) }[hope.kind];
+    return assignmentPanel({
+      member: m,
+      date,
+      assignments: work.filter((x) => x.memberId === id && x.date === date).sort((a, b) => a.from - b.from),
+      hope,
+      rule: ruleOf(id),
+      others: active.filter((x) => x.id !== id),
+      onEdit: (fn) => edit(fn),
+      onRemove: (a) => edit(() => { work = work.filter((x) => x !== a); }),
+      onAdd: () => edit(() => {
+        // 希望があればその時間、もう勤務があればその後ろ、なければ 9:00〜15:00
+        const mine = work.filter((x) => x.memberId === id && x.date === date);
+        let from = 9 * 60, to = 15 * 60;
+        if (mine.length) {
+          // 今の勤務の1時間後から3時間。翌2:00をこえるなら、今の勤務の前に入れる
+          from = Math.max(...mine.map((x) => x.to)) + 60; to = from + 3 * 60;
+          if (to > EDIT_MAX) { to = Math.min(...mine.map((x) => x.from)) - 60; from = Math.max(EDIT_MIN, to - 3 * 60); }
+          if (to <= from) { toast("この日はもう勤務を足す時間がありません"); return; }
+        }
+        else if (hope?.kind === "time") { from = hope.from; to = hope.to; }
+        work.push({ memberId: id, date, from, to, area: m.skills.kitchen > m.skills.hall ? "kitchen" : "hall", breakAt: null, fixed: false, createdBy: "manager", requested: false });
+      }),
+      onApproveSpecial: async () => {
+        await api.approveSpecialOff(period.id, id, date);
+        hopes = await api.listAvailabilities(period.id);
+        toast("特別許可を出しました");
+        draw();
+      },
+    });
+  }
 
-    const skills = CONFIG.SKILLS.map((s) => `${s.label}${m.skills[s.key]}`).join("・");
-
-    const timeSelect = (value, onPick, aria) => h("select", { class: "select num", "aria-label": aria, onchange: (e) => onPick(Number(e.target.value)) },
-      timeOptions(CONFIG.DAY_START, CONFIG.DAY_END).map((o) => h("option", { value: o.value, selected: o.value === value }, o.label)));
-
+  /** この日の道具：ほかの日にコピー・全部消す */
+  function dayTools() {
+    const target = h("select", { class: "select", "aria-label": "コピー先の日" },
+      datesOf(period).filter((d) => d !== date).map((d) => h("option", { value: d }, label(d))));
     return h("section", { class: "card" },
-      h("div", { class: "screen-header__row" },
-        h("h2", { class: "card__title", style: { fontSize: "19px" } }, m.name),
-        h("span", { class: "badge" }, CONFIG.KIND_LABEL[m.kind]),
+      h("h2", { class: "card__title" }, `${label(date)} の道具`),
+      h("div", { class: "time-range" },
+        target,
+        h("button", { class: "btn btn--small", onclick: () => copyDay(target.value) }, "へコピー"),
       ),
-      h("div", { class: "home-muted" }, `できること：${skills}`),
-      h("div", { class: "rule-memo" }, `店長メモ：${ruleOf(id)}`),
-      h("div", null, `希望：${hopeText}`),
-      hope?.kind === "offx"
-        ? h("button", { class: "btn btn--small", onclick: async () => { await api.approveSpecialOff(period.id, id, date); hopes = await api.listAvailabilities(period.id); toast("特別許可を出しました"); draw(); } }, "特別許可を出す（休みにする）")
-        : null,
-
-      a
-        ? [
-            h("div", { class: "time-range" },
-              timeSelect(a.from, (v) => { a.from = v; persist(); }, "開始"),
-              "〜",
-              timeSelect(a.to, (v) => { a.to = v; persist(); }, "終了"),
-            ),
-            h("div", { class: "chip-row" },
-              h("button", { class: "chip chip--hall", "aria-pressed": String(a.area === "hall"), onclick: () => { a.area = "hall"; persist(); } }, "ホール"),
-              h("button", { class: "chip chip--kitchen", "aria-pressed": String(a.area === "kitchen"), onclick: () => { a.area = "kitchen"; persist(); } }, "キッチン"),
-              h("button", { class: "chip", "aria-pressed": String(a.breakAt != null), onclick: () => { a.breakAt = a.breakAt != null ? null : snap((a.from + a.to) / 2); persist(); } }, "休憩 ○"),
-              h("button", { class: "chip", "aria-pressed": String(!!a.fixed), onclick: () => { a.fixed = !a.fixed; persist(); } }, "固定"),
-            ),
-            a.breakAt != null ? h("label", { class: "field" }, "休憩の目安", timeSelect(a.breakAt, (v) => { a.breakAt = v; persist(); }, "休憩")) : null,
-            h("button", { class: "btn btn--small btn--danger", onclick: () => { work = work.filter((x) => x !== a); persist(); } }, "この日の勤務を消す"),
-          ]
-        : h("button", {
-            class: "btn btn--dashed",
-            onclick: () => {
-              // 希望があればその時間で、なければ 9:00〜15:00 で入れる
-              const from = hope?.kind === "time" ? hope.from : 9 * 60;
-              const to = hope?.kind === "time" ? hope.to : 15 * 60;
-              work.push({ memberId: id, date, from, to, area: m.skills.kitchen > m.skills.hall ? "kitchen" : "hall", breakAt: null, fixed: false, createdBy: "manager", requested: false });
-              persist();
-            },
-          }, hope?.kind === "time" ? `＋ 希望の時間（${range(hope.from, hope.to)}）で入れる` : "＋ 勤務を追加"),
+      h("button", { class: "btn btn--small btn--danger", onclick: clearDay }, "この日の勤務を全部消す（固定は残す）"),
     );
+  }
+
+  /** 連絡事項（紙の右下の欄と同じ。公開シフトでみんなが見られる） */
+  function noteCard() {
+    return h("section", { class: "card" },
+      h("h2", { class: "card__title" }, "連絡事項（この週）"),
+      h("textarea", {
+        class: "textarea",
+        placeholder: "例：11/12 研修あり、11/14 お祭りで混みます",
+        onchange: async (e) => { period.note = e.target.value; await api.savePeriodNote(period.id, period.note); toast("連絡事項を保存しました"); },
+      }, period.note || ""),
+    );
+  }
+
+  /** この日をほかの日にコピー（コピー先の固定した勤務は残す） */
+  function copyDay(to) {
+    edit(() => {
+      const keep = work.filter((a) => a.date !== to || a.fixed);
+      const fixedThere = new Set(keep.filter((a) => a.date === to).map((a) => a.memberId));
+      const copied = work
+        .filter((a) => a.date === date && !fixedThere.has(a.memberId))
+        .map((a) => ({ ...a, id: undefined, date: to, fixed: false, createdBy: "copy" }));
+      work = [...keep, ...copied];
+    });
+    toast(`${label(to)} にコピーしました`);
+  }
+
+  /** この日の勤務を全部消す（固定は残す） */
+  async function clearDay() {
+    const ok = await confirmDialog({ title: `${label(date)} の勤務を全部消しますか？`, body: h("p", { style: { margin: 0 } }, "固定した勤務は残ります。「元に戻す」で戻せます。"), yes: "消す", no: "やめる" });
+    if (!ok) return;
+    edit(() => { work = work.filter((a) => a.date !== date || a.fixed); });
   }
 
   // ============================================================
@@ -246,6 +310,7 @@ export async function renderShiftEditor(app) {
     period = periods.find((p) => p.id === e.target.value);
     date = null;
     selectedId = null;
+    history.clear();
     await loadPeriod();
     draw();
   }
@@ -271,6 +336,7 @@ export async function renderShiftEditor(app) {
     // 過去の勤務：前の週の分を「よく入っている人」の参考にする
     const prev = periods.find((p) => p.weekStart === addDays(period.weekStart, -7));
     const past = prev ? await api.listAssignments(prev.id) : [];
+    history.push(work);
     work = makeDraft({
       dates: datesOf(period), members, availabilities: hopes, requirements, positions,
       fixed: work.filter((a) => a.fixed), past, dayTypeOf, hoursOf,
@@ -297,6 +363,7 @@ export async function renderShiftEditor(app) {
       .filter((a) => activeIds.has(a.memberId) && a.storeId === period.storeId)
       .map((a) => ({ ...a, id: undefined, date: addDays(a.date, 7), fixed: false, createdBy: "copy" }))
       .filter((a) => !fixedKey.has(`${a.memberId}|${a.date}`));
+    history.push(work);
     work = [...fixed, ...copied];
     await persist();
     toast("先週のシフトをコピーしました");

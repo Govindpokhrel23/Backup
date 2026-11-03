@@ -153,7 +153,7 @@ export function checkDay(p) {
   }
   out.push({
     ok: outside.length === 0, code: "hope", date: p.date,
-    text: outside.length ? `希望の外：${outside.join("、")}` : "希望の時間の中で入っている",
+    text: outside.length ? `希望の外：${[...new Set(outside)].join("、")}` : "希望の時間の中で入っている",
   });
 
   // ⑥ 同じ人が同じ時間に2つ入っていない（ほかの店舗への応援も含む）

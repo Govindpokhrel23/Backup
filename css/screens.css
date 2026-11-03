@@ -79,12 +79,12 @@
 .tl__track { position: relative; flex: 1; height: 46px; }
 .tl__row--head .tl__track { height: 20px; }
 .tl__track--grid {
-  /* 1時間ごとの縦線（15時間＝15等分） */
+  /* 1時間ごとの縦線（表の時間の数で等分） */
   background-image: linear-gradient(to right, #EFE6DA 1px, transparent 1px);
-  background-size: calc(100% / 15) 100%;
+  background-size: calc(100% / var(--hours, 15)) 100%;
 }
 .tl__hour { position: absolute; top: 0; font-size: 11px; color: var(--ink-3); }
-.tl__needs { flex: 1; display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 2px; }
+.tl__needs { flex: 1; display: grid; grid-template-columns: repeat(var(--hours, 15), minmax(0, 1fr)); gap: 2px; }
 .tl__need { height: 24px; border-radius: 4px; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; background: #F2F6EE; color: #5B7A4A; }
 .tl__need.is-short { background: var(--danger-bg); color: var(--danger); }
 .tl__group { font-size: 12px; font-weight: 700; color: var(--ink-3); padding: 6px 0 2px; }
@@ -212,3 +212,6 @@
 .req-row.is-bad { outline: 2px solid var(--danger); }
 .req-row__count { display: flex; gap: 6px; align-items: center; }
 .req-row__count strong { min-width: 44px; text-align: center; font-size: 18px; }
+
+/* ---------- シフト作成：右の欄の勤務1つ分 ---------- */
+.work-edit { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; background: var(--surface-2); }

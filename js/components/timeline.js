@@ -16,9 +16,11 @@ import { h } from "../lib/dom.js";
 import { CONFIG } from "../config.js";
 import { fmt, snap, range } from "../lib/time.js";
 
-const START = CONFIG.DAY_START;
-const END = CONFIG.DAY_END;
-const SPAN = END - START;
+// 表の左端と右端（timeline() を呼ぶたびに決め直す）
+// 店長が営業時間の外に勤務を入れても見えるように、その日に合わせて広げる
+let START = CONFIG.DAY_START;
+let END = CONFIG.DAY_END;
+let SPAN = END - START;
 
 /** 時刻 → 左からの位置（％） */
 const pct = (minute) => ((minute - START) / SPAN) * 100;
@@ -29,12 +31,17 @@ const pct = (minute) => ((minute - START) / SPAN) * 100;
  * @param {object[]} p.assignments     その日の勤務
  * @param {object[]} [p.availabilities] その日の希望（店長だけ渡す）
  * @param {object[]} [p.needs]         上に出す人数の行 [{label, color, slots:[{need,have}]}]（1時間ごと）
+ * @param {number}   [p.start]         表の左端（分）。なければ 7:00
+ * @param {number}   [p.end]           表の右端（分）。なければ 22:00
  * @param {string}   [p.selectedId]    選んでいる店員
  * @param {boolean}  [p.editable]      ドラッグで直せるか
  * @param {(memberId:string)=>void} [p.onSelect]   名前や線を押した時
  * @param {(assignment:object, change:{from:number,to:number,breakAt:number|null})=>void} [p.onChange] ドラッグが終わった時
  */
 export function timeline(p) {
+  START = p.start ?? CONFIG.DAY_START;
+  END = p.end ?? CONFIG.DAY_END;
+  SPAN = END - START;
   const hours = [];
   for (let m = START; m < END; m += 60) hours.push(m);
 
@@ -42,13 +49,16 @@ export function timeline(p) {
   const shain = p.members.filter((m) => m.kind === "shain");
   const others = p.members.filter((m) => m.kind !== "shain");
 
-  return h("div", { class: "tl" },
+  // 時間の数（縦線と人数のマスの数に使う）
+  return h("div", { class: "tl", style: { "--hours": String(hours.length) } },
     h("div", { class: "tl__inner" },
       // ---- 時刻の目盛り ----
       h("div", { class: "tl__row tl__row--head" },
         h("div", { class: "tl__name" }),
         h("div", { class: "tl__track" },
-          hours.map((m) => h("span", { class: "tl__hour num", style: { left: `${pct(m)}%` } }, fmt(m))),
+          // 時間が多い日（16時間より長い）は、文字が重ならないよう2時間おきに出す
+          hours.filter((m, i) => hours.length <= 16 || i % 2 === 0)
+            .map((m) => h("span", { class: "tl__hour num", style: { left: `${pct(m)}%` } }, fmt(m))),
         ),
       ),
       // ---- 必要人数と不足（店長の画面だけ） ----

@@ -11,11 +11,16 @@
 /** 時間の細かさ（15分刻み） */
 export const STEP = 15;
 
-/** 分 → "9:00" の文字 */
+/** 店長が選べる時刻のはば（5:00 〜 翌2:00。紙のシフト表も翌2時まである） */
+export const EDIT_MIN = 5 * 60;
+export const EDIT_MAX = 26 * 60;
+
+/** 分 → "9:00" の文字（24時をこえたら "翌1:00"） */
 export function fmt(minutes) {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return `${h}:${String(m).padStart(2, "0")}`;
+  const mm = String(m).padStart(2, "0");
+  return h > 24 || (h === 24 && m > 0) ? `翌${h - 24}:${mm}` : `${h}:${mm}`;
 }
 
 /** "9:00" の文字 → 分 */

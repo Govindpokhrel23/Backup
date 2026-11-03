@@ -11,6 +11,7 @@ import { screenHeader } from "../components/header.js";
 import { timeline } from "../components/timeline.js";
 import { weekLabel, datesOf } from "../lib/period.js";
 import { label, today } from "../lib/date.js";
+import { CONFIG } from "../config.js";
 
 export async function renderPublished(app) {
   const [periods, members] = await Promise.all([api.listPeriods(), api.listMembers()]);
@@ -39,9 +40,11 @@ export async function renderPublished(app) {
           : null,
       }),
       h("div", { class: "screen-body" },
+        period.note ? h("div", { class: "notice notice--warn", style: { fontWeight: 400, whiteSpace: "pre-line" } }, `連絡事項：${period.note}`) : null,
         dayTabs(),
         h("div", { class: "card" },
           timeline({
+            ...dayRange(),
             members: members.filter((m) => m.active),
             assignments: assignments.filter((a) => a.date === date),
             editable: false,
@@ -49,6 +52,14 @@ export async function renderPublished(app) {
         ),
       ),
     );
+  }
+
+  /** 表の左端と右端（7:00〜22:00 より外の勤務があれば広げる） */
+  function dayRange() {
+    const day = assignments.filter((a) => a.date === date);
+    const start = Math.min(CONFIG.DAY_START, ...day.map((a) => a.from));
+    const end = Math.max(CONFIG.DAY_END, ...day.map((a) => a.to));
+    return { start: Math.floor(start / 60) * 60, end: Math.ceil(end / 60) * 60 };
   }
 
   function dayTabs() {

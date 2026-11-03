@@ -281,6 +281,16 @@ export const mockApi = {
     return reply(p);
   },
 
+  /** 連絡事項（その週）を保存する（店長） */
+  async savePeriodNote(periodId, note) {
+    const data = load();
+    requireManager(data);
+    const p = data.periods.find((x) => x.id === periodId);
+    p.note = note;
+    save(data);
+    return reply(true);
+  },
+
   // ---------- 希望 ----------
 
   /**

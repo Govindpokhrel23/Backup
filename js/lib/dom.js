@@ -29,7 +29,11 @@ export function h(tag, attrs = {}, ...children) {
       el.addEventListener(key.slice(2).toLowerCase(), value);
     } else if (key === "style" && typeof value === "object") {
       // style は { left: "10px" } のような形でも渡せる
-      Object.assign(el.style, value);
+      // "--hours" のような CSS変数 は setProperty でないと入らない
+      for (const [prop, v] of Object.entries(value)) {
+        if (prop.startsWith("--")) el.style.setProperty(prop, v);
+        else el.style[prop] = v;
+      }
     } else if (key === "value") {
       // 入力欄の値は属性ではなくプロパティで入れる
       el.value = value;

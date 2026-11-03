@@ -45,8 +45,9 @@ shift-app/
 │  │  └─ simple-draft.js   下書きを作る（今は簡易版。段階4で Gemini に入れ替え）
 │  ├─ components/
 │  │  ├─ header.js         画面の見出し
+│  │  ├─ assignment-panel.js シフト作成の右の欄（1人分の勤務を直す）
 │  │  └─ timeline.js       シフト表（時間の目盛り＋線、ドラッグ）
-│  ├─ lib/                 小さな道具（時刻・日付・週・HTML要素づくり）
+│  ├─ lib/                 小さな道具（時刻・日付・週・HTML要素づくり・元に戻す）
 │  └─ screens/             1画面＝1ファイル
 │     ├─ login.js          ログイン／はじめての方
 │     ├─ home.js           ホーム（店長・店員）
