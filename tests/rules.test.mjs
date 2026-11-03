@@ -109,5 +109,25 @@ test("1日でも休みがあれば、週1休みは OK", () => {
 
 test("特別許可を待っている休みがあれば、知らせる", () => {
   const r = checkWeek({ dates, assignments: [], members, availabilities: [{ memberId: "a", date: "2026-11-12", kind: "offx" }] });
-  assert.equal(onlyProblems(r).length, 1);
+  assert.equal(r.find((x) => x.code === "special").ok, false);
+});
+
+// ---------- 社員の休みの日数 ----------
+const onlyA = [members[0]];
+const workDays = (n) => dates.slice(0, n).map((d) => ({ memberId: "a", date: d, from: H(7), to: H(16) }));
+
+test("社員が希望なしで休み1日なら OK", () => {
+  const r = checkWeek({ dates, assignments: workDays(6), members: onlyA, availabilities: [] });
+  assert.equal(r.find((x) => x.code === "shain-off").ok, true);
+});
+
+test("社員が希望なしで休み2日なら NG（希望なしは週1日）", () => {
+  const r = checkWeek({ dates, assignments: workDays(5), members: onlyA, availabilities: [] });
+  assert.equal(r.find((x) => x.code === "shain-off").ok, false);
+});
+
+test("社員が休み希望を2日出していれば、休み2日は OK", () => {
+  const availabilities = [{ memberId: "a", date: dates[5], kind: "off" }, { memberId: "a", date: dates[6], kind: "off" }];
+  const r = checkWeek({ dates, assignments: workDays(5), members: onlyA, availabilities });
+  assert.equal(r.find((x) => x.code === "shain-off").ok, true);
 });

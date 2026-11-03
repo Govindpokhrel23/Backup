@@ -5,7 +5,9 @@
 //   バイト・フルで入るバイト：
 //     1日ずつ「入れない／いつでもOK／時間指定」を選ぶ
 //   社員：
-//     最初から全部「入れる」。休み希望は週2日まで。
+//     最初から全部「入れる」。
+//     希望を出さない → 休みは週1日（AIが決める）
+//     休み希望を出す → 週2日まで。
 //     3日目からは「特別許可の申請」になり、店長が決める（F-48）
 // ・締切までは何度でも直せる
 // ・ほかの人の希望は見られない
@@ -59,7 +61,7 @@ export async function renderKibou(app) {
           h("div", { class: "kibou-deadline" }, `締切：${deadlineLabel(period)} まで`),
           isShain
             ? h("div", { class: "notice notice--warn", style: { fontWeight: 400 } },
-                `最初から全部「入れる」になっています。休み希望は週${CONFIG.SHAIN_OFF_LIMIT}日まで（今 ${offCount}/${CONFIG.SHAIN_OFF_LIMIT}）。それより多いときは店長の特別許可が必要です。`)
+                `休み希望を出さないときは、休みは週1日（AIが決めます）。休み希望を出すときは週${CONFIG.SHAIN_OFF_LIMIT}日まで（今 ${offCount}/${CONFIG.SHAIN_OFF_LIMIT}）。それより多いときは店長の特別許可が必要です。`)
             : null,
         ],
       }),

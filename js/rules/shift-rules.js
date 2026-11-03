@@ -200,7 +200,22 @@ export function checkWeek(p) {
     text: noRest.length ? `週1日の休みがない：${noRest.map((m) => m.name).join("、")}` : "全員、週1日の休みあり",
   });
 
-  // ② 社員の休み希望は週2日まで（3日目からは特別許可の申請＝offx）
+  // ② 社員の休みの日数（要件 F-48・F-49）
+  //    希望なし → 休みは週1日だけ ／ 休み希望あり → 希望した日数（週2日まで）
+  const tooMany = [];
+  for (const m of active.filter((x) => x.kind === "shain")) {
+    const asked = p.availabilities.filter((a) => a.memberId === m.id && ["off", "offx", "no"].includes(a.kind)).length;
+    const allowed = asked > 0 ? asked : 1;
+    const worked = new Set(p.assignments.filter((a) => a.memberId === m.id).map((a) => a.date));
+    const off = p.dates.filter((d) => !worked.has(d)).length;
+    if (off > allowed) tooMany.push(`${m.name}（${asked ? `休み希望${asked}日` : "希望なし＝週1日"}、今${off}日休み）`);
+  }
+  out.push({
+    ok: tooMany.length === 0, code: "shain-off",
+    text: tooMany.length ? `社員の休みが多い：${tooMany.join("、")}` : "社員の休みの日数",
+  });
+
+  // ③ 社員の休み希望は週2日まで（3日目からは特別許可の申請＝offx）
   const waiting = p.availabilities.filter((a) => a.kind === "offx");
   if (waiting.length) {
     const nameOf = (id) => p.members.find((m) => m.id === id)?.name || "？";
