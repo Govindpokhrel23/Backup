@@ -245,3 +245,10 @@
   .editor__table, .editor__side { flex-basis: 100%; }
   .cal__chip { font-size: 9px; padding: 1px 2px; }
 }
+
+/* ---------- 希望入力：週の切り替え（2か月分。横にスクロール） ---------- */
+.week-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+.week-tab { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50px; line-height: 1.2; }
+.week-tab__state { font-size: 10px; font-weight: 400; color: var(--danger); }
+.week-tab__state.is-done { color: var(--ok); }
+.week-tab[aria-pressed="true"] .week-tab__state { color: #fff; }

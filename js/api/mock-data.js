@@ -114,12 +114,12 @@ export function createMockData() {
   fillWeek("w-prev", addDays(thisMonday, -7));
   fillWeek("w-this", thisMonday);
 
-  // ---------- 希望（来週＝受付中） ----------
+  // ---------- 希望（来週＝受付中。希望は日付ごとに持つ） ----------
   // kind: no=入れない / any=いつでもOK / time=時間指定 / off=休み希望 / offx=特別許可の申請
   const availabilities = [];
   const hope = (memberId, i, kind, from = null, to = null) =>
     availabilities.push({
-      periodId: "w-next", memberId, date: addDays(nextMonday, i), kind,
+      memberId, date: addDays(nextMonday, i), kind,
       from: from === null ? null : H(from), to: to === null ? null : H(to),
     });
   // 社員：休み希望だけ（ほかは全部「入れる」）

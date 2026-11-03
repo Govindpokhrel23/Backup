@@ -10,8 +10,10 @@
 // ============================================================
 
 import { createMockData } from "./mock-data.js";
+import { today, addDays, weekDates } from "../lib/date.js";
 
-const STORAGE_KEY = "shiftapp-mock-v1";
+// 形を変えたら番号を上げる（古い見本データは自動で作り直される）
+const STORAGE_KEY = "shiftapp-mock-v2";
 
 // ------------------------------------------------------------
 // 保存と読み込み
@@ -292,28 +294,50 @@ export const mockApi = {
   },
 
   // ---------- 希望 ----------
+  // 希望は「日付」ごとに持つ（週の受付がまだ始まっていない先の週でも入れられる）
+  // 2026年11月3日：希望は2か月先まで入れられるようにした
+  // 入れられない週（ロック）：
+  //   ・その週の締切（前の週の日曜24:00）をすぎた
+  //   ・店長がその週の受付を締め切った／公開した
 
   /**
-   * 希望を読む
+   * ある週の希望を読む（店長のシフト作成・ホームで使う）
    * ・店長 → 同じ店舗の全員分
    * ・店員 → 自分の分だけ（ほかの人の希望は見られない。要件で決定）
    */
   async listAvailabilities(periodId) {
     const data = load();
     const user = me(data);
-    let list = data.availabilities.filter((a) => a.periodId === periodId);
+    const period = data.periods.find((p) => p.id === periodId);
+    if (!period) return reply([]);
+    const dates = new Set(weekDates(period.weekStart));
+    const storeMembers = new Set(data.members.filter((m) => m.storeId === period.storeId).map((m) => m.id));
+    let list = data.availabilities.filter((a) => dates.has(a.date) && storeMembers.has(a.memberId));
     if (user.role !== "manager") list = list.filter((a) => a.memberId === user.id);
     return reply(list);
   },
 
-  /** 自分の希望を保存（受付中だけ） */
-  async saveMyAvailabilities(periodId, rows) {
+  /** 自分の希望（from〜to の日付）。希望入力の画面で使う */
+  async listMyAvailabilities(from, to) {
     const data = load();
     const user = me(data);
-    const period = data.periods.find((p) => p.id === periodId);
-    if (!period || period.status !== "open") return fail("受付は終わっています");
-    data.availabilities = data.availabilities.filter((a) => !(a.periodId === periodId && a.memberId === user.id));
-    rows.forEach((r) => data.availabilities.push({ ...r, periodId, memberId: user.id }));
+    return reply(data.availabilities.filter((a) => a.memberId === user.id && a.date >= from && a.date <= to));
+  },
+
+  /** その週に希望を入れられるか（入れられなければ理由の文字、入れられれば null） */
+  async weekLock(weekStart) {
+    return reply(lockReason(load(), weekStart));
+  },
+
+  /** 自分の希望を1週間分保存する（ロックされた週は保存できない） */
+  async saveMyAvailabilities(weekStart, rows) {
+    const data = load();
+    const user = me(data);
+    const reason = lockReason(data, weekStart);
+    if (reason) return fail(reason);
+    const dates = new Set(weekDates(weekStart));
+    data.availabilities = data.availabilities.filter((a) => !(a.memberId === user.id && dates.has(a.date)));
+    rows.forEach((r) => data.availabilities.push({ ...r, memberId: user.id }));
     save(data);
     return reply(true);
   },
@@ -322,7 +346,7 @@ export const mockApi = {
   async approveSpecialOff(periodId, memberId, date) {
     const data = load();
     requireManager(data);
-    const a = data.availabilities.find((x) => x.periodId === periodId && x.memberId === memberId && x.date === date);
+    const a = data.availabilities.find((x) => x.memberId === memberId && x.date === date);
     if (a) a.kind = "off";
     save(data);
     return reply(true);
@@ -398,6 +422,18 @@ export const mockApi = {
 // ------------------------------------------------------------
 // 内部で使う小さな関数
 // ------------------------------------------------------------
+
+/**
+ * その週に希望を入れられない理由（入れられれば null）
+ * 締切は「その週の前の日曜24:00」＝月曜になったら入れられない
+ */
+function lockReason(data, weekStart) {
+  const user = me(data);
+  const period = data.periods.find((p) => p.storeId === user.storeId && p.weekStart === weekStart);
+  if (period && period.status !== "open") return "この週は受付が終わっています";
+  if (today() > addDays(weekStart, -1)) return "この週は締切をすぎています";
+  return null;
+}
 
 /** 営業時間がまだ決まっていない時の初期値（7:00〜22:00） */
 function defaultHours() {

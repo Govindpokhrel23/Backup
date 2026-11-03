@@ -95,12 +95,11 @@ async function renderStaffHome(app) {
   mount(app,
     screenHeader({ title: "ホーム", sub: state.user.name, right: settingsButton() }),
     h("div", { class: "screen-body" },
-      // ① いちばん上：希望を入れるボタン
-      open
-        ? h("button", { class: "btn btn--primary btn--block home-kibou", onclick: () => go("/kibou") },
-            h("span", null, "希望を入れる"),
-            h("span", { class: "home-kibou__sub" }, `${weekLabel(open)} ・ 締切 ${deadlineLabel(open)}`))
-        : h("div", { class: "notice notice--info", style: { fontWeight: 400 } }, "いまは希望の受付をしていません"),
+      // ① いちばん上：希望を入れるボタン（2か月先まで入れられる）
+      h("button", { class: "btn btn--primary btn--block home-kibou", onclick: () => go("/kibou") },
+        h("span", null, "希望を入れる"),
+        h("span", { class: "home-kibou__sub" },
+          open ? `${weekLabel(open)} の締切 ${deadlineLabel(open)} ・ 2か月先まで入れられます` : "2か月先まで入れられます")),
       // ② 自分のシフト（今日 → 明日 → 明後日）
       myShifts({ assignments: mine, stores, myStoreId: state.user.storeId }),
       // ③ お知らせ
