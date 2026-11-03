@@ -33,6 +33,7 @@ const pct = (minute) => ((minute - START) / SPAN) * 100;
  * @param {object[]} [p.needs]         上に出す人数の行 [{label, color, slots:[{need,have}]}]（1時間ごと）
  * @param {number}   [p.start]         表の左端（分）。なければ 7:00
  * @param {number}   [p.end]           表の右端（分）。なければ 22:00
+ * @param {{open:number,close:number}} [p.hours] その日の営業時間（「立」「締」の印に使う）
  * @param {string}   [p.selectedId]    選んでいる店員
  * @param {boolean}  [p.editable]      ドラッグで直せるか
  * @param {(memberId:string)=>void} [p.onSelect]   名前や線を押した時
@@ -95,12 +96,9 @@ function memberRow(p, member) {
   const offWord = hope && ["no", "off", "offx"].includes(hope.kind) && work.length === 0
     ? (hope.kind === "offx" ? "休（許可待ち）" : "休") : null;
 
-  const badges = [member.skills?.open === 100 ? "立" : null, member.skills?.close === 100 ? "締" : null].filter(Boolean).join("・");
-
   return h("div", { class: `tl__row ${selected ? "is-selected" : ""}` },
     h("button", { class: "tl__name tl__name--btn", onclick: () => p.onSelect?.(member.id) },
       h("span", { class: "tl__person" }, member.name),
-      h("span", { class: "tl__kind" }, `${CONFIG.KIND_LABEL[member.kind]}${badges ? `　${badges}` : ""}`),
     ),
     h("div", { class: "tl__track tl__track--grid" },
       // 希望（薄い緑の帯）
@@ -117,6 +115,16 @@ function memberRow(p, member) {
   );
 }
 
+/**
+ * 「立」「締」の印
+ * 開店の時刻（またはそれより前）から入る人＝立ち上げ、閉店まで入る人＝締め
+ */
+function roleTag(p, a) {
+  if (!p.hours) return null;
+  const tags = [a.from <= p.hours.open ? "立" : null, a.to >= p.hours.close ? "締" : null].filter(Boolean);
+  return tags.length ? h("span", { class: "tl__role" }, tags.join("・")) : null;
+}
+
 /** 勤務の線（ドラッグで動かせる） */
 function bar(p, a) {
   const el = h("div", {
@@ -127,6 +135,7 @@ function bar(p, a) {
     "aria-label": `${range(a.from, a.to)}`,
   },
     p.editable ? h("span", { class: "tl__handle tl__handle--l" }) : null,
+    roleTag(p, a),
     h("span", { class: "tl__label num" }, range(a.from, a.to)),
     p.editable ? h("span", { class: "tl__handle tl__handle--r" }) : null,
   );

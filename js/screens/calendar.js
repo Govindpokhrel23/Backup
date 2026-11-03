@@ -64,14 +64,14 @@ export async function renderCalendar(app) {
       const iso = toIso(new Date(year, month, d, 12));
       const work = byDate.get(iso) || [];
       const wd = (blanks + d - 1) % 7;                 // 0=月 … 6=日
-      const help = work.some((a) => a.storeId !== state.user.storeId);
       cells.push(h("button", {
         class: `cal__cell ${iso === selected ? "is-selected" : ""} ${iso === today() ? "is-today" : ""}`,
         "aria-label": `${month + 1}月${d}日${work.length ? ` 勤務 ${work.map((a) => range(a.from, a.to)).join("、")}` : ""}`,
         onclick: () => { selected = iso; draw(); },
       },
         h("span", { class: `cal__num ${wd === 6 ? "is-sun" : wd === 5 ? "is-sat" : ""}` }, d),
-        work.length ? h("span", { class: `cal__chip num ${help ? "is-help" : ""}` }, fmt(work[0].from)) : null,
+        // 入っている日は「7〜17」のように始まりと終わりを出す
+        work.map((a) => h("span", { class: `cal__chip num ${a.storeId !== state.user.storeId ? "is-help" : ""}` }, shortRange(a.from, a.to))),
       ));
     }
     return h("div", { class: "cal" },
@@ -97,6 +97,12 @@ export async function renderCalendar(app) {
           })
         : h("div", { class: "home-muted" }, "この日の勤務はありません（公開前の週はまだ出ません）"),
     );
+  }
+
+  /** "7〜17" の短い形（ちょうどの時刻は分を省く。例 7:30〜17 ） */
+  function shortRange(from, to) {
+    const t = (m) => (m % 60 === 0 ? String(m / 60 > 24 ? `翌${m / 60 - 24}` : m / 60) : fmt(m));
+    return `${t(from)}〜${t(to)}`;
   }
 
   function moveMonth(n) {

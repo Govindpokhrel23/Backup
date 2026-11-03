@@ -17,6 +17,7 @@ import { h, mount, toast } from "../lib/dom.js";
 import { api } from "../api/index.js";
 import { state } from "../store.js";
 import { CONFIG } from "../config.js";
+import { go } from "../router.js";
 import { screenHeader } from "../components/header.js";
 import { openPeriod, weekLabel, deadlineLabel, datesOf } from "../lib/period.js";
 import { label, weekdayNum } from "../lib/date.js";
@@ -65,7 +66,7 @@ export async function renderKibou(app) {
             : null,
         ],
       }),
-      h("div", { class: "screen-body" },
+      h("div", { class: "screen-body kibou-body" },
         days.map((d, i) => dayCard(d, i)),
         message ? h("div", { class: "notice notice--danger" }, message) : null,
       ),
@@ -154,7 +155,10 @@ export async function renderKibou(app) {
     }));
     try {
       await api.saveMyAvailabilities(period.id, rows);
-      toast("保存しました");
+      toast("希望を保存しました");
+      // 保存できたら前の画面に戻る（前がなければホームへ）
+      if (history.length > 1) history.back();
+      else go("/home");
     } catch (e) {
       message = e.message;
       draw();

@@ -85,6 +85,7 @@ export function createMockData() {
 
   // ---------- 受付（週） ----------
   const periods = [
+    { id: "w-prev", storeId: "s-fukugama", weekStart: addDays(thisMonday, -7), deadline: `${addDays(thisMonday, -8)}T24:00`, status: "published", note: "" },
     { id: "w-this", storeId: "s-fukugama", weekStart: thisMonday, deadline: `${addDays(thisMonday, -1)}T24:00`, status: "published", note: "" },
     { id: "w-next", storeId: "s-fukugama", weekStart: nextMonday, deadline: `${addDays(nextMonday, -1)}T24:00`, status: "open", note: "" },
   ];
@@ -99,15 +100,19 @@ export function createMockData() {
       fixed: false, createdBy: "manager", requested: false,
     });
   // i は曜日の番号（0=月 … 6=日）。誰でも週1日以上は休みになるようにしてある
-  weekDates(thisMonday).forEach((date, i) => {
-    if (i !== 2) add("w-this", date, "m1", 7, 16, "hall", 11.5);        // A 水曜休み
-    if (i !== 4) add("w-this", date, "m2", 13, 22, "kitchen", 17);      // B 金曜休み
-    if (i !== 6) add("w-this", date, "m3", 7, 13, "kitchen");           // C 日曜休み
-    if ([0, 2, 4, 5].includes(i)) add("w-this", date, "m4", 9, 15, "hall");
-    if ([1, 3, 6].includes(i)) add("w-this", date, "m5", 11, 14, "hall");
-    if (i !== 3) add("w-this", date, "m6", 10, 19, "kitchen", 14);      // F 木曜休み
-    if ([0, 1, 4, 5, 6].includes(i)) add("w-this", date, "m7", 16, 22, "hall");
+  // 先週と今週は同じ形（先週の分は、ホームからは消えてカレンダーにだけ残る見本）
+  const fillWeek = (periodId, monday) => weekDates(monday).forEach((date, i) => {
+    if ([1, 3, 5].includes(i)) add(periodId, date, "m0", 9, 18, "hall", 13);   // 店長も仕事に入る
+    if (i !== 2) add(periodId, date, "m1", 7, 16, "hall", 11.5);        // A 水曜休み
+    if (i !== 4) add(periodId, date, "m2", 13, 22, "kitchen", 17);      // B 金曜休み
+    if (i !== 6) add(periodId, date, "m3", 7, 13, "kitchen");           // C 日曜休み
+    if ([0, 2, 4, 5].includes(i)) add(periodId, date, "m4", 9, 15, "hall");
+    if ([1, 3, 6].includes(i)) add(periodId, date, "m5", 11, 14, "hall");
+    if (i !== 3) add(periodId, date, "m6", 10, 19, "kitchen", 14);      // F 木曜休み
+    if ([0, 1, 4, 5, 6].includes(i)) add(periodId, date, "m7", 16, 22, "hall");
   });
+  fillWeek("w-prev", addDays(thisMonday, -7));
+  fillWeek("w-this", thisMonday);
 
   // ---------- 希望（来週＝受付中） ----------
   // kind: no=入れない / any=いつでもOK / time=時間指定 / off=休み希望 / offx=特別許可の申請

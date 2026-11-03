@@ -27,16 +27,21 @@
 .kibou-day__state.is-none { color: var(--danger); }
 .is-sun { color: var(--danger); }
 .is-sat { color: var(--hall); }
+/* 保存ボタンは画面の下（タブバーの上）に固定。幅は本文と同じにそろえる */
 .kibou-footer {
-  position: sticky;
+  position: fixed;
+  left: 0; right: 0;
   bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  z-index: 6;
   background: var(--surface);
   border-top: 1px solid var(--line);
-  padding: 10px 14px;
+  padding: 10px max(14px, calc((100% - 640px) / 2));
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+/* 希望入力の本文は、下の保存ボタンに隠れないよう余白をとり、幅を読みやすくする */
+.screen-body.kibou-body { max-width: 640px; padding-bottom: 120px; }
 
 /* ---------- カレンダー ---------- */
 .cal__nav { display: flex; justify-content: space-between; align-items: center; }
@@ -215,3 +220,28 @@
 
 /* ---------- シフト作成：右の欄の勤務1つ分 ---------- */
 .work-edit { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; background: var(--surface-2); }
+
+/* ---------- シフト表：「立」「締」の印 ---------- */
+.tl__role { background: #fff; color: var(--ink); border-radius: 4px; padding: 0 4px; margin-right: 4px; font-size: 10px; }
+
+/* ---------- ホーム：希望を入れるボタン・自分のシフト ---------- */
+.home-kibou { min-height: 64px; flex-direction: column; gap: 2px; font-size: 17px; }
+.home-kibou__sub { font-size: 12px; font-weight: 400; opacity: 0.85; }
+.my-shifts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.my-shifts__item { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.my-shifts__item.is-today { background: var(--ink); color: #fff; }
+.my-shifts__item.is-today .home-muted { color: rgba(255, 255, 255, 0.8); }
+.my-shifts__day { display: flex; gap: 8px; align-items: baseline; font-size: 14px; }
+.my-shifts__time { font-size: 18px; font-weight: 700; }
+
+/* ---------- カレンダー：1日に2つ以上の勤務 ---------- */
+.cal__cell { gap: 2px; }
+
+/* ---------- スマホ（はば600px以下） ---------- */
+@media (max-width: 600px) {
+  .screen-body { padding: 10px; }
+  .tl__name { width: 84px; }               /* 名前の列をせまくして、線の場所を広く */
+  .tl__inner { min-width: 640px; }
+  .editor__table, .editor__side { flex-basis: 100%; }
+  .cal__chip { font-size: 9px; padding: 1px 2px; }
+}

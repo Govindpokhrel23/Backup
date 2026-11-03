@@ -20,8 +20,10 @@
   flex-direction: column;
   gap: 6px;
 }
-.screen-header__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.screen-header__title { margin: 0; font-size: 22px; font-weight: 700; }
+/* 右に置くもの（週を選ぶ欄など）が長い時は、下の行に回す（スマホで見出しが縦に割れないように） */
+.screen-header__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.screen-header__row > .select { max-width: 100%; }
+.screen-header__title { margin: 0; font-size: 22px; font-weight: 700; white-space: nowrap; }
 .screen-header__sub { font-size: 13px; color: var(--ink-3); }
 
 /* 本文の中身 */

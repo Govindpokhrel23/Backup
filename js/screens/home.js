@@ -1,8 +1,10 @@
 // ============================================================
 // screens/home.js — ホーム（今やること）
 // ------------------------------------------------------------
-// 店長：受付の状態・未提出の人数・すぐ行きたい画面
-// 店員：次の勤務・希望の締切・お知らせ
+// 店員：①いちばん上に「希望を入れる」ボタン
+//       ②その下に自分のシフト（今日 → 明日 → 明後日 の順。昨日のものは消える）
+//       ③お知らせ
+// 店長：受付の状態（締め切る／再開する）、自分のシフト（店長も仕事に入る）、店舗の設定
 // ============================================================
 
 import { h, mount, toast } from "../lib/dom.js";
@@ -10,9 +12,8 @@ import { api } from "../api/index.js";
 import { state, isManager } from "../store.js";
 import { go } from "../router.js";
 import { screenHeader } from "../components/header.js";
+import { myShifts } from "../components/my-shifts.js";
 import { STATUS_LABEL, weekLabel, deadlineLabel, openPeriod, workingPeriod } from "../lib/period.js";
-import { label, today } from "../lib/date.js";
-import { range } from "../lib/time.js";
 
 export async function renderHome(app) {
   if (isManager()) return renderManagerHome(app);
@@ -28,15 +29,25 @@ function settingsButton() {
 // 店長のホーム
 // ------------------------------------------------------------
 async function renderManagerHome(app) {
-  const [periods, members] = await Promise.all([api.listPeriods(), api.listMembers()]);
+  const [periods, members, mine, stores] = await Promise.all([
+    api.listPeriods(), api.listMembers(), api.listMyAssignments(), api.listStores(),
+  ]);
   const period = workingPeriod(periods);
   const hopes = period ? await api.listAvailabilities(period.id) : [];
 
-  // 希望を出した人（社員は出さなくても「全部入れる」なので数えない）
+  // 希望を出した人（社員は出さなくても休み週1日の扱いなので数えない）
   const needSubmit = members.filter((m) => m.active && m.kind !== "shain");
   const submitted = new Set(hopes.map((x) => x.memberId));
   const notYet = needSubmit.filter((m) => !submitted.has(m.id));
   const specialWaiting = hopes.filter((x) => x.kind === "offx");
+
+  /** 受付中 ⇔ 締切 を切り替える（まちがえて押しても、もう一度押せば戻る） */
+  const toggleIntake = async () => {
+    const next = period.status === "open" ? "closed" : "open";
+    await api.setPeriodStatus(period.id, next);
+    toast(next === "closed" ? "受付を締め切りました（もう一度押すと戻せます）" : "受付を再開しました");
+    renderHome(app);
+  };
 
   const statusCard = period ? h("section", { class: "card" },
     h("h2", { class: "card__title" }, weekLabel(period)),
@@ -48,11 +59,8 @@ async function renderManagerHome(app) {
     notYet.length ? h("div", { class: "home-muted" }, `まだの人：${notYet.map((m) => m.name).join("、")}`) : null,
     specialWaiting.length ? h("div", { class: "notice notice--warn" }, `特別許可を待っている休みが ${specialWaiting.length}件 あります（シフト作成で確認）`) : null,
     h("div", { class: "chip-row" },
-      period.status === "open"
-        ? h("button", { class: "btn", onclick: async () => { await api.setPeriodStatus(period.id, "closed"); toast("受付を締め切りました"); renderHome(app); } }, "受付を締め切る")
-        : null,
-      period.status === "closed"
-        ? h("button", { class: "btn", onclick: async () => { await api.setPeriodStatus(period.id, "open"); toast("受付を再開しました"); renderHome(app); } }, "受付を再開する")
+      period.status !== "published"
+        ? h("button", { class: "btn", onclick: toggleIntake }, period.status === "open" ? "受付を締め切る" : "受付を再開する")
         : null,
       h("button", { class: "btn btn--primary", onclick: () => go("/shift") }, "シフト作成へ"),
     ),
@@ -62,11 +70,13 @@ async function renderManagerHome(app) {
     screenHeader({ title: "ホーム", sub: `${state.user.name}（店長）`, right: settingsButton() }),
     h("div", { class: "screen-body" },
       statusCard,
+      // 店長も仕事に入るので、自分のシフトも出す
+      myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, limit: 5 }),
       h("section", { class: "card" },
         h("h2", { class: "card__title" }, "店舗の設定"),
         h("div", { class: "chip-row" },
           h("button", { class: "btn", onclick: () => go("/staff") }, "店員管理"),
-          h("button", { class: "btn", onclick: () => go("/map") }, "マップ・必要人数"),
+          h("button", { class: "btn", onclick: () => go("/map") }, "マップ・必要人数・営業時間"),
         ),
       ),
     ),
@@ -80,36 +90,20 @@ async function renderStaffHome(app) {
   const [periods, mine, notes, stores] = await Promise.all([
     api.listPeriods(), api.listMyAssignments(), api.listNotifications(), api.listStores(),
   ]);
-  const now = today();
-  // 今日以降でいちばん早い勤務（日付 → 開始時刻 の順に並べる）
-  const next = mine
-    .filter((a) => a.date >= now)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.from - b.from)[0];
   const open = openPeriod(periods);
-  const storeName = (id) => stores.find((s) => s.id === id)?.name || "";
 
   mount(app,
     screenHeader({ title: "ホーム", sub: state.user.name, right: settingsButton() }),
     h("div", { class: "screen-body" },
-      // 次の勤務
-      h("section", { class: "next-shift" },
-        h("div", { class: "next-shift__label" }, "次の勤務"),
-        next
-          ? [
-              h("div", { class: "next-shift__time num" }, `${label(next.date)} コメダ ${range(next.from, next.to)}`),
-              h("div", { class: "next-shift__place" }, `${storeName(next.storeId)} ・ ${next.area === "hall" ? "ホール" : "キッチン"}`),
-            ]
-          : h("div", { class: "next-shift__time" }, "まだ予定はありません"),
-      ),
-      // 希望の締切
+      // ① いちばん上：希望を入れるボタン
       open
-        ? h("section", { class: "card" },
-            h("h2", { class: "card__title" }, `${weekLabel(open)} の希望`),
-            h("div", { class: "home-muted" }, `締切：${deadlineLabel(open)}`),
-            h("button", { class: "btn btn--primary", onclick: () => go("/kibou") }, "希望を入れる"),
-          )
-        : null,
-      // お知らせ
+        ? h("button", { class: "btn btn--primary btn--block home-kibou", onclick: () => go("/kibou") },
+            h("span", null, "希望を入れる"),
+            h("span", { class: "home-kibou__sub" }, `${weekLabel(open)} ・ 締切 ${deadlineLabel(open)}`))
+        : h("div", { class: "notice notice--info", style: { fontWeight: 400 } }, "いまは希望の受付をしていません"),
+      // ② 自分のシフト（今日 → 明日 → 明後日）
+      myShifts({ assignments: mine, stores, myStoreId: state.user.storeId }),
+      // ③ お知らせ
       h("section", { class: "card" },
         h("h2", { class: "card__title" }, "お知らせ"),
         notes.length

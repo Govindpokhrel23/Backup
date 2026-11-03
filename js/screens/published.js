@@ -10,11 +10,11 @@ import { api } from "../api/index.js";
 import { screenHeader } from "../components/header.js";
 import { timeline } from "../components/timeline.js";
 import { weekLabel, datesOf } from "../lib/period.js";
-import { label, today } from "../lib/date.js";
+import { label, today, dayType } from "../lib/date.js";
 import { CONFIG } from "../config.js";
 
 export async function renderPublished(app) {
-  const [periods, members] = await Promise.all([api.listPeriods(), api.listMembers()]);
+  const [periods, members, storeHours, holidays] = await Promise.all([api.listPeriods(), api.listMembers(), api.getStoreHours(), api.listHolidays()]);
   const published = periods.filter((p) => p.status === "published");
 
   if (!published.length) {
@@ -45,6 +45,7 @@ export async function renderPublished(app) {
         h("div", { class: "card" },
           timeline({
             ...dayRange(),
+            hours: storeHours[dayType(date, holidays)],     // 「立」「締」の印に使う
             members: members.filter((m) => m.active),
             assignments: assignments.filter((a) => a.date === date),
             editable: false,

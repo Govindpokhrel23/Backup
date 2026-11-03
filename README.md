@@ -13,6 +13,15 @@
 
 > ※ `index.html` をダブルクリックで開くと動きません（type="module" のため）。必ず Live Server で開く。
 
+## iPhone で試す（MacBook と同じ Wi-Fi で）
+
+1. MacBook で Live Server を動かしておく
+2. MacBook の IP を調べる：システム設定 → Wi-Fi → つないでいるWi-Fiの「詳細」→「IPアドレス」（例 192.168.1.23）
+3. iPhone の Safari で `http://192.168.1.23:5500/` を開く（数字は自分のIP。5500 は Live Server の番号）
+4. 開けない時：VS Code の設定で `liveServer.settings.host` を `0.0.0.0` にして、Live Server を動かし直す
+
+> ※ 見本データは「その機械のブラウザの中」に保存される。iPhone と MacBook では別々のデータになる（Supabase をつなぐと共通になる）。
+
 ## ルールチェックのテスト
 
 ```bash
@@ -46,6 +55,7 @@ shift-app/
 │  ├─ components/
 │  │  ├─ header.js         画面の見出し
 │  │  ├─ assignment-panel.js シフト作成の右の欄（1人分の勤務を直す）
+│  │  ├─ my-shifts.js      自分のシフト（今日・明日・明後日…。ホームで使う）
 │  │  └─ timeline.js       シフト表（時間の目盛り＋線、ドラッグ）
 │  ├─ lib/                 小さな道具（時刻・日付・週・HTML要素づくり・元に戻す）
 │  └─ screens/             1画面＝1ファイル

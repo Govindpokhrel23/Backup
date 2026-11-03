@@ -137,8 +137,9 @@ export async function renderShiftEditor(app) {
         right: h("select", { class: "select", style: { width: "auto" }, "aria-label": "週を選ぶ", onchange: changeWeek },
           periods.map((p) => h("option", { value: p.id, selected: p.id === period.id }, `${weekLabel(p)}（${STATUS_LABEL[p.status]}）`))),
         extra: h("div", { class: "chip-row" },
-          period.status === "open"
-            ? h("button", { class: "btn btn--small", onclick: closeIntake }, "受付を締め切る")
+          // 受付の切り替え：まちがえて締め切っても、もう一度押せば受付中に戻る
+          period.status !== "published"
+            ? h("button", { class: "btn btn--small", onclick: toggleIntake }, period.status === "open" ? "受付を締め切る" : "受付を再開する")
             : null,
           h("button", { class: "btn btn--small", onclick: undo, disabled: !history.canUndo(), "aria-label": "元に戻す" }, "↶ 元に戻す"),
           h("button", { class: "btn btn--small", onclick: redo, disabled: !history.canRedo(), "aria-label": "やり直す" }, "↷ やり直す"),
@@ -153,6 +154,7 @@ export async function renderShiftEditor(app) {
           h("section", { class: "card editor__table" },
             timeline({
               ...dayRange(date),
+              hours: hoursOf(date),
               members: active,
               assignments: today,
               availabilities: hopes.filter((x) => x.date === date),   // 希望は店長だけに見せる
@@ -315,10 +317,12 @@ export async function renderShiftEditor(app) {
     draw();
   }
 
-  async function closeIntake() {
-    await api.setPeriodStatus(period.id, "closed");
-    period.status = "closed";
-    toast("受付を締め切りました");
+  /** 受付中 ⇔ 締切 を切り替える */
+  async function toggleIntake() {
+    const next = period.status === "open" ? "closed" : "open";
+    await api.setPeriodStatus(period.id, next);
+    period.status = next;
+    toast(next === "closed" ? "受付を締め切りました（もう一度押すと戻せます）" : "受付を再開しました");
     draw();
   }
 
