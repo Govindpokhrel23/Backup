@@ -29,6 +29,7 @@ import { defaultBreak, breakWindow } from "../lib/breaks.js";
  * @param {(a:object)=>void} p.onRemove     勤務を消す
  * @param {()=>void} [p.onApproveSpecial]   特別許可を出す
  * @param {boolean}  [p.locked]      公開済みで直せない時は見るだけ
+ * @param {string}   [p.weekText]    この週の働く時間（例：「この週 32時間（5日）」）
  * @param {object[]} [p.elsewhere]   その日ほかの店舗に入っている勤務（storeShort つき）
  */
 export function assignmentPanel(p) {
@@ -46,6 +47,7 @@ export function assignmentPanel(p) {
     h("div", { class: "home-muted" }, `できること：${CONFIG.SKILLS.map((s) => `${s.label}${m.skills[s.key]}`).join("・")}`),
     h("div", { class: "rule-memo" }, `店長メモ：${p.rule}`),
     h("div", null, `希望：${hopeText}`),
+    p.weekText ? h("div", { class: "home-muted" }, p.weekText) : null,
     hope?.kind === "offx" && p.onApproveSpecial
       ? h("button", { class: "btn btn--small", onclick: p.onApproveSpecial }, "特別許可を出す（休みにする）")
       : null,

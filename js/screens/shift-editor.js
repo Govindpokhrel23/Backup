@@ -29,12 +29,14 @@ import { range, EDIT_MIN, EDIT_MAX } from "../lib/time.js";
 import { createHistory } from "../lib/history.js";
 import { assignmentPanel } from "../components/assignment-panel.js";
 import { dayList } from "../components/day-list.js";
+import { printWeek } from "../components/print-week.js";
+import { laborCost, minutesByMember, hoursText, yen } from "../lib/labor.js";
 
 export async function renderShiftEditor(app) {
   // ---------- 最初に全部読む ----------
-  const [periods, members, positions, requirements, holidays, rules, storeHours] = await Promise.all([
+  const [periods, members, positions, requirements, holidays, rules, storeHours, wages] = await Promise.all([
     api.listPeriods(), api.listMembers(), api.listPositions(), api.listRequirements(),
-    api.listHolidays(), api.listMemberRules(), api.getStoreHours(),
+    api.listHolidays(), api.listMemberRules(), api.getStoreHours(), api.listWages(),
   ]);
   const active = members.filter((m) => m.active);
   const ruleOf = (id) => rules.find((r) => r.memberId === id)?.text || "なし";
@@ -170,6 +172,11 @@ export async function renderShiftEditor(app) {
           h("button", { class: "btn btn--small", onclick: () => moveWeek(-1), "aria-label": "前の週" }, "‹ 前の週"),
           h("strong", { class: "week-nav__label" }, weekLabel(period)),
           h("button", { class: "btn btn--small", onclick: () => moveWeek(1), disabled: period.weekStart >= lastWeek, "aria-label": "次の週" }, "次の週 ›"),
+          // 紙に印刷（お店に貼る用。PDFにも保存できる）
+          h("button", { class: "btn btn--small", onclick: () => printWeek({
+            title: `${state.stores.find((s) => s.id === period.storeId)?.name || ""} ${weekLabel(period)}${period.status === "published" ? "" : "（下書き）"}`,
+            dates: datesOf(period), members: active, assignments: work, note: period.note,
+          }) }, "印刷"),
         ),
         locked()
           // 公開済み：「編集する」を押すまで直せない
@@ -218,6 +225,7 @@ export async function renderShiftEditor(app) {
               h("ul", { class: "check-list" },
                 checks.map((c) => h("li", { class: c.ok ? "is-ok" : "is-ng" }, h("strong", null, c.ok ? "✓" : "!"), c.text))),
             ),
+            laborCard(),
             noteCard(),
           ),
         ),
@@ -279,6 +287,12 @@ export async function renderShiftEditor(app) {
       rule: ruleOf(id),
       others: active.filter((x) => x.id !== id),
       locked: locked(),
+      // この週の働く時間（ほかの店舗の分も入れる。週の上限を超えないように見るため）
+      weekText: (() => {
+        const mine = [...work, ...elsewhere].filter((a) => a.memberId === id);
+        const days = new Set(mine.map((a) => a.date)).size;
+        return `この週：${hoursText(minutesByMember(mine).get(id) || 0)}（${days}日）`;
+      })(),
       elsewhere: elsewhere.filter((a) => a.memberId === id && a.date === date),
       onEdit: (fn) => edit(fn),
       onRemove: (a) => edit(() => { work = work.filter((x) => x !== a); }),
@@ -315,6 +329,23 @@ export async function renderShiftEditor(app) {
         h("button", { class: "btn btn--small", onclick: () => copyDay(target.value) }, "へコピー"),
       ),
       h("button", { class: "btn btn--small btn--danger", onclick: clearDay }, "この日の勤務を全部消す（固定は残す）"),
+    );
+  }
+
+  /**
+   * 人件費の目安（Airシフト・7shifts の「人件費」を参考に）
+   * 時給×働いた時間（休憩を引く）、深夜は1.25倍、交通費。社員は入れない（lib/labor.js）
+   */
+  function laborCard() {
+    const day = laborCost(work.filter((a) => a.date === date), wages);
+    const week = laborCost(work, wages);
+    return h("section", { class: "card" },
+      h("h2", { class: "card__title" }, "人件費の目安（バイト・フル）"),
+      h("div", { class: "labor" },
+        h("div", null, h("span", { class: "home-muted" }, label(date)), h("strong", { class: "num" }, yen(day))),
+        h("div", null, h("span", { class: "home-muted" }, "この週"), h("strong", { class: "num" }, yen(week))),
+      ),
+      h("div", { class: "home-muted" }, "時給と交通費は「店員管理」で入れます。休憩（6時間をこえたら45分・8時間をこえたら60分）を引いて計算"),
     );
   }
 

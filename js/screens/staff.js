@@ -22,6 +22,7 @@ const rankWord = (rank) => ({ 1: "メイン", 2: "2nd", 3: "3rd" }[rank] || "");
 export async function renderStaff(app) {
   let members = await api.listMembers();
   let rules = await api.listMemberRules();
+  let wages = await api.listWages();          // 時給・交通費（店長だけ。人件費の目安に使う）
   const stores = state.stores;
   let editing = null;      // 直している店員（新しく作る時は "new"）
 
@@ -87,9 +88,11 @@ export async function renderStaff(app) {
     // フォームの中の「今の入力」
     const draft = member
       ? { ...member, skills: { ...member.skills }, rule: rules.find((r) => r.memberId === member.id)?.text || "",
-          stores: (member.stores || [{ storeId: member.storeId, rank: 1 }]).map((x) => ({ ...x })) }
+          stores: (member.stores || [{ storeId: member.storeId, rank: 1 }]).map((x) => ({ ...x })),
+          hourly: wages.find((w) => w.memberId === member.id)?.hourly ?? 0,
+          transport: wages.find((w) => w.memberId === member.id)?.transport ?? 0 }
       : { name: "", kind: "baito", everyday: false, skills: { hall: 0, kitchen: 0, open: 0, close: 0 }, rule: "",
-          stores: [{ storeId: state.storeId, rank: 1 }] };
+          stores: [{ storeId: state.storeId, rank: 1 }], hourly: 1100, transport: 0 };
 
     const box = h("section", { class: "card staff-form" });
     const redraw = () => mount(box, ...fields());
@@ -142,6 +145,15 @@ export async function renderStaff(app) {
 
         storeRanks(),
 
+        // 時給・交通費：人件費の目安に使う（店長だけが見られる。社員は0にしておく）
+        h("div", { class: "field" }, "時給・交通費（店長だけが見られる。社員は0）",
+          h("div", { class: "time-range" },
+            h("label", { class: "field", style: { flex: 1 } }, "時給（円）",
+              h("input", { class: "input num", type: "number", min: "0", step: "10", value: String(draft.hourly), oninput: (e) => { draft.hourly = e.target.value; } })),
+            h("label", { class: "field", style: { flex: 1 } }, "交通費（1日・円）",
+              h("input", { class: "input num", type: "number", min: "0", step: "10", value: String(draft.transport), oninput: (e) => { draft.transport = e.target.value; } })),
+          )),
+
         h("label", { class: "field" }, "人ごとのルール（店長だけが見られる）",
           h("textarea", { class: "textarea", placeholder: "例：土曜はNG、週20時間まで", oninput: (e) => { draft.rule = e.target.value; } }, draft.rule)),
 
@@ -168,14 +180,17 @@ export async function renderStaff(app) {
     if (member) {
       await api.saveMember({ ...member, ...data });
       await api.saveMemberRule(member.id, draft.rule);
+      await api.saveWage(member.id, draft.hourly, draft.transport);
       toast("保存しました");
     } else {
       const { member: created, code } = await api.createMember(data);
       await api.saveMemberRule(created.id, draft.rule);
+      await api.saveWage(created.id, draft.hourly, draft.transport);
       await showCode(created.name, created.loginId, code);
     }
     members = await api.listMembers();
     rules = await api.listMemberRules();
+    wages = await api.listWages();
     editing = null;
     draw();
   }

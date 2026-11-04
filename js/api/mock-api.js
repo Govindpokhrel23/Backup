@@ -10,10 +10,11 @@
 // ============================================================
 
 import { createMockData } from "./mock-data.js";
-import { today, addDays, weekDates } from "../lib/date.js";
+import { today, addDays, weekDates, label } from "../lib/date.js";
+import { range } from "../lib/time.js";
 
 // 形を変えたら番号を上げる（古い見本データは自動で作り直される）
-const STORAGE_KEY = "shiftapp-mock-v3";
+const STORAGE_KEY = "shiftapp-mock-v4";
 
 // ------------------------------------------------------------
 // 保存と読み込み
@@ -483,6 +484,149 @@ export const mockApi = {
     return reply(true);
   },
 
+  /**
+   * 希望をまだ出していない人に催促する（店長）
+   * 「〇〇の週の希望をまだ出していません。締切は〜です」
+   */
+  async remindHopes(memberIds, text) {
+    const data = load();
+    requireManager(data);
+    data.notifications = data.notifications || [];
+    memberIds.forEach((id) => data.notifications.push({ memberId: id, at: new Date().toISOString(), text }));
+    save(data);
+    return reply(memberIds.length);
+  },
+
+  // ---------- 公開シフトの「確認しました」（既読） ----------
+  // 7shifts などにある「見たかどうか分かる」仕組み。店長は、まだ見ていない人が分かる
+
+  /** 自分がその週のシフトを確認した（店員） */
+  async confirmPeriod(periodId) {
+    const data = load();
+    const user = me(data);
+    data.confirms = (data.confirms || []).filter((c) => !(c.periodId === periodId && c.memberId === user.id));
+    data.confirms.push({ periodId, memberId: user.id, at: new Date().toISOString() });
+    save(data);
+    return reply(true);
+  },
+
+  /** その週を確認した人の一覧（店長は全員分、店員は自分の分） */
+  async listConfirms(periodId) {
+    const data = load();
+    const user = me(data);
+    let list = (data.confirms || []).filter((c) => c.periodId === periodId);
+    if (user.role !== "manager") list = list.filter((c) => c.memberId === user.id);
+    return reply(list);
+  },
+
+  // ---------- シフト交代（Airシフト・7shifts の「シフト交代／シフトプール」） ----------
+  // 流れ：本人が「交代をお願いする」→ 行ける人が「代わります」→ 店長が承認 → シフトが入れ替わる
+  // status：open＝募集中 / taken＝代わる人がいて店長の承認待ち / approved＝承認 / rejected＝却下 / canceled＝取り下げ
+
+  /** 自分の勤務の交代をお願いする（公開済みの、これからの勤務だけ） */
+  async offerShift(assignmentId, note) {
+    const data = load();
+    const user = me(data);
+    const a = data.assignments.find((x) => x.id === assignmentId);
+    if (!a || a.memberId !== user.id) return fail("自分の勤務だけお願いできます");
+    if (a.date < today()) return fail("終わった勤務はお願いできません");
+    data.swaps = data.swaps || [];
+    if (data.swaps.some((x) => x.assignmentId === assignmentId && ["open", "taken"].includes(x.status))) return fail("もうお願いしています");
+    const swap = {
+      id: `sw${Date.now()}`, assignmentId, storeId: a.storeId, date: a.date, from: a.from, to: a.to, area: a.area,
+      fromMemberId: user.id, takerId: null, note: note || "", status: "open", createdAt: new Date().toISOString(),
+    };
+    data.swaps.push(swap);
+    // その店舗で働ける人に知らせる
+    data.notifications = data.notifications || [];
+    data.members.filter((m) => m.id !== user.id && m.active && canWorkAt(m, a.storeId)).forEach((m) =>
+      data.notifications.push({ memberId: m.id, at: new Date().toISOString(), text: `${label(a.date)} ${range(a.from, a.to)} の交代をさがしています（ホームから「代わります」）` }));
+    save(data);
+    return reply(swap);
+  },
+
+  /**
+   * 交代の一覧
+   * ・店員 → 自分が行ける店舗の「募集中」と、自分が出した・代わると言ったもの
+   * ・店長 → 今の店舗の全部
+   */
+  async listSwaps() {
+    const data = load();
+    const user = me(data);
+    const list = (data.swaps || []).filter((x) => x.date >= today());
+    const nameOf = (id) => data.members.find((m) => m.id === id)?.name || "";
+    const shortOf = (id) => data.stores.find((s) => s.id === id)?.short || "";
+    const withNames = (x) => ({ ...x, fromName: nameOf(x.fromMemberId), takerName: nameOf(x.takerId), storeShort: shortOf(x.storeId) });
+    if (user.role === "manager") return reply(list.filter((x) => x.storeId === storeOf(data)).map(withNames));
+    return reply(list
+      .filter((x) => x.fromMemberId === user.id || x.takerId === user.id || (x.status === "open" && canWorkAt(user, x.storeId)))
+      .map(withNames));
+  },
+
+  /** 「代わります」（店員）。同じ時間にほかの勤務があれば代われない */
+  async takeSwap(swapId) {
+    const data = load();
+    const user = me(data);
+    const x = (data.swaps || []).find((s) => s.id === swapId);
+    if (!x || x.status !== "open") return fail("この交代はもう受け付けていません");
+    if (x.fromMemberId === user.id) return fail("自分の勤務には代われません");
+    const clash = data.assignments.some((a) => a.memberId === user.id && a.date === x.date && a.from < x.to && x.from < a.to);
+    if (clash) return fail("同じ時間にほかの勤務が入っています");
+    x.status = "taken";
+    x.takerId = user.id;
+    data.notifications = data.notifications || [];
+    data.members.filter((m) => m.role === "manager").forEach((m) =>
+      data.notifications.push({ memberId: m.id, at: new Date().toISOString(), text: `${label(x.date)} ${range(x.from, x.to)} の交代：${user.name}さんが代わると言っています（承認待ち）` }));
+    save(data);
+    return reply(x);
+  },
+
+  /** お願いを取り下げる（本人） */
+  async cancelSwap(swapId) {
+    const data = load();
+    const user = me(data);
+    const x = (data.swaps || []).find((s) => s.id === swapId);
+    if (!x || x.fromMemberId !== user.id || !["open", "taken"].includes(x.status)) return fail("取り下げられません");
+    x.status = "canceled";
+    save(data);
+    return reply(x);
+  },
+
+  /** 店長が承認／却下する。承認したら、その勤務の人を入れ替える */
+  async decideSwap(swapId, approve) {
+    const data = load();
+    requireManager(data);
+    const x = (data.swaps || []).find((s) => s.id === swapId);
+    if (!x || x.status !== "taken") return fail("承認待ちではありません");
+    x.status = approve ? "approved" : "rejected";
+    if (approve) {
+      const a = data.assignments.find((y) => y.id === x.assignmentId);
+      if (a) a.memberId = x.takerId;
+    }
+    data.notifications = data.notifications || [];
+    const text = approve ? `${label(x.date)} ${range(x.from, x.to)} の交代が決まりました` : `${label(x.date)} ${range(x.from, x.to)} の交代は店長が見送りました`;
+    [x.fromMemberId, x.takerId].forEach((id) => data.notifications.push({ memberId: id, at: new Date().toISOString(), text }));
+    save(data);
+    return reply(x);
+  },
+
+  // ---------- 時給・交通費（店長だけ。人件費の目安に使う。member_private） ----------
+
+  async listWages() {
+    const data = load();
+    requireManager(data);
+    return reply(data.wages || []);
+  },
+
+  async saveWage(memberId, hourly, transport) {
+    const data = load();
+    requireManager(data);
+    data.wages = (data.wages || []).filter((w) => w.memberId !== memberId);
+    data.wages.push({ memberId, hourly: Number(hourly) || 0, transport: Number(transport) || 0 });
+    save(data);
+    return reply(true);
+  },
+
   // ---------- 開発用 ----------
 
   /** 見本データを最初の状態に戻す */
@@ -537,6 +681,6 @@ function notifyChanges(data, before, after) {
   for (const k of old.keys()) if (!now.has(k)) changed.add(k);
   for (const k of changed) {
     const [memberId, date] = k.split("|");
-    data.notifications.push({ memberId, at: new Date().toISOString(), text: `${date} のシフトが変わりました` });
+    data.notifications.push({ memberId, at: new Date().toISOString(), text: `${label(date)} のシフトが変わりました` });
   }
 }

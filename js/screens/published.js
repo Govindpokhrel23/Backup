@@ -5,7 +5,7 @@
 // ・希望は出さない（希望は店長だけが見られる）
 // ============================================================
 
-import { h, mount } from "../lib/dom.js";
+import { h, mount, toast } from "../lib/dom.js";
 import { api } from "../api/index.js";
 import { screenHeader } from "../components/header.js";
 import { timeline } from "../components/timeline.js";
@@ -26,6 +26,7 @@ export async function renderPublished(app) {
 
   let period = published[published.length - 1];       // いちばん新しい週
   let assignments = await api.listAssignments(period.id);
+  let confirmed = (await api.listConfirms(period.id)).length > 0;   // 自分が「確認しました」を押したか
   let date = datesOf(period).includes(today()) ? today() : period.weekStart;
 
   draw();
@@ -41,6 +42,12 @@ export async function renderPublished(app) {
           : null,
       }),
       h("div", { class: "screen-body" },
+        // 「確認しました」：店長が、まだ見ていない人を分かるようにする（7shifts の既読と同じ）
+        confirmed
+          ? h("div", { class: "notice notice--ok" }, "この週のシフトは確認済みです")
+          : h("button", { class: "btn btn--primary btn--block", onclick: async () => {
+              await api.confirmPeriod(period.id); confirmed = true; toast("確認しました。店長に伝わります"); draw();
+            } }, "シフトを見ました（確認する）"),
         period.note ? h("div", { class: "notice notice--warn", style: { fontWeight: 400, whiteSpace: "pre-line" } }, `連絡事項：${period.note}`) : null,
         dayTabs(),
         h("div", { class: "card" },
@@ -73,6 +80,7 @@ export async function renderPublished(app) {
   async function changeWeek(e) {
     period = published.find((p) => p.id === e.target.value);
     assignments = await api.listAssignments(period.id);
+    confirmed = (await api.listConfirms(period.id)).length > 0;
     date = period.weekStart;
     draw();
   }

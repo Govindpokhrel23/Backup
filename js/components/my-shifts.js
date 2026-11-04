@@ -11,12 +11,22 @@ import { h } from "../lib/dom.js";
 import { today, addDays, label } from "../lib/date.js";
 import { range, fmt } from "../lib/time.js";
 
+/** 交代：お願い中なら状態、まだならボタン */
+function swapPart(p, a) {
+  const sw = (p.swaps || []).find((x) => x.assignmentId === a.id && ["open", "taken"].includes(x.status));
+  if (sw) return h("span", { class: "badge badge--warn" }, sw.status === "open" ? "交代をさがし中" : `${sw.takerName}さんが代わる予定（店長の承認待ち）`);
+  if (!p.onSwap || !a.id) return null;
+  return h("button", { class: "btn btn--small my-shifts__swap", onclick: () => p.onSwap(a) }, "交代をお願いする");
+}
+
 /**
  * @param {object} p
  * @param {object[]} p.assignments  自分の勤務（公開済み）
  * @param {object[]} p.stores       店舗の一覧（店名を出すため）
  * @param {string}   p.myStoreId    自分のいつもの店舗（応援を見分けるため）
  * @param {number}   [p.limit]      いくつまで出すか
+ * @param {object[]} [p.swaps]      自分が出した交代のお願い（募集中・承認待ちを出す）
+ * @param {(a:object)=>void} [p.onSwap]  「交代をお願いする」を押した時（ないとボタンを出さない）
  */
 export function myShifts(p) {
   const now = today();
@@ -45,6 +55,7 @@ export function myShifts(p) {
               h("div", { class: "home-muted" },
                 `${storeName(a.storeId)} ・ ${a.area === "hall" ? "ホール" : "キッチン"}${a.breakAt != null ? ` ・ 休憩 ${fmt(a.breakAt)}` : ""}`),
               help ? h("span", { class: "badge badge--warn" }, "応援") : null,
+              swapPart(p, a),
             );
           }))
       : h("div", { class: "home-muted" }, "これからの予定はまだありません（公開されると出ます）"),

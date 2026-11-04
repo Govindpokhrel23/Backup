@@ -181,13 +181,21 @@ export function createMockData() {
   }
   // スタッフH はまだ出していない（未提出の見本）
 
+  // ---------- 時給・交通費（店長だけが見られる。見本の数字） ----------
+  const wages = members.map((x) => ({
+    memberId: x.id,
+    hourly: x.kind === "shain" ? 0 : 1100,         // 社員は月給なので、時給の計算には入れない（0）
+    transport: x.kind === "shain" ? 0 : 300,
+  }));
+
   // ---------- 祝日（必要になったら足す） ----------
   const holidays = [];
 
   return {
     version: 2,
     companies, stores, members, passwords, memberRules,
-    positions, requirements: reqs, periods, availabilities, assignments, holidays,
+    positions, requirements: reqs, periods, availabilities, assignments, holidays, wages,
+    swaps: [], confirms: [], notifications: [],
     session: null,
   };
 }
