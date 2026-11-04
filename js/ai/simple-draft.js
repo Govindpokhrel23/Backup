@@ -22,6 +22,7 @@ import { CONFIG } from "../config.js";
 import { requiredAt, assignedAt } from "../rules/shift-rules.js";
 import { STEP, overlaps } from "../lib/time.js";
 import { defaultBreak } from "../lib/breaks.js";
+import { openerOf, openStart } from "../lib/roles.js";
 
 /**
  * @param {object} p
@@ -110,6 +111,7 @@ export function makeDraft(p) {
     const hrs = p.hoursOf(date);
     const MORNING = [hrs.open, Math.min(hrs.close, hrs.open + 9 * 60)];     // 朝：開店から9時間
     const EVENING = [Math.max(hrs.open, hrs.close - 9 * 60), hrs.close];    // 夜：閉店までの9時間
+    const OPENER = [openStart(hrs), openStart(hrs) + 9 * 60];               // 立ち上げ：開店30分前から9時間（7:00開店→6:30〜15:30）
     // 休みの日・もう入っている日・ほかの店舗に入っている日は入れない
     const todo = shain.filter((m) => !offDays.get(m.id)?.has(date) && !working(m, date)
       && !elsewhere.some((a) => a.memberId === m.id && a.date === date));
@@ -122,9 +124,9 @@ export function makeDraft(p) {
       todo.splice(todo.indexOf(m), 1);
     };
 
-    if (!has("open", (a) => a.from <= hrs.open)) {
+    if (!has("open", (a) => a === openerOf(dayOf(date), hrs))) {
       const m = todo.find((x) => x.skills.open === 100);
-      if (m) place(m, MORNING, bestArea(m));
+      if (m) place(m, OPENER, bestArea(m));
     }
     if (!has("close", (a) => a.to >= hrs.close)) {
       const m = todo.find((x) => x.skills.close === 100);

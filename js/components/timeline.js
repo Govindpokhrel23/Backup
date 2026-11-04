@@ -20,6 +20,7 @@ import { h } from "../lib/dom.js";
 import { CONFIG } from "../config.js";
 import { fmt, snap, range } from "../lib/time.js";
 import { clampBreak } from "../lib/breaks.js";
+import { roleMarks } from "../lib/roles.js";
 
 // 表の左端と右端（timeline() を呼ぶたびに決め直す）
 // 店長が営業時間の外に勤務を入れても見えるように、その日に合わせて広げる
@@ -141,11 +142,10 @@ function memberRow(p, member) {
 
 /**
  * 「立」「締」の印
- * 開店の時刻（またはそれより前）から入る人＝立ち上げ、閉店まで入る人＝締め
+ * 開店30分前から入る1人＝立ち上げ、閉店まで入る人＝締め（lib/roles.js）
  */
 function roleTag(p, a) {
-  if (!p.hours) return null;
-  const tags = [a.from <= p.hours.open ? "立" : null, a.to >= p.hours.close ? "締" : null].filter(Boolean);
+  const tags = roleMarks(a, p.assignments, p.hours);
   return tags.length ? h("span", { class: "tl__role" }, tags.join("・")) : null;
 }
 

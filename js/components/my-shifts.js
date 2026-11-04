@@ -2,6 +2,7 @@
 // components/my-shifts.js — 自分のシフトの一覧（ホームで使う）
 // ------------------------------------------------------------
 // ・今日 → 明日 → 明後日 → その先 の順に並べる
+// ・見た目（2026年11月4日）：明後日11/6（金）／コメダ 安城福釜店／9:00〜15:00
 // ・昨日より前のものは出さない（自動で消える）
 //   ※カレンダーにはずっと残る（ここは「これからの予定」だけ）
 // ・店長も仕事に入るので、店長のホームでも同じものを使う
@@ -47,13 +48,15 @@ export function myShifts(p) {
             const word = dayWord(a.date);
             const help = a.storeId !== p.myStoreId;
             return h("li", { class: `my-shifts__item ${word === "今日" ? "is-today" : ""}` },
-              h("div", { class: "my-shifts__day" },
-                word ? h("strong", null, word) : null,
-                h("span", null, label(a.date)),
-              ),
-              h("div", { class: "my-shifts__time num" }, `コメダ ${range(a.from, a.to)}`),
+              // 1行目：「明後日11/6（金）」
+              h("div", { class: "my-shifts__day" }, `${word || ""}${label(a.date)}`),
+              // 2行目：「コメダ 安城福釜店」
+              h("div", { class: "my-shifts__store" }, `コメダ ${storeName(a.storeId)}`),
+              // 3行目：「9:00〜15:00」（大きく）
+              h("div", { class: "my-shifts__time num" }, range(a.from, a.to)),
+              // 4行目（小さく）：場所と休憩
               h("div", { class: "home-muted" },
-                `${storeName(a.storeId)} ・ ${a.area === "hall" ? "ホール" : "キッチン"}${a.breakAt != null ? ` ・ 休憩 ${fmt(a.breakAt)}` : ""}`),
+                `${a.area === "hall" ? "ホール" : "キッチン"}${a.breakAt != null ? ` ・ 休憩 ${fmt(a.breakAt)}` : ""}`),
               help ? h("span", { class: "badge badge--warn" }, "応援") : null,
               swapPart(p, a),
             );

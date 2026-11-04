@@ -8,6 +8,7 @@
 
 import { h } from "../lib/dom.js";
 import { fmt, range } from "../lib/time.js";
+import { roleMarks } from "../lib/roles.js";
 
 /**
  * @param {object} p
@@ -27,10 +28,7 @@ export function dayList(p) {
             h("td", { class: "num day-list__time" }, range(a.from, a.to)),
             h("td", null, h("span", { class: `badge badge--${a.area}` }, a.area === "hall" ? "ホール" : "キッチン")),
             h("td", { class: "num home-muted" }, a.breakAt != null ? `休憩 ${fmt(a.breakAt)}` : ""),
-            h("td", { class: "home-muted" }, [
-              p.hours && a.from <= p.hours.open ? "立" : null,
-              p.hours && a.to >= p.hours.close ? "締" : null,
-            ].filter(Boolean).join("・")),
+            h("td", { class: "home-muted" }, roleMarks(a, p.assignments, p.hours).join("・")),
           ))))
       : h("div", { class: "home-muted" }, "この日の勤務はありません"),
   );

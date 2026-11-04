@@ -13,6 +13,7 @@
 
 import { CONFIG } from "../config.js";
 import { STEP, fmt, overlaps } from "../lib/time.js";
+import { openerOf, openStart, isCloser } from "../lib/roles.js";
 
 /**
  * チェック結果1件の形
@@ -118,7 +119,7 @@ export function checkDay(p) {
   }
 
   // ② 立ち上げ・③ 締め
-  //   開店の時刻（またはそれより前）から入っている人＝その日の「立ち上げ」
+  //   立ち上げは1人。開店30分前（7:00開店なら6:30）から入る人＝その日の「立ち上げ」（lib/roles.js）
   //   閉店の時刻（またはそれより後）まで入っている人＝その日の「締め」
   //   その人ができること％が100でなければ注意を出す
   const roleCheck = (code, word, people, skillKey, time) => {
@@ -131,8 +132,9 @@ export function checkDay(p) {
     }
     return { ok: true, code, date: p.date, text: `${word}（${fmt(time)}）：${names.join("、")}` };
   };
-  out.push(roleCheck("open", "立ち上げ", p.assignments.filter((a) => a.from <= hours.open), "open", hours.open));
-  out.push(roleCheck("close", "締め", p.assignments.filter((a) => a.to >= hours.close), "close", hours.close));
+  const opener = openerOf(p.assignments, hours);
+  out.push(roleCheck("open", "立ち上げ", opener ? [opener] : [], "open", openStart(hours)));
+  out.push(roleCheck("close", "締め", p.assignments.filter((a) => isCloser(a, hours)), "close", hours.close));
 
   // ④ 休憩：長い勤務には休憩の目安（○）がある
   const noBreak = p.assignments.filter((a) => a.to - a.from >= CONFIG.BREAK_NEEDED_MIN && a.breakAt == null);

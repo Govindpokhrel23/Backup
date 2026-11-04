@@ -14,7 +14,7 @@ import { today, addDays, weekDates, label } from "../lib/date.js";
 import { range } from "../lib/time.js";
 
 // 形を変えたら番号を上げる（古い見本データは自動で作り直される）
-const STORAGE_KEY = "shiftapp-mock-v4";
+const STORAGE_KEY = "shiftapp-mock-v5";
 
 // ------------------------------------------------------------
 // 保存と読み込み

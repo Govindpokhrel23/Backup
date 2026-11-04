@@ -231,7 +231,8 @@
 .my-shifts__item { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
 .my-shifts__item.is-today { background: var(--ink); color: #fff; }
 .my-shifts__item.is-today .home-muted { color: rgba(255, 255, 255, 0.8); }
-.my-shifts__day { display: flex; gap: 8px; align-items: baseline; font-size: 14px; }
+.my-shifts__day { font-size: 14px; font-weight: 700; }
+.my-shifts__store { font-size: 14px; }
 .my-shifts__time { font-size: 18px; font-weight: 700; }
 
 /* ---------- カレンダー：1日に2つ以上の勤務 ---------- */

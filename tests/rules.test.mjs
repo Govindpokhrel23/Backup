@@ -48,9 +48,20 @@ test("16時〜22時にホールがいなければ、その時間が不足にな�
 const base = { date: "2026-11-09", dayType: "weekday", members, requirements, positions, availabilities: [] };
 
 test("立ち上げ・締めができる人がいれば OK", () => {
-  const r = checkDay({ ...base, assignments: [work("a", 7, 16, "hall", 11), work("b", 13, 22, "kitchen", 17)] });
+  const r = checkDay({ ...base, assignments: [work("a", 6.5, 16, "hall", 11), work("b", 13, 22, "kitchen", 17)] });
   assert.equal(r.find((x) => x.code === "open").ok, true);
   assert.equal(r.find((x) => x.code === "close").ok, true);
+});
+
+test("立ち上げは開店30分前（6:30）から入る1人だけ", () => {
+  // 7:00から入っても立ち上げにならない（開店7:00の30分前＝6:30から）
+  const late = checkDay({ ...base, hours: { open: H(7), close: H(22) }, assignments: [work("a", 7, 16, "hall", 11), work("b", 13, 22, "kitchen", 17)] });
+  assert.equal(late.find((x) => x.code === "open").ok, false);
+  const ok = checkDay({ ...base, hours: { open: H(7), close: H(22) }, assignments: [work("a", 6.5, 16, "hall", 11), work("c", 7, 13, "hall"), work("b", 13, 22, "kitchen", 17)] });
+  const r = ok.find((x) => x.code === "open");
+  assert.equal(r.ok, true);
+  assert.match(r.text, /6:30/);
+  assert.doesNotMatch(r.text, /C/);   // 7:00の人は立ち上げに数えない
 });
 
 test("締めができる人がいなければ NG", () => {

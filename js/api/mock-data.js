@@ -128,10 +128,11 @@ export function createMockData() {
   };
   // i は曜日の番号（0=月 … 6=日）。誰でも週1日以上は休みになるようにしてある
   const fillWeek = (key, monday) => weekDates(monday).forEach((date, i) => {
+    // 立ち上げ（m1・a1・i1）は開店7:00の30分前、6:30から
     // 安城福釜店
     if ([1, 3].includes(i)) add(F, key, date, "m0", 9, 18, "hall", 13);   // 店長も仕事に入る
     if (i === 5) add(A, key, date, "m0", 9, 18, "hall", 13);              // 店長が安城店に入る日
-    if (i !== 2) add(F, key, date, "m1", 7, 16, "hall", 11.5);
+    if (i !== 2) add(F, key, date, "m1", 6.5, 16, "hall", 11.5);
     if (i !== 4) add(F, key, date, "m2", 13, 22, "kitchen", 17);
     if (i !== 6) add(F, key, date, "m3", 7, 13, "kitchen");
     if ([0, 2, 4, 5].includes(i)) add(F, key, date, "m4", 9, 15, "hall");
@@ -140,13 +141,13 @@ export function createMockData() {
     if (i !== 3) add(F, key, date, "m6", 10, 19, "kitchen", 14);
     if ([0, 1, 4, 5, 6].includes(i)) add(F, key, date, "m7", 16, 22, "hall");
     // 安城店
-    if (i !== 3) add(A, key, date, "a1", 7, 16, "hall", 11.5);
+    if (i !== 3) add(A, key, date, "a1", 6.5, 16, "hall", 11.5);
     if (i !== 0) add(A, key, date, "a2", 13, 22, "kitchen", 17);
     if (i !== 6) add(A, key, date, "a3", 7, 13, "kitchen");
     if ([0, 2, 3, 6].includes(i)) add(A, key, date, "a4", 9, 15, "hall");
     if ([0, 1, 4, 5].includes(i)) add(A, key, date, "a5", 16, 22, "hall");
     // 安城今村店
-    if (i !== 5) add(I, key, date, "i1", 7, 16, "hall", 11.5);
+    if (i !== 5) add(I, key, date, "i1", 6.5, 16, "hall", 11.5);
     if (i !== 2) add(I, key, date, "i2", 13, 22, "kitchen", 17);
     if ([0, 1, 3, 4].includes(i)) add(I, key, date, "i3", 16, 22, "hall");
     if ([2, 5, 6].includes(i)) add(I, key, date, "i4", 9, 15, "hall");
