@@ -70,6 +70,19 @@ function storeOf(data) {
   return data.session?.storeId || me(data)?.storeId;
 }
 
+/**
+ * 見てよい店舗を決める
+ * storeId を渡さなければ「今見ている店舗」。渡したら、同じ会社の店舗かを確かめる
+ * （2026年11月4日：店員も3店舗の公開シフトを見られるようにした）
+ */
+function companyStore(data, storeId) {
+  if (!storeId) return storeOf(data);
+  const mine = data.stores.find((s) => s.id === storeOf(data));
+  const target = data.stores.find((s) => s.id === storeId);
+  if (!target || target.companyId !== mine?.companyId) throw new Error("この店舗は見られません");
+  return storeId;
+}
+
 /** その人がその店舗に行けるか（店長が決めた「行ける店舗」） */
 function canWorkAt(member, storeId) {
   return member.storeId === storeId || (member.stores || []).some((s) => s.storeId === storeId);
@@ -164,11 +177,12 @@ export const mockApi = {
    * メイン（rank 1）の人に加えて、2nd・3rd でこの店舗に行ける人も入る
    * 返す時に「この店舗での順番」を rankHere につける
    */
-  async listMembers() {
+  async listMembers(storeId) {
     const data = load();
     const user = me(data);
     if (!user) return fail("ログインしてください");
-    const store = storeOf(data);
+    // storeId を渡すと、その店舗（同じ会社の3店舗なら店員も見られる。公開シフト用）
+    const store = companyStore(data, storeId);
     return reply(data.members
       .filter((x) => canWorkAt(x, store))
       .map((x) => ({ ...x, rankHere: rankAt(x, store) })));
@@ -294,9 +308,9 @@ export const mockApi = {
    * 自分の店舗の営業時間
    * @returns {{weekday:{open,close}, sat:{open,close}, sun:{open,close}}}
    */
-  async getStoreHours() {
+  async getStoreHours(storeId) {
     const data = load();
-    return reply((data.storeHours || {})[storeOf(data)] || defaultHours());
+    return reply((data.storeHours || {})[companyStore(data, storeId)] || defaultHours());
   },
 
   /** 営業時間を保存（店長） */
@@ -314,9 +328,10 @@ export const mockApi = {
 
   // ---------- 受付（週） ----------
 
-  async listPeriods() {
+  async listPeriods(storeId) {
     const data = load();
-    return reply(data.periods.filter((p) => p.storeId === storeOf(data)).sort((a, b) => a.weekStart.localeCompare(b.weekStart)));
+    const store = companyStore(data, storeId);
+    return reply(data.periods.filter((p) => p.storeId === store).sort((a, b) => a.weekStart.localeCompare(b.weekStart)));
   },
 
   /**
