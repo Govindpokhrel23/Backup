@@ -157,6 +157,58 @@ export const mockApi = {
     return reply(load().stores);
   },
 
+  // ---------- 店舗の管理（増やす・名前を変える・閉める）2026年11月4日 ----------
+  // ・店舗は消さない（過去のシフトやカレンダーに店名が残るため）。閉めた店舗は「休止」にする
+  // ・休止した店舗は、切り替えのボタン・行ける店舗の選択に出ない
+
+  /** 店舗を増やす（店長）。マップの人のマークは空、営業時間は 7:00〜22:00 で始まる */
+  async createStore({ name, short }) {
+    const data = load();
+    const boss = requireManager(data);
+    if (!name?.trim() || !short?.trim()) return fail("店舗名と短い名前を入れてください");
+    if (data.stores.some((s) => s.name === name.trim())) return fail("同じ名前の店舗があります");
+    const companyId = data.stores.find((s) => s.id === boss.storeId)?.companyId;
+    const store = { id: `s-${Date.now()}`, companyId, name: name.trim(), short: short.trim(), active: true };
+    data.stores.push(store);
+    // 店長は会社の全部の店舗を見られるので、行ける店舗にも足す
+    data.members.filter((m) => m.role === "manager").forEach((m) => {
+      m.stores = m.stores || [{ storeId: m.storeId, rank: 1 }];
+      m.stores.push({ storeId: store.id, rank: Math.max(...m.stores.map((x) => x.rank)) + 1 });
+    });
+    save(data);
+    return reply(store);
+  },
+
+  /** 店舗の名前を変える（店長）。過去のシフトにも新しい名前が出る */
+  async updateStore(storeId, { name, short }) {
+    const data = load();
+    requireManager(data);
+    const store = data.stores.find((s) => s.id === storeId);
+    if (!store) return fail("店舗が見つかりません");
+    if (!name?.trim() || !short?.trim()) return fail("店舗名と短い名前を入れてください");
+    if (data.stores.some((s) => s.id !== storeId && s.name === name.trim())) return fail("同じ名前の店舗があります");
+    store.name = name.trim();
+    store.short = short.trim();
+    save(data);
+    return reply(store);
+  },
+
+  /** 店舗を休止する／再開する（店長）。データは消さない */
+  async setStoreActive(storeId, active) {
+    const data = load();
+    requireManager(data);
+    const store = data.stores.find((s) => s.id === storeId);
+    if (!store) return fail("店舗が見つかりません");
+    if (!active && data.stores.filter((s) => s.active !== false).length <= 1) return fail("最後の1店舗は休止できません");
+    store.active = !!active;
+    // 休止した店舗を見ていたら、ほかの店舗に切り替える
+    if (!active && data.session.storeId === storeId) {
+      data.session.storeId = data.stores.find((s) => s.active !== false).id;
+    }
+    save(data);
+    return reply(store);
+  },
+
   /** 今見ている店舗のID */
   async currentStoreId() {
     return reply(storeOf(load()));

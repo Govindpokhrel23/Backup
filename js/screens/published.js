@@ -10,7 +10,7 @@
 
 import { h, mount, toast } from "../lib/dom.js";
 import { api } from "../api/index.js";
-import { state } from "../store.js";
+import { state, activeStores } from "../store.js";
 import { screenHeader } from "../components/header.js";
 import { timeline } from "../components/timeline.js";
 import { dayList } from "../components/day-list.js";
@@ -73,7 +73,7 @@ export async function renderPublished(app) {
           : null,
         // 3店舗の切り替え
         extra: h("div", { class: "store-switch" },
-          state.stores.map((st) => h("button", {
+          activeStores().map((st) => h("button", {
             class: "chip store-switch__btn",
             "aria-pressed": String(st.id === storeId),
             onclick: async () => { if (st.id !== storeId) { await loadStore(st.id); draw(); } },

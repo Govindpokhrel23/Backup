@@ -21,6 +21,11 @@ export function isManager() {
   return state.user?.role === "manager";
 }
 
+/** 営業している店舗（休止した店舗は、切り替えのボタンなどに出さない） */
+export function activeStores() {
+  return state.stores.filter((s) => s.active !== false);
+}
+
 /** 今見ている店舗 */
 export function currentStore() {
   return state.stores.find((s) => s.id === state.storeId) || null;

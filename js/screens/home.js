@@ -12,7 +12,7 @@
 
 import { h, mount, toast, confirmDialog } from "../lib/dom.js";
 import { api } from "../api/index.js";
-import { state, isManager, switchStore } from "../store.js";
+import { state, isManager, switchStore, activeStores } from "../store.js";
 import { go } from "../router.js";
 import { screenHeader } from "../components/header.js";
 import { myShifts } from "../components/my-shifts.js";
@@ -82,7 +82,7 @@ async function renderManagerHome(app) {
         : null,
       h("button", { class: "btn btn--primary", onclick: () => go("/shift") }, "シフト作成へ"),
     ),
-  ) : h("section", { class: "card" }, "受付中の週はありません");
+  ) : h("section", { class: "card" }, "まだ週がありません。「シフト作成」を開くと、来週の受付が始まります");
 
   mount(app,
     screenHeader({ title: "ホーム", sub: `${state.user.name}（店長）`, right: settingsButton() }),
@@ -111,9 +111,11 @@ async function renderManagerHome(app) {
  */
 function storeSwitcher(app) {
   return h("section", { class: "card" },
-    h("h2", { class: "card__title" }, "見ている店舗"),
+    h("div", { class: "screen-header__row" },
+      h("h2", { class: "card__title" }, "見ている店舗"),
+      h("button", { class: "btn btn--small", onclick: () => go("/stores") }, "店舗の追加・名前変更")),
     h("div", { class: "store-switch" },
-      state.stores.map((st) => h("button", {
+      activeStores().map((st) => h("button", {
         class: "chip store-switch__btn",
         "aria-pressed": String(st.id === state.storeId),
         onclick: async () => {

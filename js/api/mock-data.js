@@ -26,9 +26,10 @@ export function createMockData() {
   // ---------- 会社・店舗 ----------
   const companies = [{ id: "c1", name: "株式会社21 CAFE" }];
   const stores = [
-    { id: "s-fukugama", companyId: "c1", name: "安城福釜店", short: "福釜" },
-    { id: "s-anjo", companyId: "c1", name: "安城店", short: "安城" },
-    { id: "s-imamura", companyId: "c1", name: "安城今村店", short: "今村" },
+    // active: false にすると「休止」（店舗は消さない。過去のシフトに店名が残るため）
+    { id: "s-fukugama", companyId: "c1", name: "安城福釜店", short: "福釜", active: true },
+    { id: "s-anjo", companyId: "c1", name: "安城店", short: "安城", active: true },
+    { id: "s-imamura", companyId: "c1", name: "安城今村店", short: "今村", active: true },
   ];
   const F = "s-fukugama", A = "s-anjo", I = "s-imamura";
 

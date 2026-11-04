@@ -20,6 +20,7 @@ import { renderStoreMenu } from "./screens/store-menu.js";
 import { renderStaff } from "./screens/staff.js";
 import { renderMap } from "./screens/map.js";
 import { renderSettings } from "./screens/settings.js";
+import { renderStores } from "./screens/stores.js";
 
 /**
  * 画面の一覧
@@ -38,6 +39,7 @@ const ROUTES = [
   { path: "/staff", render: renderStaff, who: "manager" },
   { path: "/map", render: renderMap, who: "manager" },
   { path: "/settings", render: renderSettings, who: "all" },
+  { path: "/stores", render: renderStores, who: "manager" },
 ];
 
 /** 下のタブバー（役割で中身が変わる） */
@@ -93,7 +95,7 @@ function renderTabbar(path) {
   if (!state.user) { bar.hidden = true; return; }
   const tabs = TABS[isManager() ? "manager" : "staff"];
   // 店舗メニューの中の画面（店員管理・マップ）も「店舗」タブを光らせる
-  const current = ["/staff", "/map"].includes(path) ? "/store" : path;
+  const current = ["/staff", "/map", "/stores"].includes(path) ? "/store" : path;
   mount(bar, tabs.map((t) =>
     h("button", {
       class: "tabbar__btn",

@@ -23,7 +23,8 @@ export async function renderStaff(app) {
   let members = await api.listMembers();
   let rules = await api.listMemberRules();
   let wages = await api.listWages();          // 時給・交通費（店長だけ。人件費の目安に使う）
-  const stores = state.stores;
+  // 行ける店舗の選択には、営業している店舗だけを出す（休止した店舗は出さない）
+  const stores = state.stores.filter((s) => s.active !== false);
   let editing = null;      // 直している店員（新しく作る時は "new"）
 
   draw();

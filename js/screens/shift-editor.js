@@ -62,9 +62,10 @@ export async function renderShiftEditor(app) {
     return mondayOf(toIso(d));
   })();
 
+  // まだ週が1つもない店舗（増やしたばかりの店舗など）は、来週の受付を作って始める
   if (!period) {
-    mount(app, screenHeader({ title: "シフト作成" }), h("div", { class: "screen-body" }, h("div", { class: "card" }, "週がありません")));
-    return;
+    period = await api.ensurePeriod(addDays(mondayOf(toIso(new Date())), 7));
+    periods.push(period);
   }
   await loadPeriod();
   draw();

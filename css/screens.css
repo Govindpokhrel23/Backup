@@ -255,7 +255,7 @@
 
 /* ---------- 3店舗：見ている店舗 ---------- */
 .store-badge { display: inline-block; margin-left: 8px; vertical-align: middle; font-size: 12px; font-weight: 700; color: #fff; background: var(--ink-2); border-radius: 999px; padding: 2px 10px; }
-.store-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.store-switch { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }   /* 店舗が増えても並ぶ */
 .store-switch__btn { min-height: 48px; border-radius: 12px; }
 
 /* ---------- シフト作成：週の移動 ---------- */
@@ -305,3 +305,8 @@
 /* 公開シフトの店舗ボタン：自分のメインの店舗に小さく「メイン」 */
 .store-switch__btn { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
 .store-switch__mine { font-size: 10px; font-weight: 400; opacity: 0.8; }
+
+/* ---------- 店舗の管理 ---------- */
+.store-row { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: var(--surface-2); }
+.store-row.is-paused { opacity: 0.6; }
+.store-row__fields { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
