@@ -1,6 +1,7 @@
 // ============================================================
 // rules/shift-rules.js — シフトのルールチェック
 // ------------------------------------------------------------
+// このファイルは、シフトのルールチェックのファイルです。
 // 要件定義書「必ず守るルール」をプログラムで確かめる場所。
 //   ・AIが作った下書きを確かめる時
 //   ・店長が手で直した時
@@ -41,8 +42,8 @@ const DEFAULT_HOURS = { open: CONFIG.DAY_START, close: CONFIG.DAY_END };
  * @param {number}   minute        時刻（分）
  */
 export function requiredAt(requirements, positions, dayType, area, minute) {
-  const areaOf = new Map(positions.map((p) => [p.id, p.area]));
-  let total = 0;
+  const areaOf = new Map(positions.map((p) => [p.id, p.area]));   // 担当場所のID → ホール／キッチン
+  let total = 0;   // 必要な人数の合計
   for (const r of requirements) {
     if (r.dayType !== dayType) continue;
     if (areaOf.get(r.positionId) !== area) continue;
@@ -62,13 +63,13 @@ export function assignedAt(dayAssignments, area, minute) {
  * @returns {{area:string, from:number, to:number, short:number}[]}
  */
 export function findShortages(dayAssignments, requirements, positions, dayType, hours = DEFAULT_HOURS) {
-  const result = [];
+  const result = [];   // 見つかった不足
   for (const area of ["hall", "kitchen"]) {
     let open = null;                       // 今まとめている不足の時間帯
     for (let m = hours.open; m < hours.close; m += STEP) {          // 営業時間の中だけ見る
-      const need = requiredAt(requirements, positions, dayType, area, m);
-      const have = assignedAt(dayAssignments, area, m);
-      const short = Math.max(0, need - have);
+      const need = requiredAt(requirements, positions, dayType, area, m);   // この15分に必要な人数
+      const have = assignedAt(dayAssignments, area, m);   // この15分に入っている人数
+      const short = Math.max(0, need - have);   // 足りない人数
       if (short > 0 && open && open.short === short) {
         open.to = m + STEP;                // 同じ不足が続いている → のばす
       } else {
@@ -100,9 +101,10 @@ export function findShortages(dayAssignments, requirements, positions, dayType, 
  * @returns {Problem[]}
  */
 export function checkDay(p) {
-  const out = [];
-  const hours = p.hours || DEFAULT_HOURS;
-  const memberOf = new Map(p.members.map((m) => [m.id, m]));
+  const out = [];   // チェックの結果
+  const hours = p.hours || DEFAULT_HOURS;   // その日の営業時間
+  const memberOf = new Map(p.members.map((m) => [m.id, m]));   // ID → 店員
+  /** IDから名前 */
   const nameOf = (id) => memberOf.get(id)?.name || "？";
 
   // ① 必要人数
@@ -123,16 +125,16 @@ export function checkDay(p) {
   //   閉店の時刻（またはそれより後）まで入っている人＝その日の「締め」
   //   その人ができること％が100でなければ注意を出す
   const roleCheck = (code, word, people, skillKey, time) => {
-    const names = [...new Set(people.map((a) => nameOf(a.memberId)))];
+    const names = [...new Set(people.map((a) => nameOf(a.memberId)))];   // その役の人の名前（同じ人は1回）
     if (!people.length) return { ok: false, code, date: p.date, text: `${word}（${fmt(time)}）の人がいない` };
-    const able = people.some((a) => memberOf.get(a.memberId)?.skills?.[skillKey] === 100);
+    const able = people.some((a) => memberOf.get(a.memberId)?.skills?.[skillKey] === 100);   // 100%できる人がいるか
     if (!able) {
-      const detail = names.map((n) => `${n} ${word}${p.members.find((m) => m.name === n)?.skills?.[skillKey] ?? 0}％`).join("、");
+      const detail = names.map((n) => `${n} ${word}${p.members.find((m) => m.name === n)?.skills?.[skillKey] ?? 0}％`).join("、");   // 名前とできる％の文
       return { ok: false, code, date: p.date, text: `${word}の人が100％ではない：${detail}` };
     }
     return { ok: true, code, date: p.date, text: `${word}（${fmt(time)}）：${names.join("、")}` };
   };
-  const opener = openerOf(p.assignments, hours);
+  const opener = openerOf(p.assignments, hours);   // その日の立ち上げの人（1人）
   out.push(roleCheck("open", "立ち上げ", opener ? [opener] : [], "open", openStart(hours)));
   out.push(roleCheck("close", "締め", p.assignments.filter((a) => isCloser(a, hours)), "close", hours.close));
 
@@ -151,8 +153,8 @@ export function checkDay(p) {
   // ⑤ 希望：希望の外の時間に入っていない（短く入れるのはOK）
   const outside = [];
   for (const a of p.assignments) {
-    const member = memberOf.get(a.memberId);
-    const hope = p.availabilities.find((x) => x.memberId === a.memberId);
+    const member = memberOf.get(a.memberId);   // その店員
+    const hope = p.availabilities.find((x) => x.memberId === a.memberId);   // その人のその日の希望
     if (!hope) {
       // 希望を出していない：社員は「全部入れる」扱い（要件 F-49）
       if (member?.kind !== "shain") outside.push(`${nameOf(a.memberId)}（希望なし）`);
@@ -168,10 +170,10 @@ export function checkDay(p) {
 
   // ⑥ 同じ人が同じ時間に2つ入っていない（ほかの店舗への応援も含む）
   const all = p.allStoreAssignments || p.assignments;
-  const doubled = new Set();
+  const doubled = new Set();   // 時間が重なっている人
   for (let i = 0; i < all.length; i++) {
     for (let j = i + 1; j < all.length; j++) {
-      const a = all[i], b = all[j];
+      const a = all[i], b = all[j];   // 比べる2つの勤務
       if (a.memberId === b.memberId && overlaps(a.from, a.to, b.from, b.to)) doubled.add(a.memberId);
     }
   }
@@ -202,12 +204,12 @@ export function checkDay(p) {
  * @returns {Problem[]}
  */
 export function checkWeek(p) {
-  const out = [];
-  const active = p.members.filter((m) => m.active);
+  const out = [];   // チェックの結果
+  const active = p.members.filter((m) => m.active);   // 働いている人（休止していない）
 
   // ① 全員、週1日は必ず休み
   const noRest = active.filter((m) => {
-    const days = new Set(p.assignments.filter((a) => a.memberId === m.id).map((a) => a.date));
+    const days = new Set(p.assignments.filter((a) => a.memberId === m.id).map((a) => a.date));   // その人が入っている日
     return p.dates.every((d) => days.has(d));
   });
   out.push({
@@ -216,13 +218,13 @@ export function checkWeek(p) {
   });
 
   // ② 社員の休みの日数（要件 F-48・F-49）
-  //    希望なし → 休みは週1日だけ ／ 休み希望あり → 希望した日数（週2日まで）
+  //    希望なし → 休みは週1日だけ（店長が決める）／ 休み希望あり → 希望した日数（2日目は特別許可）
   const tooMany = [];
   for (const m of active.filter((x) => x.kind === "shain")) {
-    const asked = p.availabilities.filter((a) => a.memberId === m.id && ["off", "offx", "no"].includes(a.kind)).length;
-    const allowed = asked > 0 ? asked : 1;
-    const worked = new Set(p.assignments.filter((a) => a.memberId === m.id).map((a) => a.date));
-    const off = p.dates.filter((d) => !worked.has(d)).length;
+    const asked = p.availabilities.filter((a) => a.memberId === m.id && ["off", "offx", "no"].includes(a.kind)).length;   // 休み希望の日数
+    const allowed = asked > 0 ? asked : 1;   // 休んでよい日数（希望なし＝1日）
+    const worked = new Set(p.assignments.filter((a) => a.memberId === m.id).map((a) => a.date));   // 入っている日
+    const off = p.dates.filter((d) => !worked.has(d)).length;   // 休みの日数
     if (off > allowed) tooMany.push(`${m.name}（${asked ? `休み希望${asked}日` : "希望なし＝週1日"}、今${off}日休み）`);
   }
   out.push({
@@ -230,9 +232,10 @@ export function checkWeek(p) {
     text: tooMany.length ? `社員の休みが多い：${tooMany.join("、")}` : "社員の休みの日数",
   });
 
-  // ③ 社員の休み希望は週2日まで（3日目からは特別許可の申請＝offx）
+  // ③ 社員の2日目の休み希望は特別許可の申請（offx）。店長が許可するまで警告
   const waiting = p.availabilities.filter((a) => a.kind === "offx");
   if (waiting.length) {
+    /** IDから名前 */
     const nameOf = (id) => p.members.find((m) => m.id === id)?.name || "？";
     out.push({ ok: false, code: "special", text: `特別許可を待っている休み：${waiting.map((a) => `${nameOf(a.memberId)} ${a.date.slice(5)}`).join("、")}` });
   }

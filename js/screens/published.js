@@ -1,6 +1,7 @@
 // ============================================================
 // screens/published.js — 公開シフト（見るだけ）
 // ------------------------------------------------------------
+// このファイルは、公開シフト（見るだけ）のファイルです。
 // ・今の紙と同じく、店全体のシフトをみんなが見られる
 // ・3店舗（安城福釜店・安城店・安城今村店）の公開シフトを、
 //   上のボタンで切り替えて見られる（2026年11月4日）。最初は自分のメインの店舗
@@ -18,8 +19,9 @@ import { weekLabel, datesOf } from "../lib/period.js";
 import { label, today, dayType } from "../lib/date.js";
 import { CONFIG } from "../config.js";
 
+/** 公開シフトの画面を描く */
 export async function renderPublished(app) {
-  const holidays = await api.listHolidays();
+  const holidays = await api.listHolidays();   // 祝日
 
   // ---------- 画面の中の状態 ----------
   let storeId = state.user.storeId;   // 見ている店舗（最初は自分のメインの店舗）
@@ -41,11 +43,11 @@ export async function renderPublished(app) {
   /** 店舗を切り替える：その店舗の公開済みの週を読む（同じ日付の週があればそこを開く） */
   async function loadStore(id) {
     storeId = id;
-    const [periods, mem, hours] = await Promise.all([api.listPeriods(id), api.listMembers(id), api.getStoreHours(id)]);
+    const [periods, mem, hours] = await Promise.all([api.listPeriods(id), api.listMembers(id), api.getStoreHours(id)]);   // 週・店員・営業時間
     published = periods.filter((p) => p.status === "published");
     members = mem;
     storeHours = hours;
-    const sameWeek = published.find((p) => datesOf(p).includes(date));
+    const sameWeek = published.find((p) => datesOf(p).includes(date));   // 同じ日付が入る週
     await loadWeek(sameWeek || published[published.length - 1] || null);
   }
 
@@ -62,7 +64,7 @@ export async function renderPublished(app) {
   // 描く
   // ============================================================
   function draw() {
-    const isMain = storeId === state.user.storeId;
+    const isMain = storeId === state.user.storeId;   // 自分のメインの店舗か
     mount(app,
       screenHeader({
         title: "公開シフト",
@@ -109,17 +111,19 @@ export async function renderPublished(app) {
 
   /** 表の左端と右端（7:00〜22:00 より外の勤務があれば広げる） */
   function dayRange() {
-    const day = assignments.filter((a) => a.date === date);
-    const start = Math.min(CONFIG.DAY_START, ...day.map((a) => a.from));
-    const end = Math.max(CONFIG.DAY_END, ...day.map((a) => a.to));
+    const day = assignments.filter((a) => a.date === date);   // その日の勤務
+    const start = Math.min(CONFIG.DAY_START, ...day.map((a) => a.from));   // 左端（分）
+    const end = Math.max(CONFIG.DAY_END, ...day.map((a) => a.to));   // 右端（分）
     return { start: Math.floor(start / 60) * 60, end: Math.ceil(end / 60) * 60 };
   }
 
+  /** 日のタブ */
   function dayTabs() {
     return h("div", { class: "day-tabs" },
       datesOf(period).map((d) => h("button", { class: "chip", "aria-pressed": String(d === date), onclick: () => { date = d; draw(); } }, label(d))));
   }
 
+  /** 週を変えた時 */
   async function changeWeek(e) {
     await loadWeek(published.find((p) => p.id === e.target.value));
     draw();

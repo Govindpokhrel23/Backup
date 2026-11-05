@@ -1,6 +1,7 @@
 // ============================================================
 // screens/staff.js — 店員管理（店長）
 // ------------------------------------------------------------
+// このファイルは、店員管理（店長）のファイルです。
 // アカウントを作る時に、店長がこれを決める（あとで変えられる）：
 //   ・立場：社員／バイト／フルで入るバイト（F-45）
 //   ・できること：ホール・キッチン・立ち上げ・締め を 0〜100％（F-46）
@@ -19,9 +20,10 @@ import { screenHeader } from "../components/header.js";
 /** 順番の呼び方 */
 const rankWord = (rank) => ({ 1: "メイン", 2: "2nd", 3: "3rd" }[rank] || "");
 
+/** 店員管理の画面を描く（店長） */
 export async function renderStaff(app) {
-  let members = await api.listMembers();
-  let rules = await api.listMemberRules();
+  let members = await api.listMembers();   // この店舗で働ける人
+  let rules = await api.listMemberRules();   // 人ごとのルール
   let wages = await api.listWages();          // 時給・交通費（店長だけ。人件費の目安に使う）
   // 行ける店舗の選択には、営業している店舗だけを出す（休止した店舗は出さない）
   const stores = state.stores.filter((s) => s.active !== false);
@@ -29,6 +31,7 @@ export async function renderStaff(app) {
 
   draw();
 
+  /** 画面を描く */
   function draw() {
     mount(app,
       screenHeader({
@@ -46,7 +49,7 @@ export async function renderStaff(app) {
 
   /** 立場ごとのまとまり（社員を上に）。この店舗がメインの人だけ */
   function group(kind) {
-    const list = members.filter((m) => m.kind === kind && m.rankHere === 1);
+    const list = members.filter((m) => m.kind === kind && m.rankHere === 1);   // その立場の人（この店舗がメイン）
     if (!list.length) return null;
     return h("section", { class: "card" },
       h("h2", { class: "card__title" }, `${CONFIG.KIND_LABEL[kind]}（${list.length}人）`),
@@ -56,6 +59,8 @@ export async function renderStaff(app) {
           h("span", { class: "home-muted num" }, `ID ${m.loginId}`),
           m.role === "manager" ? h("span", { class: "badge", style: { marginLeft: "6px" } }, "店長") : null,
           !m.active ? h("span", { class: "badge", style: { marginLeft: "6px", background: "var(--danger)" } }, "停止中") : null,
+          // シフト作成の「人を追加」で登録して、まだアカウント（ログイン）がない人（2026年11月5日）
+          m.account === "none" ? h("span", { class: "badge badge--warn", style: { marginLeft: "6px" } }, "アカウントなし") : null,
         ),
         h("div", { class: "home-muted" }, CONFIG.SKILLS.map((s) => `${s.label}${m.skills[s.key]}`).join("・")),
         h("div", { class: "home-muted" }, `行ける店舗：${storesText(m)}`),
@@ -65,7 +70,7 @@ export async function renderStaff(app) {
 
   /** ほかの店舗がメインで、この店舗に応援に来られる人（2nd・3rd） */
   function helpers() {
-    const list = members.filter((m) => m.rankHere > 1);
+    const list = members.filter((m) => m.rankHere > 1);   // 応援に来られる人
     if (!list.length) return null;
     return h("section", { class: "card" },
       h("h2", { class: "card__title" }, `応援に来られる人（${list.length}人）`),
@@ -95,7 +100,8 @@ export async function renderStaff(app) {
       : { name: "", kind: "baito", everyday: false, skills: { hall: 0, kitchen: 0, open: 0, close: 0 }, rule: "",
           stores: [{ storeId: state.storeId, rank: 1 }], hourly: 1100, transport: 0 };
 
-    const box = h("section", { class: "card staff-form" });
+    const box = h("section", { class: "card staff-form" });   // フォームの入れ物
+    /** フォームの中だけ描き直す */
     const redraw = () => mount(box, ...fields());
     redraw();
     return box;
@@ -105,7 +111,9 @@ export async function renderStaff(app) {
      * 人が足りない時、2nd・3rd の人を AI がその店舗に入れる
      */
     function storeRanks() {
+      /** その店舗の順番（0＝行かない） */
       const rankOf = (id) => draft.stores.find((x) => x.storeId === id)?.rank ?? 0;
+      /** その店舗の順番を決める */
       const setRank = (id, rank) => {
         // 同じ順番は1店舗だけ。選んだ順番を持っていた店舗は「行かない」にする
         draft.stores = draft.stores.filter((x) => x.storeId !== id && (rank === 0 || x.rank !== rank));
@@ -121,8 +129,9 @@ export async function renderStaff(app) {
         )));
     }
 
+    /** フォームの中身 */
     function fields() {
-      const name = h("input", { class: "input", value: draft.name, placeholder: "名前", oninput: (e) => { draft.name = e.target.value; } });
+      const name = h("input", { class: "input", value: draft.name, placeholder: "名前", oninput: (e) => { draft.name = e.target.value; } });   // 名前の欄
       return [
         h("h2", { class: "card__title" }, member ? `${member.name} を直す` : "アカウントを作る"),
         h("label", { class: "field" }, "名前", name),
@@ -165,7 +174,9 @@ export async function renderStaff(app) {
 
         member && member.role !== "manager"
           ? h("div", { class: "chip-row" },
-              h("button", { class: "btn btn--small", onclick: () => reset(member) }, "パスワードをリセット"),
+              // アカウントがない人は「アカウントを作る」（初回コードを出す）。ある人は「パスワードをリセット」
+              h("button", { class: `btn btn--small ${member.account === "none" ? "btn--primary" : ""}`, onclick: () => reset(member) },
+                member.account === "none" ? "アカウントを作る（初回コードを出す）" : "パスワードをリセット"),
               h("button", { class: "btn btn--small btn--danger", onclick: () => toggleActive(member) }, member.active ? "停止する（やめた人）" : "再開する"),
             )
           : null,
@@ -177,7 +188,7 @@ export async function renderStaff(app) {
   async function save(member, draft) {
     if (!draft.name.trim()) { toast("名前を入れてください"); return; }
     if (!draft.stores.some((x) => x.rank === 1)) { toast("メインの店舗を1つ選んでください"); return; }
-    const data = { name: draft.name.trim(), kind: draft.kind, everyday: draft.everyday, skills: draft.skills, stores: draft.stores };
+    const data = { name: draft.name.trim(), kind: draft.kind, everyday: draft.everyday, skills: draft.skills, stores: draft.stores };   // 保存する中身
     if (member) {
       await api.saveMember({ ...member, ...data });
       await api.saveMemberRule(member.id, draft.rule);
@@ -196,11 +207,15 @@ export async function renderStaff(app) {
     draw();
   }
 
+  /** パスワードのリセット／アカウントを作る：新しい初回コードを出して見せる */
   async function reset(member) {
-    const { loginId, code } = await api.resetPassword(member.id);
+    const { loginId, code } = await api.resetPassword(member.id);   // IDと新しい初回コード
     await showCode(member.name, loginId, code);
+    members = await api.listMembers();                       // 「アカウントなし」の印を消すため読み直す
+    draw();
   }
 
+  /** 停止する／再開する */
   async function toggleActive(member) {
     await api.saveMember({ ...member, active: !member.active });
     members = await api.listMembers();

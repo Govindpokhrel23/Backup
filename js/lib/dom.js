@@ -1,6 +1,7 @@
 // ============================================================
 // lib/dom.js — 画面の部品（HTML要素）を作るための小さな道具
 // ------------------------------------------------------------
+// このファイルは、画面の部品（HTML要素）を作るための小さな道具のファイルです。
 // なぜ innerHTML を使わないの？
 //   innerHTML に人の名前などをそのまま入れると、
 //   名前に <script> などが入っていた時に悪さをされる（XSSという攻撃）。
@@ -19,7 +20,7 @@
  * @returns {HTMLElement}
  */
 export function h(tag, attrs = {}, ...children) {
-  const el = document.createElement(tag);
+  const el = document.createElement(tag);   // 作る要素
 
   for (const [key, value] of Object.entries(attrs || {})) {
     if (value === null || value === undefined || value === false) continue;
@@ -70,7 +71,7 @@ export function mount(target, ...children) {
 
 /** SVGアイコンを作る（線だけのシンプルなアイコン） */
 export function icon(name) {
-  const paths = {
+  const paths = {   // アイコンの形（SVG の線）
     home: "M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     edit: "M4 20h4L19 9l-4-4L4 16zM14 6l4 4",
     calendar: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4",
@@ -80,7 +81,7 @@ export function icon(name) {
     user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4.5 4.5-6.5 8-6.5s7 2 8 6.5",
   };
   const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
+  const svg = document.createElementNS(ns, "svg");   // アイコンの入れ物
   svg.setAttribute("viewBox", "0 0 24 24");
   svg.setAttribute("fill", "none");
   svg.setAttribute("stroke", "currentColor");
@@ -88,7 +89,7 @@ export function icon(name) {
   svg.setAttribute("stroke-linecap", "round");
   svg.setAttribute("stroke-linejoin", "round");
   svg.setAttribute("aria-hidden", "true");
-  const path = document.createElementNS(ns, "path");
+  const path = document.createElementNS(ns, "path");   // アイコンの線
   path.setAttribute("d", paths[name] || "");
   svg.appendChild(path);
   return svg;
@@ -96,8 +97,9 @@ export function icon(name) {
 
 /** 小さいお知らせを数秒出す */
 let toastTimer = null;
+/** 画面の下に、数秒だけお知らせの文を出す */
 export function toast(message) {
-  const el = document.getElementById("toast");
+  const el = document.getElementById("toast");   // お知らせを出す場所（index.html の #toast）
   el.textContent = message;
   el.hidden = false;
   clearTimeout(toastTimer);
@@ -111,8 +113,9 @@ export function toast(message) {
  */
 export function confirmDialog({ title, body, yes = "はい", no = "いいえ", warn = false }) {
   return new Promise((resolve) => {
+    /** ダイアログを閉じて、押したボタンを返す */
     const close = (answer) => { backdrop.remove(); resolve(answer); };
-    const backdrop = h("div", { class: "dialog-backdrop" },
+    const backdrop = h("div", { class: "dialog-backdrop" },   // うしろを暗くする幕（中にダイアログ）
       h("div", { class: "dialog", role: "dialog", "aria-modal": "true", "aria-label": title },
         h("h2", { class: "dialog__title" }, warn ? h("span", { style: { color: "#C27A00", display: "flex" } }, icon("warn")) : null, title),
         body,
@@ -124,4 +127,21 @@ export function confirmDialog({ title, body, yes = "はい", no = "いいえ", w
     );
     document.body.appendChild(backdrop);
   });
+}
+
+/**
+ * 「待っています」の画面（AIが考えている間など。2026年11月5日）
+ * 画面全体をうすく隠して、ぐるぐると文を出す。終わったら done() を呼ぶ
+ * @param {string} text 最初に出す文
+ * @returns {{update:(text:string)=>void, done:()=>void}} 文を変える／消す
+ */
+export function busy(text) {
+  const message = h("div", { class: "busy__text" }, text);        // 出している文
+  const layer = h("div", { class: "busy", role: "status", "aria-live": "polite" },   // 画面全体の幕
+    h("div", { class: "busy__box" }, h("div", { class: "busy__spinner", "aria-hidden": "true" }), message));
+  document.body.appendChild(layer);
+  return {
+    update: (next) => { message.textContent = next; },
+    done: () => layer.remove(),
+  };
 }

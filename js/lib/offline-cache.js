@@ -1,6 +1,7 @@
 // ============================================================
 // lib/offline-cache.js — 自分のシフトをスマホにも保存する
 // ------------------------------------------------------------
+// このファイルは、自分のシフトをスマホにも保存するためのファイルです。
 // サーバーにつながらない時（電波がない・サーバーが止まっている）でも、
 // 自分のシフトだけはホームとカレンダーで見られるようにする。
 //
@@ -16,7 +17,7 @@ const KEEP_DAYS = 365 * 2;          // 2年
 /** 保存してある自分の勤務を読む（なければ空） */
 export function readCache(memberId) {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+    const saved = JSON.parse(localStorage.getItem(KEY) || "null");   // 保存してある中身
     // 別の人のデータは使わない（memberId が分からない時＝サーバーにつながらない時は、この端末の分を使う）
     if (saved && (!memberId || saved.memberId === memberId)) return saved.items;
   } catch (e) {
@@ -31,15 +32,16 @@ export function readCache(memberId) {
  * @returns {object[]} 保存した後の一覧
  */
 export function writeCache(memberId, fresh) {
-  const cutoff = new Date(Date.now() - KEEP_DAYS * 86400000).toISOString().slice(0, 10);
-  const byKey = new Map();
+  const cutoff = new Date(Date.now() - KEEP_DAYS * 86400000).toISOString().slice(0, 10);   // これより古い日は消す（2年前）
+  const byKey = new Map();   // 勤務を1つずつ入れる入れ物（同じ勤務は上書き）
+  /** 勤務を見分けるキー */
   const key = (a) => a.id || `${a.date}|${a.storeId}|${a.from}`;
   for (const a of readCache(memberId)) byKey.set(key(a), a);
   // サーバーにある日付の分は、サーバーの内容に入れ替える（消えた勤務も消す）
   const freshDates = new Set(fresh.map((a) => a.date));
   for (const [k, a] of byKey) if (freshDates.has(a.date)) byKey.delete(k);
   for (const a of fresh) byKey.set(key(a), a);
-  const items = [...byKey.values()].filter((a) => a.date >= cutoff);
+  const items = [...byKey.values()].filter((a) => a.date >= cutoff);   // 2年以内の勤務
   try {
     localStorage.setItem(KEY, JSON.stringify({ memberId, savedAt: new Date().toISOString(), items }));
   } catch (e) {
@@ -50,8 +52,8 @@ export function writeCache(memberId, fresh) {
 
 /** 保存している量（設定画面で見せる） */
 export function cacheInfo() {
-  const raw = localStorage.getItem(KEY) || "";
-  let count = 0, savedAt = null;
+  const raw = localStorage.getItem(KEY) || "";   // 保存してある文字
+  let count = 0, savedAt = null;   // 件数と保存した時刻
   try { const x = JSON.parse(raw || "null"); count = x?.items?.length || 0; savedAt = x?.savedAt || null; } catch (e) { /* 読めなければ 0 */ }
   return { count, kb: Math.ceil(new Blob([raw]).size / 1024), savedAt };
 }

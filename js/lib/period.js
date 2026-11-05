@@ -1,6 +1,7 @@
 // ============================================================
 // lib/period.js — 「受付（週）」の小さな道具
 // ------------------------------------------------------------
+// このファイルは、「受付（週）」の小さな道具のファイルです。
 // 受付（period）＝1週間分のシフトのまとまり。状態は3つ：
 //   open      … 受付中（店員が希望を出せる）
 //   closed    … 締切（店長がシフトを作っている）
@@ -9,7 +10,7 @@
 
 import { addDays, label, shortLabel, weekDates } from "./date.js";
 
-export const STATUS_LABEL = {
+export const STATUS_LABEL = {   // 受付の状態 → 画面に出す名前
   open: "受付中",
   closed: "締切（作成中）",
   published: "公開済み",
@@ -32,7 +33,7 @@ export function datesOf(period) {
 
 /** 締切 "2026-11-08T24:00" → "11/8（日）24:00" */
 export function deadlineLabel(period) {
-  const [date, time] = period.deadline.split("T");
+  const [date, time] = period.deadline.split("T");   // 締切の日付と時刻
   return `${label(date)} ${time}`;
 }
 

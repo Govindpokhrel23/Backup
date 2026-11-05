@@ -3,6 +3,7 @@
   ============================================================
   index.html — アプリの入口（このファイルを開くとアプリが始まる）
   ------------------------------------------------------------
+  このファイルは、アプリの入口のファイルです。
   ・画面の中身はここには書かない。js/screens/ の各ファイルが作る
   ・ここにあるのは「入れ物」だけ：
       #app      … 今の画面が入る場所
@@ -29,11 +30,13 @@
       layout.css     … ヘッダー・タブバーなど画面の枠
       components.css … ボタン・カード・入力欄など、何度も使う部品
       screens.css    … 画面ごとの見た目
+      ai.css         … AIの結果・AIの設定・「待っています」の見た目
   -->
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/screens.css">
+  <link rel="stylesheet" href="css/ai.css">
 </head>
 <body>
   <!-- 今の画面がここに入る（router.js が入れ替える） -->

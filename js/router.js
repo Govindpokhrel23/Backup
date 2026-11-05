@@ -1,6 +1,7 @@
 // ============================================================
 // router.js — 画面の切り替え
 // ------------------------------------------------------------
+// このファイルは、画面の切り替えのファイルです。
 // ・URL の # のあとで画面を決める（例：index.html#/kibou）
 //   → ブラウザの「戻る」も効く。ページの読み直しは起きない
 // ・役割（店長／店員）で、使えるタブと画面が変わる（設計書3章）
@@ -21,6 +22,7 @@ import { renderStaff } from "./screens/staff.js";
 import { renderMap } from "./screens/map.js";
 import { renderSettings } from "./screens/settings.js";
 import { renderStores } from "./screens/stores.js";
+import { renderAi } from "./screens/ai.js";
 
 /**
  * 画面の一覧
@@ -40,6 +42,7 @@ const ROUTES = [
   { path: "/map", render: renderMap, who: "manager" },
   { path: "/settings", render: renderSettings, who: "all" },
   { path: "/stores", render: renderStores, who: "manager" },
+  { path: "/ai", render: renderAi, who: "manager" },          // AIの設定と覚えたこと（2026年11月5日）
 ];
 
 /** 下のタブバー（役割で中身が変わる） */
@@ -66,36 +69,42 @@ export function go(path) {
 
 /** 今の URL に合わせて画面を描く */
 export async function render() {
-  const app = document.getElementById("app");
-  const path = location.hash.replace(/^#/, "") || "/home";
+  const app = document.getElementById("app");   // 画面を入れる場所
+  const path = location.hash.replace(/^#/, "") || "/home";   // 今の画面の住所（#のあと）
 
   // ログインしていなければ、必ずログイン画面へ
   if (!state.user && path !== "/login") return go("/login");
   if (state.user && path === "/login") return go("/home");
 
-  const route = ROUTES.find((r) => r.path === path);
+  const route = ROUTES.find((r) => r.path === path);   // その住所の画面
   if (!route) return go("/home");
   if (route.who === "manager" && !isManager()) return go("/home");
 
   renderTabbar(path);
   window.scrollTo(0, 0);
 
+  // 画面ごとに新しい入れ物（view）を作って、その中に描く（2026年11月5日）
+  // → 前の画面の読み込みがおそく終わっても、もう外した入れ物に描くだけなので、
+  //   新しい画面が古い画面で上書きされない
+  const view = h("div", { class: "view" });   // この画面の入れ物
+  app.replaceChildren(view);
+
   try {
-    await route.render(app);
+    await route.render(view);
   } catch (e) {
     console.error(e);
-    mount(app, h("div", { class: "screen-body" },
+    mount(view, h("div", { class: "screen-body" },
       h("div", { class: "notice notice--danger" }, `画面を開けませんでした：${e.message}`)));
   }
 }
 
 /** 下のタブバーを描く */
 function renderTabbar(path) {
-  const bar = document.getElementById("tabbar");
+  const bar = document.getElementById("tabbar");   // 下のタブバー
   if (!state.user) { bar.hidden = true; return; }
-  const tabs = TABS[isManager() ? "manager" : "staff"];
+  const tabs = TABS[isManager() ? "manager" : "staff"];   // 店長か店員かで変わるタブ
   // 店舗メニューの中の画面（店員管理・マップ）も「店舗」タブを光らせる
-  const current = ["/staff", "/map", "/stores"].includes(path) ? "/store" : path;
+  const current = ["/staff", "/map", "/stores", "/ai"].includes(path) ? "/store" : path;
   mount(bar, tabs.map((t) =>
     h("button", {
       class: "tabbar__btn",

@@ -1,6 +1,7 @@
 // ============================================================
 // screens/kibou.js — 希望入力（店員）
 // ------------------------------------------------------------
+// このファイルは、希望入力（店員）のファイルです。
 // ・2か月先まで、週ごとに希望を入れられる（2026年11月3日）
 //   上の週のボタンで週を切り替える。「前の週と同じにする」もできる
 //   締切はそれぞれの週の「前の日曜24:00」。すぎた週・店長が締め切った週は直せない
@@ -9,9 +10,9 @@
 //     1日ずつ「入れない／いつでもOK／時間指定」を選ぶ
 //   社員：
 //     最初から全部「入れる」。
-//     希望を出さない → 休みは週1日（AIが決める）
+//     希望を出さない → 休みは週1日（店長が決める。下書きではAIが案を出す）
 //     休み希望を出す → 週2日まで。
-//     3日目からは「特別許可の申請」になり、店長が決める（F-48）
+//     2日目は「特別許可の申請」になり店長が決める。3日目は出せない（2026年11月5日）
 // ・ほかの人の希望は見られない
 // ・保存できたら前の画面に戻る
 // ============================================================
@@ -28,17 +29,18 @@ import { range, timeOptions } from "../lib/time.js";
 /** 何か月先まで入れられるか */
 const MONTHS_AHEAD = CONFIG.MONTHS_AHEAD;
 
+/** 希望入力の画面を描く */
 export async function renderKibou(app) {
-  const isShain = state.user.kind === "shain";
+  const isShain = state.user.kind === "shain";   // 社員か（社員は休み希望だけ出す）
 
   // ---------- 入れられる週を並べる（来週〜2か月先） ----------
   const limit = (() => { const d = toDate(today()); d.setMonth(d.getMonth() + MONTHS_AHEAD); return toIso(d); })();
-  const starts = [];
+  const starts = [];   // 入れられる週の月曜日（2か月先まで）
   for (let w = addDays(mondayOf(today()), 7); w <= limit; w = addDays(w, 7)) starts.push(w);
 
   // 週ごとに「入れられるか」と「保存してある希望」を読む
   const locks = await Promise.all(starts.map((w) => api.weekLock(w)));
-  const saved = await api.listMyAvailabilities(starts[0], addDays(starts[starts.length - 1], 6));
+  const saved = await api.listMyAvailabilities(starts[0], addDays(starts[starts.length - 1], 6));   // 保存してある自分の希望
 
   // ---------- 画面の中で持つ「今の入力」 ----------
   // 週1つ：{ weekStart, lock, days:[{date, kind, from, to}], touched, savedBefore }
@@ -46,13 +48,13 @@ export async function renderKibou(app) {
     .map((weekStart, i) => ({ weekStart, lock: locks[i] }))
     .filter((w) => !w.lock)                         // 締め切った週は出さない
     .map((w) => {
-      const days = weekDates(w.weekStart).map((date) => {
-        const s = saved.find((x) => x.date === date);
+      const days = weekDates(w.weekStart).map((date) => {   // その週の7日分
+        const s = saved.find((x) => x.date === date);   // その日の保存してある希望
         if (s) return { date, kind: s.kind, from: s.from ?? 9 * 60, to: s.to ?? 15 * 60 };
         // まだ入れていない日：社員は「入れる」、バイトは「未入力」
         return { date, kind: isShain ? "any" : "none", from: 9 * 60, to: 15 * 60 };
       });
-      const savedBefore = weekDates(w.weekStart).some((d) => saved.some((x) => x.date === d));
+      const savedBefore = weekDates(w.weekStart).some((d) => saved.some((x) => x.date === d));   // 前に保存したことがある週か
       return { ...w, days, touched: false, savedBefore };
     });
 
@@ -64,16 +66,16 @@ export async function renderKibou(app) {
   }
 
   let current = 0;      // 表示している週（weeks の何番目か）
-  let message = "";
+  let message = "";   // 画面に出すお知らせの文
   draw();
 
   // ============================================================
   // 描く
   // ============================================================
   function draw() {
-    const week = weeks[current];
-    const offCount = week.days.filter((d) => d.kind === "off").length;
-    const notYet = week.days.filter((d) => d.kind === "none").length;
+    const week = weeks[current];   // 今見ている週
+    const offCount = week.days.filter((d) => d.kind === "off" || d.kind === "offx").length;   // この週の休み希望の数（許可待ちも入れる）
+    const notYet = week.days.filter((d) => d.kind === "none").length;   // まだ選んでいない日の数
 
     mount(app,
       screenHeader({
@@ -85,7 +87,7 @@ export async function renderKibou(app) {
           h("div", { class: "kibou-deadline" }, `${label(week.weekStart)}〜${label(addDays(week.weekStart, 6))} ／ 締切 ${label(addDays(week.weekStart, -1))} 24:00`),
           isShain
             ? h("div", { class: "notice notice--warn", style: { fontWeight: 400 } },
-                `休み希望を出さないときは、休みは週1日（AIが決めます）。休み希望を出すときは週${CONFIG.SHAIN_OFF_LIMIT}日まで（この週 ${offCount}/${CONFIG.SHAIN_OFF_LIMIT}）。それより多いときは店長の特別許可が必要です。`)
+                `休み希望を出さないときは、休みは週1日（店長が決めます）。休み希望は週${CONFIG.SHAIN_OFF_MAX}日まで。${CONFIG.SHAIN_OFF_FREE + 1}日目の休みは店長の特別許可が必要です（この週 ${offCount}/${CONFIG.SHAIN_OFF_MAX}）。`)
             : null,
         ],
       }),
@@ -110,7 +112,7 @@ export async function renderKibou(app) {
   function weekTabs() {
     return h("div", { class: "week-tabs" },
       weeks.map((w, i) => {
-        const done = (w.savedBefore || w.touched) && !w.days.some((d) => d.kind === "none");
+        const done = (w.savedBefore || w.touched) && !w.days.some((d) => d.kind === "none");   // 全部の日を選び終わった週か
         return h("button", {
           class: "chip week-tab",
           "aria-pressed": String(i === current),
@@ -129,8 +131,8 @@ export async function renderKibou(app) {
       ? [["any", "入れる", "ok"], ["off", "休み希望", "danger"], ["time", "時間指定", "hall"]]
       : [["no", "入れない", "danger"], ["any", "いつでもOK", "ok"], ["time", "時間指定", "hall"]];
 
-    const wd = weekdayNum(d.date);
-    const stateText = {
+    const wd = weekdayNum(d.date);   // 曜日の番号
+    const stateText = {   // 今の選び方を文にしたもの
       none: "未入力", no: "入れない", any: isShain ? "入れる" : "いつでもOK",
       off: "休み希望", offx: "特別許可を申請中", time: range(d.from, d.to),
     }[d.kind];
@@ -154,6 +156,7 @@ export async function renderKibou(app) {
 
   /** 時間指定の「から〜まで」 */
   function timeRange(d) {
+    /** 時刻を選ぶセレクト */
     const sel = (value, onChange, aria) => h("select", {
       class: "select num", "aria-label": aria,
       onchange: (e) => { onChange(Number(e.target.value)); weeks[current].touched = true; draw(); },
@@ -172,15 +175,21 @@ export async function renderKibou(app) {
   /** 選んだ時 */
   function pick(i, kind) {
     message = "";
-    const week = weeks[current];
-    const d = week.days[i];
+    const week = weeks[current];   // 今見ている週
+    const d = week.days[i];   // 選んだ日
     week.touched = true;
-    // 社員の3日目の休み → 特別許可の申請にする（週ごとに数える）
+    // 社員の休み希望（週ごとに数える。2026年11月5日）
+    //   1日目 → ふつうの休み希望 ／ 2日目 → 特別許可の申請（offx）／ 3日目 → 出せない
     if (isShain && kind === "off" && d.kind !== "off" && d.kind !== "offx") {
-      const offCount = week.days.filter((x) => x.kind === "off").length;
-      if (offCount >= CONFIG.SHAIN_OFF_LIMIT) {
+      const offCount = week.days.filter((x) => x.kind === "off" || x.kind === "offx").length;   // 今の休み希望の数
+      if (offCount >= CONFIG.SHAIN_OFF_MAX) {
+        message = `休み希望は週${CONFIG.SHAIN_OFF_MAX}日までです。ほかの日を外してから選んでください。`;
+        draw();
+        return;
+      }
+      if (offCount >= CONFIG.SHAIN_OFF_FREE) {
         d.kind = "offx";
-        message = `${label(d.date)}は${CONFIG.SHAIN_OFF_LIMIT + 1}日目の休み希望です。店長の特別許可を申請します。`;
+        message = `${label(d.date)}は${offCount + 1}日目の休み希望です。店長の特別許可を申請します。`;
         draw();
         return;
       }
@@ -191,10 +200,10 @@ export async function renderKibou(app) {
 
   /** 前の週と同じ選び方にする（2か月分を入れるのを楽にする） */
   function copyPrevWeek() {
-    const prev = weeks[current - 1];
-    const week = weeks[current];
+    const prev = weeks[current - 1];   // 前の週
+    const week = weeks[current];   // 今見ている週
     week.days.forEach((d, i) => {
-      const p = prev.days[i];
+      const p = prev.days[i];   // 前の週の同じ曜日
       Object.assign(d, { kind: p.kind === "offx" ? "off" : p.kind, from: p.from, to: p.to });
     });
     week.touched = true;
@@ -205,18 +214,18 @@ export async function renderKibou(app) {
 
   /** 保存（さわった週をまとめて保存） */
   async function save() {
-    const targets = weeks.filter((w) => w.touched);
+    const targets = weeks.filter((w) => w.touched);   // 保存する週（さわった週だけ）
     if (!targets.length) {
       toast("変えたところはありません");
       return;
     }
     // まちがいがあれば、その週を開いて知らせる
     for (const w of targets) {
-      const idx = weeks.indexOf(w);
+      const idx = weeks.indexOf(w);   // その週の番号
       if (w.days.some((d) => d.kind === "time" && d.to <= d.from)) {
         current = idx; message = "時間指定の「まで」は「から」より後にしてください"; return draw();
       }
-      const notYet = w.days.filter((d) => d.kind === "none").length;
+      const notYet = w.days.filter((d) => d.kind === "none").length;   // まだ選んでいない日の数
       if (notYet) {
         current = idx; message = `この週にまだ選んでいない日があります（${notYet}日）`; return draw();
       }

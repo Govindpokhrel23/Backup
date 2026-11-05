@@ -1,6 +1,7 @@
 // ============================================================
 // screens/settings.js — 設定（全員）
 // ------------------------------------------------------------
+// このファイルは、設定（全員）のファイルです。
 // ・ログアウト
 // ・ホーム画面への追加のしかた（通知に必要）
 // ・見本データの時だけ「最初に戻す」ボタン
@@ -14,6 +15,7 @@ import { CONFIG } from "../config.js";
 import { screenHeader } from "../components/header.js";
 import { cacheInfo } from "../lib/offline-cache.js";
 
+/** 設定の画面を描く */
 export async function renderSettings(app) {
   mount(app,
     screenHeader({ title: "設定", sub: `${state.user.name}（ID ${state.user.loginId}）` }),
@@ -24,7 +26,7 @@ export async function renderSettings(app) {
       ),
       // スマホに保存している自分のシフト（サーバーにつながらない時用）
       (() => {
-        const info = cacheInfo();
+        const info = cacheInfo();   // スマホに保存した自分のシフトの件数と大きさ
         return h("section", { class: "card" },
           h("h2", { class: "card__title" }, "スマホに保存している自分のシフト"),
           h("div", { class: "home-muted" },
@@ -39,7 +41,7 @@ export async function renderSettings(app) {
         ? h("button", {
             class: "btn btn--danger btn--block",
             onclick: async () => {
-              const ok = await confirmDialog({ title: "見本データを最初に戻しますか？", body: h("p", { style: { margin: 0 } }, "入れた希望やシフトは消えます。"), yes: "戻す", no: "やめる" });
+              const ok = await confirmDialog({ title: "見本データを最初に戻しますか？", body: h("p", { style: { margin: 0 } }, "入れた希望やシフトは消えます。"), yes: "戻す", no: "やめる" });   // 本当に戻すか聞く
               if (!ok) return;
               await api.resetMock();
               state.user = null;

@@ -1,6 +1,7 @@
 // ============================================================
 // components/my-shifts.js — 自分のシフトの一覧（ホームで使う）
 // ------------------------------------------------------------
+// このファイルは、自分のシフトの一覧（ホームで使う）のファイルです。
 // ・今日 → 明日 → 明後日 → その先 の順に並べる
 // ・見た目（2026年11月4日）：明後日11/6（金）／コメダ 安城福釜店／9:00〜15:00
 // ・昨日より前のものは出さない（自動で消える）
@@ -14,7 +15,7 @@ import { range, fmt } from "../lib/time.js";
 
 /** 交代：お願い中なら状態、まだならボタン */
 function swapPart(p, a) {
-  const sw = (p.swaps || []).find((x) => x.assignmentId === a.id && ["open", "taken"].includes(x.status));
+  const sw = (p.swaps || []).find((x) => x.assignmentId === a.id && ["open", "taken"].includes(x.status));   // この勤務の交代のお願い（募集中・承認待ち）
   if (sw) return h("span", { class: "badge badge--warn" }, sw.status === "open" ? "交代をさがし中" : `${sw.takerName}さんが代わる予定（店長の承認待ち）`);
   if (!p.onSwap || !a.id) return null;
   return h("button", { class: "btn btn--small my-shifts__swap", onclick: () => p.onSwap(a) }, "交代をお願いする");
@@ -30,14 +31,15 @@ function swapPart(p, a) {
  * @param {(a:object)=>void} [p.onSwap]  「交代をお願いする」を押した時（ないとボタンを出さない）
  */
 export function myShifts(p) {
-  const now = today();
-  const upcoming = p.assignments
+  const now = today();   // 今日の日付
+  const upcoming = p.assignments   // これからの勤務（今日から、早い順）
     .filter((a) => a.date >= now)                                   // 昨日より前は出さない
     .sort((a, b) => a.date.localeCompare(b.date) || a.from - b.from)
     .slice(0, p.limit ?? 10);
 
   // 「今日」「明日」「明後日」の呼び方
   const dayWord = (d) => (d === now ? "今日" : d === addDays(now, 1) ? "明日" : d === addDays(now, 2) ? "明後日" : null);
+  /** 店舗のIDから店名 */
   const storeName = (id) => p.stores.find((s) => s.id === id)?.name || "";
 
   return h("section", { class: "card" },
@@ -45,8 +47,8 @@ export function myShifts(p) {
     upcoming.length
       ? h("ul", { class: "my-shifts" },
           upcoming.map((a) => {
-            const word = dayWord(a.date);
-            const help = a.storeId !== p.myStoreId;
+            const word = dayWord(a.date);   // 「今日」「明日」「明後日」（それ以外は null）
+            const help = a.storeId !== p.myStoreId;   // ほかの店舗への応援か
             return h("li", { class: `my-shifts__item ${word === "今日" ? "is-today" : ""}` },
               // 1行目：「明後日11/6（金）」
               h("div", { class: "my-shifts__day" }, `${word || ""}${label(a.date)}`),

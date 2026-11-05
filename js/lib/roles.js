@@ -1,6 +1,7 @@
 // ============================================================
 // lib/roles.js — 「立ち上げ」「締め」の決まり（2026年11月4日）
 // ------------------------------------------------------------
+// このファイルは、「立ち上げ」「締め」の決まり（2026年11月4日）のファイルです。
 // ・立ち上げは1人。開店の30分前から入る（7:00開店なら6:30から）
 //   → 開店30分前（またはそれより前）から入っている人のうち、いちばん早い1人＝立ち上げ
 // ・締め：閉店の時刻（またはそれより後）まで入っている人
@@ -20,7 +21,7 @@ export function openStart(hours) {
  * @param {{open:number,close:number}} hours その日の営業時間
  */
 export function openerOf(dayAssignments, hours) {
-  const start = openStart(hours);
+  const start = openStart(hours);   // 立ち上げの人が入る時刻
   return [...dayAssignments]
     .filter((a) => a.from <= start)
     .sort((a, b) => a.from - b.from)[0] || null;

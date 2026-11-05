@@ -1,6 +1,7 @@
 // ============================================================
 // lib/time.js — 時刻の計算
 // ------------------------------------------------------------
+// このファイルは、時刻の計算のファイルです。
 // このアプリでは時刻を「その日の0:00から何分か」で持つ（設計書6章）
 //   7:00  → 420
 //   22:00 → 1320
@@ -13,19 +14,19 @@ export const STEP = 15;
 
 /** 店長が選べる時刻のはば（5:00 〜 翌2:00。紙のシフト表も翌2時まである） */
 export const EDIT_MIN = 5 * 60;
-export const EDIT_MAX = 26 * 60;
+export const EDIT_MAX = 26 * 60;   // 一番おそい時刻（翌2:00）
 
 /** 分 → "9:00" の文字（24時をこえたら "翌1:00"） */
 export function fmt(minutes) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  const mm = String(m).padStart(2, "0");
+  const h = Math.floor(minutes / 60);   // 時
+  const m = minutes % 60;   // 分
+  const mm = String(m).padStart(2, "0");   // 分（2けた）
   return h > 24 || (h === 24 && m > 0) ? `翌${h - 24}:${mm}` : `${h}:${mm}`;
 }
 
 /** "9:00" の文字 → 分 */
 export function parse(text) {
-  const [h, m] = text.split(":").map(Number);
+  const [h, m] = text.split(":").map(Number);   // 時と分
   return h * 60 + m;
 }
 
@@ -54,7 +55,7 @@ export function overlaps(aFrom, aTo, bFrom, bTo) {
  * @returns {{value:number,label:string}[]}
  */
 export function timeOptions(from = 420, to = 1320) {
-  const list = [];
+  const list = [];   // 時刻の一覧
   for (let m = from; m <= to; m += STEP) list.push({ value: m, label: fmt(m) });
   return list;
 }

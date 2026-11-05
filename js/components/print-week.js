@@ -1,6 +1,7 @@
 // ============================================================
 // components/print-week.js — 1週間のシフトを紙に印刷する
 // ------------------------------------------------------------
+// このファイルは、1週間のシフトを紙に印刷するためのファイルです。
 // お店に貼る紙のシフト表のかわり。印刷ボタンを押すと、
 //   ・横：月〜日、縦：名前（社員が上、バイトが下）
 //   ・マスに「7-16」のように時間、休憩は「○12」
@@ -21,13 +22,14 @@ import { label } from "../lib/date.js";
  * @param {string}   [p.note]       連絡事項
  */
 export function printWeek(p) {
-  let area = document.getElementById("print-area");
+  let area = document.getElementById("print-area");   // 印刷用の入れ物（なければ作る）
   if (!area) {
     area = h("div", { id: "print-area" });
     document.body.appendChild(area);
   }
   // 「7-16」の短い形（ちょうどの時刻は分を省く）
   const t = (m) => (m % 60 ? fmt(m) : String(m / 60 >= 24 ? `翌${m / 60 - 24}` : m / 60));
+  /** その人のその日の勤務の文（例「9-15」） */
   const cell = (memberId, date) => p.assignments
     .filter((a) => a.memberId === memberId && a.date === date)
     .sort((a, b) => a.from - b.from)
@@ -35,7 +37,7 @@ export function printWeek(p) {
     .join(" / ");
   // 社員を上、バイトを下。その週に1回も入っていない応援の人は出さない
   const shown = p.members.filter((m) => (m.rankHere ?? 1) === 1 || p.assignments.some((a) => a.memberId === m.id));
-  const order = [...shown.filter((m) => m.kind === "shain"), ...shown.filter((m) => m.kind !== "shain")];
+  const order = [...shown.filter((m) => m.kind === "shain"), ...shown.filter((m) => m.kind !== "shain")];   // 社員を上に並べた順
 
   mount(area,
     h("h1", null, p.title),

@@ -1,6 +1,7 @@
 // ============================================================
 // screens/login.js — ログイン画面
 // ------------------------------------------------------------
+// このファイルは、ログイン画面のファイルです。
 // ・ふつう：ID とパスワードでログイン
 // ・はじめての人：店長からもらった「ID」と「初回コード」で
 //   自分のパスワードを決める（設計書5章）
@@ -13,17 +14,20 @@ import { state, loadStoreInfo } from "../store.js";
 import { go } from "../router.js";
 import { CONFIG } from "../config.js";
 
+/** ログインの画面を描く */
 export async function renderLogin(app) {
   let mode = "login";          // "login"＝ふつう / "first"＝はじめて
   draw();
 
+  /** ログインのフォームを描く */
   function draw() {
-    const error = h("div", { class: "notice notice--danger", hidden: true });
+    const error = h("div", { class: "notice notice--danger", hidden: true });   // エラーを出す所
 
     // ---------- ふつうのログイン ----------
     const loginForm = () => {
-      const id = h("input", { class: "input num", inputmode: "numeric", autocomplete: "username", placeholder: "例：2004" });
-      const pw = h("input", { class: "input", type: "password", autocomplete: "current-password" });
+      const id = h("input", { class: "input num", inputmode: "numeric", autocomplete: "username", placeholder: "例：2004" });   // IDの欄
+      const pw = h("input", { class: "input", type: "password", autocomplete: "current-password" });   // パスワードの欄
+      /** 「ログイン」を押した時 */
       const submit = async (e) => {
         e.preventDefault();
         error.hidden = true;
@@ -47,10 +51,11 @@ export async function renderLogin(app) {
 
     // ---------- はじめての人 ----------
     const firstForm = () => {
-      const id = h("input", { class: "input num", inputmode: "numeric", placeholder: "店長からもらったID" });
-      const code = h("input", { class: "input num", inputmode: "numeric", maxlength: "6", placeholder: "6桁の初回コード" });
-      const pw1 = h("input", { class: "input", type: "password", autocomplete: "new-password" });
-      const pw2 = h("input", { class: "input", type: "password", autocomplete: "new-password" });
+      const id = h("input", { class: "input num", inputmode: "numeric", placeholder: "店長からもらったID" });   // IDの欄
+      const code = h("input", { class: "input num", inputmode: "numeric", maxlength: "6", placeholder: "6桁の初回コード" });   // 初回コードの欄
+      const pw1 = h("input", { class: "input", type: "password", autocomplete: "new-password" });   // 新しいパスワードの欄
+      const pw2 = h("input", { class: "input", type: "password", autocomplete: "new-password" });   // もう一度入れる欄
+      /** 「はじめての方」で決めた時 */
       const submit = async (e) => {
         e.preventDefault();
         error.hidden = true;

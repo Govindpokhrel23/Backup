@@ -1,6 +1,7 @@
 // ============================================================
 // components/timeline.js — シフト表（時間の目盛り＋線）
 // ------------------------------------------------------------
+// このファイルは、シフト表（時間の目盛り＋線）のファイルです。
 // 紙のシフト表と同じ形で、1日分を表示する。
 //   ・社員が上、太い線をはさんでバイトが下（紙と同じ並び）
 //   ・ほかの店舗から来る人（2nd・3rd）は「応援」としていちばん下
@@ -25,8 +26,8 @@ import { roleMarks } from "../lib/roles.js";
 // 表の左端と右端（timeline() を呼ぶたびに決め直す）
 // 店長が営業時間の外に勤務を入れても見えるように、その日に合わせて広げる
 let START = CONFIG.DAY_START;
-let END = CONFIG.DAY_END;
-let SPAN = END - START;
+let END = CONFIG.DAY_END;   // 表の右端（分）
+let SPAN = END - START;   // 表のはば（分）
 
 /** 時刻 → 左からの位置（％） */
 const pct = (minute) => ((minute - START) / SPAN) * 100;
@@ -50,13 +51,13 @@ export function timeline(p) {
   START = p.start ?? CONFIG.DAY_START;
   END = p.end ?? CONFIG.DAY_END;
   SPAN = END - START;
-  const hours = [];
+  const hours = [];   // 目盛りの時刻（1時間ごと）
   for (let m = START; m < END; m += 60) hours.push(m);
 
   // 並び：この店舗がメインの社員 → バイト → 応援（ほかの店舗がメインの人）
   const main = (m) => (m.rankHere ?? 1) === 1;
-  const shain = p.members.filter((m) => main(m) && m.kind === "shain");
-  const others = p.members.filter((m) => main(m) && m.kind !== "shain");
+  const shain = p.members.filter((m) => main(m) && m.kind === "shain");   // メインの社員
+  const others = p.members.filter((m) => main(m) && m.kind !== "shain");   // メインのバイト・フル
   // 応援の人は、その日に勤務・希望がある人と、選んだ人だけ出す（ふだんは表を長くしない）
   const helpers = p.members.filter((m) => !main(m) && (
     p.assignments.some((a) => a.memberId === m.id)
@@ -78,7 +79,7 @@ export function timeline(p) {
           h("div", { class: "tl__name", style: { color: row.color } }, row.label),
           h("div", { class: "tl__needs" },
             row.slots.map((s) => {
-              const short = s.need - s.have;
+              const short = s.need - s.have;   // 足りない人数
               return h("span", { class: `tl__need num ${short > 0 ? "is-short" : ""}`, title: `必要${s.need}人・入っている${s.have}人` },
                 short > 0 ? `−${short}` : `${s.have}/${s.need}`);
             }),
@@ -97,7 +98,7 @@ export function timeline(p) {
 
 /** 目盛りの文字：「7」「8」…（24時をこえたら「翌1」） */
 function hourLabel(m) {
-  const hr = m / 60;
+  const hr = m / 60;   // 時（目盛りの文字用）
   return hr >= 24 ? `翌${hr - 24}` : String(hr);
 }
 
@@ -108,11 +109,11 @@ function groupLabel(text, thickLine = false) {
 
 /** 1人分の行 */
 function memberRow(p, member) {
-  const work = p.assignments.filter((a) => a.memberId === member.id);
-  const away = (p.elsewhere || []).filter((a) => a.memberId === member.id);
-  const hope = (p.availabilities || []).find((a) => a.memberId === member.id);
-  const selected = p.selectedId === member.id;
-  const offWord = hope && ["no", "off", "offx"].includes(hope.kind) && work.length === 0
+  const work = p.assignments.filter((a) => a.memberId === member.id);   // この人の勤務（この店舗）
+  const away = (p.elsewhere || []).filter((a) => a.memberId === member.id);   // この人のほかの店舗の勤務（灰色）
+  const hope = (p.availabilities || []).find((a) => a.memberId === member.id);   // この人のその日の希望
+  const selected = p.selectedId === member.id;   // 選ばれている人か
+  const offWord = hope && ["no", "off", "offx"].includes(hope.kind) && work.length === 0   // 休みの印の文字（休み希望で勤務がない時）
     ? (hope.kind === "offx" ? "休（許可待ち）" : "休") : null;
 
   return h("div", { class: `tl__row ${selected ? "is-selected" : ""}` },
@@ -145,13 +146,13 @@ function memberRow(p, member) {
  * 開店30分前から入る1人＝立ち上げ、閉店まで入る人＝締め（lib/roles.js）
  */
 function roleTag(p, a) {
-  const tags = roleMarks(a, p.assignments, p.hours);
+  const tags = roleMarks(a, p.assignments, p.hours);   // 「立」「締」の印
   return tags.length ? h("span", { class: "tl__role" }, tags.join("・")) : null;
 }
 
 /** 勤務の線（ドラッグで動かせる） */
 function bar(p, a) {
-  const el = h("div", {
+  const el = h("div", {   // 勤務の線
     class: `tl__bar tl__bar--${a.area} ${a.fixed ? "is-fixed" : ""} ${p.editable ? "is-editable" : ""}`,
     style: { left: `${pct(a.from)}%`, width: `${pct(a.to) - pct(a.from)}%` },
     role: "button",
@@ -177,24 +178,25 @@ function bar(p, a) {
   // ---------- 線のドラッグ ----------
   // pointer（指でもマウスでも同じ）のイベントで動かす
   el.addEventListener("pointerdown", (e) => {
-    const track = el.parentElement;
-    const trackWidth = track.getBoundingClientRect().width;
-    const box = el.getBoundingClientRect();
-    const x = e.clientX - box.left;
+    const track = el.parentElement;   // 線が乗っている帯
+    const trackWidth = track.getBoundingClientRect().width;   // 帯のはば（ピクセル）
+    const box = el.getBoundingClientRect();   // 線の位置と大きさ
+    const x = e.clientX - box.left;   // 線の中で押した位置
     // 押した場所で、何を動かすか決める
     const mode = x < 12 ? "start" : x > box.width - 12 ? "end" : "move";
-    const startX = e.clientX;
-    let from = a.from, to = a.to, moved = false;
+    const startX = e.clientX;   // 押し始めた位置
+    let from = a.from, to = a.to, moved = false;   // 動かしたあとの時刻と、動かしたかどうか
 
     el.setPointerCapture(e.pointerId);
     el.classList.add("is-dragging");
 
+    /** 指・マウスを動かしている間 */
     const onMove = (ev) => {
-      const dx = ev.clientX - startX;
+      const dx = ev.clientX - startX;   // 動いたはば（ピクセル）
       if (Math.abs(dx) > 3) moved = true;
       const dm = snap((dx / trackWidth) * SPAN);       // 動いた分を分に直して15分刻みに
       if (mode === "move") {
-        const shift = Math.max(START - a.from, Math.min(END - a.to, dm));
+        const shift = Math.max(START - a.from, Math.min(END - a.to, dm));   // 表からはみ出さない動かし量
         from = a.from + shift; to = a.to + shift;
       } else if (mode === "start") {
         from = Math.max(START, Math.min(a.to - 60, a.from + dm));   // 最低1時間は残す
@@ -207,6 +209,7 @@ function bar(p, a) {
       el.querySelector(".tl__label").textContent = range(from, to);
     };
 
+    /** 指・マウスをはなした時（変えた時間を知らせる） */
     const onUp = () => {
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerup", onUp);
@@ -231,8 +234,9 @@ function bar(p, a) {
 
 /** 休憩の目安（○）。編集できる時はドラッグで動かせる */
 function breakDot(p, a, barEl) {
+  /** 時刻 → 線の中の位置（％） */
   const pos = (m) => `${((m - a.from) / (a.to - a.from)) * 100}%`;
-  const dot = h("span", {
+  const dot = h("span", {   // 休憩の○
     class: `tl__break ${p.editable ? "is-editable" : ""}`,
     style: { left: pos(a.breakAt) },
     title: `休憩の目安 ${fmt(a.breakAt)}`,
@@ -241,16 +245,18 @@ function breakDot(p, a, barEl) {
 
   dot.addEventListener("pointerdown", (e) => {
     e.stopPropagation();                         // 線のドラッグと区別する
-    const barWidth = barEl.getBoundingClientRect().width;
-    const startX = e.clientX;
-    let at = a.breakAt;
+    const barWidth = barEl.getBoundingClientRect().width;   // 線のはば（ピクセル）
+    const startX = e.clientX;   // 押し始めた位置
+    let at = a.breakAt;   // 休憩の時刻（動かしている間）
     dot.setPointerCapture(e.pointerId);
+    /** ○を動かしている間 */
     const onMove = (ev) => {
-      const dm = ((ev.clientX - startX) / barWidth) * (a.to - a.from);
+      const dm = ((ev.clientX - startX) / barWidth) * (a.to - a.from);   // 動いた分（分）
       at = clampBreak(a.from, a.to, a.breakAt + dm) ?? a.breakAt;
       dot.style.left = pos(at);
       dot.title = `休憩の目安 ${fmt(at)}`;
     };
+    /** ○をはなした時（休憩の時刻を知らせる） */
     const onUp = () => {
       dot.removeEventListener("pointermove", onMove);
       dot.removeEventListener("pointerup", onUp);

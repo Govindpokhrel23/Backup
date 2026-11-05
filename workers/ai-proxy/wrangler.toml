@@ -1,0 +1,14 @@
+# ============================================================
+# workers/ai-proxy/wrangler.toml — Cloudflare Worker の設定
+# このファイルは、AIの中つぎ（worker.js）を Cloudflare に置く時の設定のファイルです。
+# 鍵（GEMINI_API_KEY）・合言葉（APP_TOKEN）はここに書かない。
+#   npx wrangler secret put GEMINI_API_KEY
+#   npx wrangler secret put APP_TOKEN
+# で入れる（または Cloudflare の画面から）。
+# ============================================================
+name = "shiftapp-ai-proxy"          # Worker の名前（URL の一部になる）
+main = "worker.js"                  # 動かすファイル
+compatibility_date = "2026-10-01"   # Cloudflare の動き方の日付
+
+[vars]
+ALLOWED_ORIGIN = ""                 # アプリのURL（公開したら入れる。例 https://shift.example.pages.dev）

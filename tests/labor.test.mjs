@@ -1,12 +1,15 @@
 // ============================================================
 // tests/labor.test.mjs — 働いた時間・人件費の目安のテスト
+// このファイルは、働いた時間・人件費の目安のテストのファイルです。
 // ============================================================
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { breakMinutes, workedMinutes, nightMinutes, laborCost } from "../js/lib/labor.js";
 
+/** 時 → 分 */
 const H = (h) => h * 60;
+/** テスト用の勤務を1つ作る */
 const a = (memberId, from, to, date = "2026-11-09") => ({ memberId, date, from: H(from), to: H(to) });
 
 test("6時間ちょうどは休憩なし、6時間をこえたら45分、8時間をこえたら60分", () => {
@@ -32,7 +35,7 @@ test("深夜は1.25倍：21:00〜23:00 → 1000＋1250＝2250円（交通費0）
 });
 
 test("同じ日に2回入っても交通費は1日分", () => {
-  const list = [a("x", 9, 12), a("x", 17, 20)];
+  const list = [a("x", 9, 12), a("x", 17, 20)];   // 1日に2つの勤務
   assert.equal(laborCost(list, [{ memberId: "x", hourly: 1000, transport: 300 }]), 6300);
 });
 

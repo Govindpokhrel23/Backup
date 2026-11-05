@@ -1,0 +1,65 @@
+/* ============================================================
+   css/ai.css — AIまわりの見た目（2026年11月5日）
+   ------------------------------------------------------------
+   このファイルは、「AIの結果」カード・AIの設定画面・
+   AIが考えている間の「待っています」画面の見た目のファイルです。
+   ============================================================ */
+
+/* ---------- 待っています（lib/dom.js の busy） ---------- */
+.busy { position: fixed; inset: 0; z-index: 60; background: rgba(43, 33, 26, 0.35); display: grid; place-items: center; padding: 16px; }
+.busy__box { background: var(--surface); border-radius: var(--radius); padding: 20px 22px; display: flex; align-items: center; gap: 14px; max-width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+.busy__spinner { width: 28px; height: 28px; flex: none; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--hall); animation: busy-spin 0.9s linear infinite; }
+.busy__text { font-weight: 700; line-height: 1.5; }
+@keyframes busy-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .busy__spinner { animation-duration: 3s; } }
+
+/* ---------- 「AIの結果」カード（components/ai-result.js） ---------- */
+.ai-result { border: 2px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.ai-result.is-ok { border-color: var(--ok); }
+.ai-result.is-ng { border-color: var(--danger); }
+.ai-result__head { display: flex; align-items: center; gap: 8px; }
+.ai-result__head .card__title { margin: 0; }
+.ai-result__close { margin-left: auto; min-width: var(--tap); }
+.ai-result__big { display: flex; gap: 12px; align-items: center; }
+.ai-result__big strong { font-size: 18px; }
+/* 大きな ✓ と ! の丸 */
+.ai-result__mark { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 22px; font-weight: 800; color: #fff; background: var(--danger); }
+.is-ok .ai-result__mark { background: var(--ok); }
+/* 数字の箱が並ぶ所（スマホでは2列） */
+.ai-result__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; }
+.ai-stat { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.ai-stat strong { font-size: 17px; }
+.ai-stat--ng strong { color: var(--danger); }
+.ai-stat--ok strong { color: var(--ok); }
+.ai-result__say { background: #E7F1FB; color: #1C4680; border-radius: 10px; padding: 10px 12px; line-height: 1.6; }
+.ai-result__say strong { display: block; font-size: 13px; }
+.ai-result__more { border-top: 1px solid var(--line); padding-top: 8px; }
+.ai-result__more summary { cursor: pointer; font-weight: 700; min-height: 32px; display: flex; align-items: center; gap: 6px; list-style: none; }
+.ai-result__more summary::-webkit-details-marker { display: none; }
+/* 開く・閉じるの三角（開いたら下向き） */
+.ai-result__more summary::before { content: "▸"; color: var(--ink-3); transition: transform .15s; }
+.ai-result__more[open] summary::before { transform: rotate(90deg); }
+.ai-result__list { margin: 6px 0 0; padding-left: 20px; line-height: 1.7; }
+.ai-result__day { margin-top: 6px; }
+.ai-result__actions { justify-content: flex-end; }
+@media (max-width: 600px) {
+  .ai-result__actions .btn { flex: 1 1 100%; }
+}
+/* 文の中のリンクのようなボタン（理由の人の名前） */
+.link-btn { background: none; border: none; padding: 0; color: var(--hall); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+/* 右の欄の「AIの理由」 */
+.ai-reason { background: #E7F1FB; color: #1C4680; border-radius: 8px; padding: 6px 10px; line-height: 1.5; }
+.ai-reason strong { margin-right: 6px; }
+
+/* ---------- AIの設定（screens/ai.js） ---------- */
+.ai-status__row { display: flex; gap: 12px; align-items: center; }
+.ai-status.is-ok .ai-result__mark { background: var(--ok); }
+.mode-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.mode-btn[aria-pressed="true"] { border: 2px solid var(--ink); background: var(--surface-2); }
+.mode-form { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.learn-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.learn-list li { display: flex; align-items: center; gap: 8px; background: var(--surface-2); border-radius: 10px; padding: 8px 10px; flex-wrap: wrap; }
+.learn-list__text { flex: 1 1 180px; }
+.plain-list { margin: 0; padding-left: 20px; line-height: 1.8; }
+.mode-form .btn { white-space: nowrap; }   /* 「表示」ボタンが2行にならないように */

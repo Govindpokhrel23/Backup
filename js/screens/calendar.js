@@ -1,6 +1,7 @@
 // ============================================================
 // screens/calendar.js — 個人カレンダー（自分だけのカレンダー）
 // ------------------------------------------------------------
+// このファイルは、個人カレンダー（自分だけのカレンダー）のファイルです。
 // ・入っている日に「9:00」のように始まりの時刻を出す
 // ・日を押すと「コメダ 9:00〜15:00」と、店舗・場所・休憩の目安
 // ・応援（いつもと違う店舗）の日は色を変えて店名つき
@@ -16,20 +17,23 @@ import { isManager } from "../store.js";
 import { toIso, today, label } from "../lib/date.js";
 import { fmt, range } from "../lib/time.js";
 
+/** 個人カレンダーの画面を描く */
 export async function renderCalendar(app) {
-  const [mine, stores] = await Promise.all([api.listMyAssignments(), api.listStores()]);
+  const [mine, stores] = await Promise.all([api.listMyAssignments(), api.listStores()]);   // 自分の勤務 と 店舗の一覧
+  /** 店舗のIDから店舗 */
   const storeOf = (id) => stores.find((s) => s.id === id);
 
   // 今の月から始める
   const now = new Date();
-  let year = now.getFullYear();
+  let year = now.getFullYear();   // 見ている年
   let month = now.getMonth();          // 0=1月
-  let selected = today();
+  let selected = today();   // 選んだ日
 
   draw();
 
+  /** 画面を描く */
   function draw() {
-    const byDate = new Map();
+    const byDate = new Map();   // 日付 → その日の自分の勤務
     for (const a of mine) {
       if (!byDate.has(a.date)) byDate.set(a.date, []);
       byDate.get(a.date).push(a);
@@ -59,14 +63,14 @@ export async function renderCalendar(app) {
 
   /** 月のマス目（月曜はじまり） */
   function monthGrid(byDate) {
-    const first = new Date(year, month, 1, 12);
+    const first = new Date(year, month, 1, 12);   // その月の1日
     const blanks = (first.getDay() + 6) % 7;           // 月曜=0 にそろえる
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const cells = [];
+    const daysInMonth = new Date(year, month + 1, 0).getDate();   // その月の日数
+    const cells = [];   // カレンダーのマス
     for (let i = 0; i < blanks; i++) cells.push(h("div"));
     for (let d = 1; d <= daysInMonth; d++) {
-      const iso = toIso(new Date(year, month, d, 12));
-      const work = byDate.get(iso) || [];
+      const iso = toIso(new Date(year, month, d, 12));   // そのマスの日付
+      const work = byDate.get(iso) || [];   // その日の勤務
       const wd = (blanks + d - 1) % 7;                 // 0=月 … 6=日
       cells.push(h("button", {
         class: `cal__cell ${iso === selected ? "is-selected" : ""} ${iso === today() ? "is-today" : ""}`,
@@ -90,8 +94,8 @@ export async function renderCalendar(app) {
       h("h2", { class: "card__title" }, label(selected)),
       work.length
         ? work.map((a) => {
-            const store = storeOf(a.storeId);
-            const help = a.storeId !== state.user.storeId;
+            const store = storeOf(a.storeId);   // 勤務の店舗
+            const help = a.storeId !== state.user.storeId;   // ほかの店舗への応援か
             return h("div", { class: "cal-detail" },
               h("div", { class: "cal-detail__time num" }, `コメダ ${range(a.from, a.to)}`),
               h("div", null, `${store?.name || ""} ・ ${a.area === "hall" ? "ホール" : "キッチン"}`),
@@ -105,10 +109,12 @@ export async function renderCalendar(app) {
 
   /** "7〜17" の短い形（ちょうどの時刻は分を省く。例 7:30〜17 ） */
   function shortRange(from, to) {
+    /** マスに出す短い時刻（9:00 → 9、9:30 → 9:30） */
     const t = (m) => (m % 60 === 0 ? String(m / 60 > 24 ? `翌${m / 60 - 24}` : m / 60) : fmt(m));
     return `${t(from)}〜${t(to)}`;
   }
 
+  /** 前の月・次の月へ */
   function moveMonth(n) {
     month += n;
     if (month < 0) { month = 11; year--; }

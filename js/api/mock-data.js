@@ -1,6 +1,7 @@
 // ============================================================
 // api/mock-data.js — 見本データ（Supabaseをつなぐまでの仮のデータ）
 // ------------------------------------------------------------
+// このファイルは、見本データ（Supabaseをつなぐまでの仮のデータ）のファイルです。
 // ・中身はデータベースの表（テーブル）と同じ形にしてある（基本設計書6章）
 //   → あとでSupabaseに切り替えても、画面側のコードはほぼ変えなくてよい
 // ・名前は見本用（スタッフA など）。本物の名前は入れない
@@ -16,6 +17,7 @@
 
 import { today, mondayOf, addDays, weekDates } from "../lib/date.js";
 
+/** 時 → 分（9 → 540、6.5 → 390） */
 const H = (h) => h * 60;
 
 /** 見本データを最初から作る */
@@ -25,13 +27,13 @@ export function createMockData() {
 
   // ---------- 会社・店舗 ----------
   const companies = [{ id: "c1", name: "株式会社21 CAFE" }];
-  const stores = [
+  const stores = [   // 店舗（3店舗）
     // active: false にすると「休止」（店舗は消さない。過去のシフトに店名が残るため）
     { id: "s-fukugama", companyId: "c1", name: "安城福釜店", short: "福釜", active: true },
     { id: "s-anjo", companyId: "c1", name: "安城店", short: "安城", active: true },
     { id: "s-imamura", companyId: "c1", name: "安城今村店", short: "今村", active: true },
   ];
-  const F = "s-fukugama", A = "s-anjo", I = "s-imamura";
+  const F = "s-fukugama", A = "s-anjo", I = "s-imamura";   // 店舗のIDの短い書き方
 
   // ---------- 店員 ----------
   // kind: shain=社員 / baito=バイト / full=フルで入るバイト
@@ -42,8 +44,9 @@ export function createMockData() {
     id, storeId: stores[0], loginId, name, role, kind, everyday, skills, active: true,
     stores: stores.map((storeId, i) => ({ storeId, rank: i + 1 })),
   });
+  /** できること％を作る（ホール・キッチン・立ち上げ・締め） */
   const S = (hall, kitchen, open, close) => ({ hall, kitchen, open, close });
-  const members = [
+  const members = [   // 店員（名前は見本。本物の名前は入れない）
     // --- 安城福釜店 ---
     m("m0", "1000", "店長", "manager", "shain", S(100, 100, 100, 100), [F, A, I], true),
     m("m1", "2001", "スタッフA", "staff", "shain", S(100, 75, 100, 75), [F], true),
@@ -81,8 +84,9 @@ export function createMockData() {
 
   // ---------- 担当場所（マップの人のマーク）と必要人数：店舗ごと ----------
   const positions = [];
-  const reqs = [];
+  const reqs = [];   // 必要人数
   for (const store of stores) {
+    /** 担当場所のID */
     const id = (name) => `p-${store.short}-${name}`;
     positions.push(
       { id: id("snack"), storeId: store.id, name: "スナック", area: "kitchen", x: 560, y: 110 },
@@ -96,7 +100,7 @@ export function createMockData() {
     const req = (pos, type, from, to, count) =>
       reqs.push({ id: `r${reqs.length}`, positionId: id(pos), dayType: type, from: H(from), to: H(to), count });
     for (const type of ["weekday", "sat", "sun"]) {
-      const we = type !== "weekday";
+      const we = type !== "weekday";   // 土日か
       req("snack", type, 7, 22, 1);
       if (we) req("drink", type, 9, 17, 1); else req("drink", type, 11, 14, 1);
       req("reji", type, 7, 22, 1);
@@ -108,6 +112,7 @@ export function createMockData() {
   // ---------- 受付（週）：店舗ごとに 先週・今週＝公開済み、来週＝受付中 ----------
   const periods = [];
   for (const store of stores) {
+    /** 受付（週）を1つ作る */
     const p = (key, weekStart, status) =>
       periods.push({ id: `w-${store.short}-${key}`, storeId: store.id, weekStart, deadline: `${addDays(weekStart, -1)}T24:00`, status, note: "" });
     p("prev", addDays(thisMonday, -7), "published");
@@ -118,8 +123,9 @@ export function createMockData() {
   // ---------- 勤務（先週・今週＝公開済み） ----------
   // いつもの形（紙のシフト表から読んだ傾向）を曜日ごとに入れる
   const assignments = [];
+  /** 勤務を1つ足す */
   const add = (storeId, periodKey, date, memberId, from, to, area, breakAt = null) => {
-    const short = stores.find((s) => s.id === storeId).short;
+    const short = stores.find((s) => s.id === storeId).short;   // 店舗の短い名前
     assignments.push({
       id: `a${assignments.length}`, periodId: `w-${short}-${periodKey}`, storeId, memberId, date,
       from: H(from), to: H(to), area, breakAt: breakAt === null ? null : H(breakAt),
@@ -158,6 +164,7 @@ export function createMockData() {
   // ---------- 希望（来週。希望は日付ごとに持つ。店舗は関係ない） ----------
   // kind: no=入れない / any=いつでもOK / time=時間指定 / off=休み希望 / offx=特別許可の申請
   const availabilities = [];
+  /** 希望を1つ足す */
   const hope = (memberId, i, kind, from = null, to = null) =>
     availabilities.push({
       memberId, date: addDays(nextMonday, i), kind,
@@ -166,6 +173,7 @@ export function createMockData() {
   // 社員：休み希望だけ（ほかは全部「入れる」）
   hope("m1", 2, "off");
   hope("m2", 4, "off");
+  hope("m2", 5, "offx");                 // 2日目の休み希望＝特別許可の申請中（見本）
   hope("a1", 3, "off");
   // フルで入るバイト・バイト
   for (let i = 0; i < 7; i++) {

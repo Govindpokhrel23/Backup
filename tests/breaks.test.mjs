@@ -1,11 +1,13 @@
 // ============================================================
 // tests/breaks.test.mjs — 休憩の目安の決まりのテスト
+// このファイルは、休憩の目安の決まりのテストのファイルです。
 // ============================================================
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { defaultBreak, clampBreak } from "../js/lib/breaks.js";
 
+/** 時 → 分 */
 const H = (h) => h * 60;
 
 test("7:00〜13:00 の真ん中は10:00だが、11:00より前なので11:00になる", () => {

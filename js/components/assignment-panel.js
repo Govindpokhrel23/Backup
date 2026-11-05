@@ -1,6 +1,7 @@
 // ============================================================
 // components/assignment-panel.js — シフト作成の右の欄（1人分）
 // ------------------------------------------------------------
+// このファイルは、シフト作成の右の欄（1人分）のファイルです。
 // 店長が、選んだ人のその日の勤務を自由に直すための道具：
 //   ・公開したあとは「編集する」を押すまで直せない（locked）
 //   ・時間（5:00〜翌2:00、15分刻み）
@@ -33,9 +34,9 @@ import { defaultBreak, breakWindow } from "../lib/breaks.js";
  * @param {object[]} [p.elsewhere]   その日ほかの店舗に入っている勤務（storeShort つき）
  */
 export function assignmentPanel(p) {
-  const m = p.member;
-  const hope = p.hope;
-  const hopeText = !hope
+  const m = p.member;   // 選んだ店員
+  const hope = p.hope;   // その日の希望
+  const hopeText = !hope   // 希望を文にしたもの
     ? (m.kind === "shain" ? "出していない（休みは週1日）" : "出していない")
     : { no: "入れない", any: "いつでもOK", off: "休み希望", offx: "休み希望（特別許可の申請中）", time: range(hope.from ?? 0, hope.to ?? 0) }[hope.kind];
 
@@ -48,6 +49,8 @@ export function assignmentPanel(p) {
     h("div", { class: "rule-memo" }, `店長メモ：${p.rule}`),
     h("div", null, `希望：${hopeText}`),
     p.weekText ? h("div", { class: "home-muted" }, p.weekText) : null,
+    // AIがこの人をこの時間にした理由（AIで作成した勤務だけ。2026年11月5日）
+    p.assignments.filter((a) => a.reason).map((a) => h("div", { class: "ai-reason" }, h("strong", null, "AIの理由"), `${range(a.from, a.to)}：${a.reason}`)),
     hope?.kind === "offx" && p.onApproveSpecial
       ? h("button", { class: "btn btn--small", onclick: p.onApproveSpecial }, "特別許可を出す（休みにする）")
       : null,
@@ -71,6 +74,7 @@ export function assignmentPanel(p) {
 
 /** 勤務1つ分の編集 */
 function workEditor(p, a, index, count) {
+  /** 時刻を選ぶセレクト（value＝今の時刻、onPick＝選んだ時） */
   const sel = (value, onPick, aria, from = EDIT_MIN, to = EDIT_MAX) =>
     h("select", { class: "select num", "aria-label": aria, onchange: (e) => p.onEdit(() => onPick(Number(e.target.value))) },
       timeOptions(from, to).map((o) => h("option", { value: o.value, selected: o.value === value }, o.label)));

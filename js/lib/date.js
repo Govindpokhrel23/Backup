@@ -1,6 +1,7 @@
 // ============================================================
 // lib/date.js — 日付の計算
 // ------------------------------------------------------------
+// このファイルは、日付の計算のファイルです。
 // 日付は "2026-11-09" の文字で持つ（データベースと同じ形）。
 // Date の時差のズレを避けるため、計算はすべて「日本時間の正午」で行う。
 // ============================================================
@@ -9,21 +10,21 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 /** "2026-11-09" → Date（日本の正午） */
 export function toDate(iso) {
-  const [y, m, d] = iso.split("-").map(Number);
+  const [y, m, d] = iso.split("-").map(Number);   // 年・月・日
   return new Date(y, m - 1, d, 12);
 }
 
 /** Date → "2026-11-09" */
 export function toIso(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+  const y = date.getFullYear();   // 年
+  const m = String(date.getMonth() + 1).padStart(2, "0");   // 月（2けた）
+  const d = String(date.getDate()).padStart(2, "0");   // 日（2けた）
   return `${y}-${m}-${d}`;
 }
 
 /** 日付に n 日足す */
 export function addDays(iso, n) {
-  const d = toDate(iso);
+  const d = toDate(iso);   // Date にしたもの
   d.setDate(d.getDate() + n);
   return toIso(d);
 }
@@ -35,7 +36,7 @@ export function today() {
 
 /** その日を含む週の月曜日 */
 export function mondayOf(iso) {
-  const d = toDate(iso);
+  const d = toDate(iso);   // Date にしたもの
   const diff = (d.getDay() + 6) % 7;     // 月曜=0, 日曜=6
   return addDays(iso, -diff);
 }
@@ -62,7 +63,7 @@ export function weekdayNum(iso) {
  */
 export function dayType(iso, holidays = []) {
   if (holidays.includes(iso)) return "sun";
-  const n = weekdayNum(iso);
+  const n = weekdayNum(iso);   // 曜日の番号
   if (n === 6) return "sat";
   if (n === 0) return "sun";
   return "weekday";
@@ -70,12 +71,12 @@ export function dayType(iso, holidays = []) {
 
 /** "11/9（月）" の形 */
 export function label(iso) {
-  const d = toDate(iso);
+  const d = toDate(iso);   // Date にしたもの
   return `${d.getMonth() + 1}/${d.getDate()}（${weekdayName(iso)}）`;
 }
 
 /** "11/9" の形 */
 export function shortLabel(iso) {
-  const d = toDate(iso);
+  const d = toDate(iso);   // Date にしたもの
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }

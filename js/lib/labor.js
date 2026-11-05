@@ -1,6 +1,7 @@
 // ============================================================
 // lib/labor.js — 働いた時間と人件費の目安
 // ------------------------------------------------------------
+// このファイルは、働いた時間と人件費の目安のファイルです。
 // 要件定義書で決めた計算（時給×時間、深夜割増、交通費）をここにまとめる。
 //   ・休憩の時間：労働基準法の最低に合わせて引く
 //       6時間をこえる勤務 → 45分、8時間をこえる勤務 → 60分
@@ -16,7 +17,7 @@ const NIGHT_TO = 29 * 60;     // 翌5:00
 
 /** その勤務の休憩の長さ（分） */
 export function breakMinutes(from, to) {
-  const len = to - from;
+  const len = to - from;   // 勤務の長さ（分）
   if (len > 8 * 60) return 60;
   if (len > 6 * 60) return 45;
   return 0;
@@ -39,16 +40,16 @@ export function nightMinutes(a) {
  * @returns {number}
  */
 export function laborCost(assignments, wages) {
-  const wageOf = new Map(wages.map((w) => [w.memberId, w]));
-  let yen = 0;
+  const wageOf = new Map(wages.map((w) => [w.memberId, w]));   // ID → 時給・交通費
+  let yen = 0;   // 合計（円）
   const days = new Set();                 // 交通費を数えた「人×日」
   for (const a of assignments) {
-    const w = wageOf.get(a.memberId);
+    const w = wageOf.get(a.memberId);   // その人の時給・交通費
     if (!w || !w.hourly) continue;
-    const night = nightMinutes(a);
-    const normal = workedMinutes(a) - night;
+    const night = nightMinutes(a);   // 深夜の分
+    const normal = workedMinutes(a) - night;   // ふつうの分
     yen += (Math.max(0, normal) / 60) * w.hourly + (night / 60) * w.hourly * 1.25;
-    const key = `${a.memberId}|${a.date}`;
+    const key = `${a.memberId}|${a.date}`;   // 人と日（交通費を1日1回にするため）
     if (!days.has(key)) { days.add(key); yen += w.transport || 0; }
   }
   return Math.round(yen);
@@ -56,14 +57,14 @@ export function laborCost(assignments, wages) {
 
 /** 人ごとの、その週の働いた時間（分） */
 export function minutesByMember(assignments) {
-  const map = new Map();
+  const map = new Map();   // ID → 働いた分
   for (const a of assignments) map.set(a.memberId, (map.get(a.memberId) || 0) + workedMinutes(a));
   return map;
 }
 
 /** "32時間30分" の形 */
 export function hoursText(minutes) {
-  const h = Math.floor(minutes / 60), m = minutes % 60;
+  const h = Math.floor(minutes / 60), m = minutes % 60;   // 時間と分
   return m ? `${h}時間${m}分` : `${h}時間`;
 }
 

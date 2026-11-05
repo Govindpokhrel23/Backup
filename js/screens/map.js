@@ -1,6 +1,7 @@
 // ============================================================
 // screens/map.js — 店舗マップ・必要人数・営業時間（店長）
 // ------------------------------------------------------------
+// このファイルは、店舗マップ・必要人数・営業時間（店長）のファイルです。
 // 画面見本で決めた形（2026年11月2日・11月3日に見直し）：
 //   ・間取り図の上に「人のマーク」を置く（キッチン＝オレンジ、ホール＝青）
 //   ・マークの上に「9:00〜11:00 1人」のように、何時〜何時・何人かを出す
@@ -17,19 +18,20 @@ import { api } from "../api/index.js";
 import { screenHeader } from "../components/header.js";
 import { range, timeOptions } from "../lib/time.js";
 
-const MAP_W = 840;
-const MAP_H = 580;
-const DAY_TYPES = [["weekday", "平日"], ["sat", "土曜"], ["sun", "日曜・祝日"]];
+const MAP_W = 840;   // マップの横の大きさ（点の位置の単位）
+const MAP_H = 580;   // マップの縦の大きさ
+const DAY_TYPES = [["weekday", "平日"], ["sat", "土曜"], ["sun", "日曜・祝日"]];   // 日の種類と名前
 
+/** マップ・必要人数・営業時間の画面を描く（店長） */
 export async function renderMap(app) {
   // ---------- 保存されているデータ ----------
   let positions = await api.listPositions();
-  let requirements = await api.listRequirements();
-  let hours = await api.getStoreHours();
+  let requirements = await api.listRequirements();   // 必要人数
+  let hours = await api.getStoreHours();   // 営業時間
 
   // ---------- 画面の中の状態 ----------
   let dayType = "weekday";
-  let selectedId = positions[0]?.id || null;
+  let selectedId = positions[0]?.id || null;   // 選んでいるマーク
   let draft = null;          // 右の欄で直している途中の内容（保存するまで本物は変わらない）
   let hoursDraft = null;     // 営業時間の直している途中の内容
 
@@ -42,7 +44,7 @@ export async function renderMap(app) {
 
   /** 選んだマークの今の内容を、直す用にコピーする */
   function startDraft() {
-    const p = positions.find((x) => x.id === selectedId);
+    const p = positions.find((x) => x.id === selectedId);   // 選んでいるマーク
     draft = p
       ? {
           name: p.name,
@@ -60,7 +62,7 @@ export async function renderMap(app) {
   /** 保存していない変更があれば聞いてから、次へ進む */
   async function leaveDraft() {
     if (!(draft?.dirty || hoursDraft?.dirty)) return true;
-    const yes = await confirmDialog({
+    const yes = await confirmDialog({   // 保存するか聞く
       title: "保存していない変更があります",
       body: h("p", { style: { margin: 0 } }, "保存してから移りますか？"),
       yes: "保存する", no: "保存しない",
@@ -78,9 +80,9 @@ export async function renderMap(app) {
 
   /** 選んだマークの名前・種類・時間帯と人数を保存 */
   async function saveMarker() {
-    const bad = draft.rows.find((r) => r.to <= r.from);
+    const bad = draft.rows.find((r) => r.to <= r.from);   // 終わりが始まりより前の時間帯
     if (bad) { toast("「まで」は「から」より後にしてください"); return false; }
-    const p = positions.find((x) => x.id === selectedId);
+    const p = positions.find((x) => x.id === selectedId);   // 選んでいるマーク
     p.name = draft.name.trim() || p.name;
     p.area = draft.area;
     await api.savePositions(positions);
@@ -132,7 +134,8 @@ export async function renderMap(app) {
 
   /** 営業時間のカード（その曜日の 開店〜閉店） */
   function hoursCard() {
-    const label = DAY_TYPES.find((d) => d[0] === dayType)[1];
+    const label = DAY_TYPES.find((d) => d[0] === dayType)[1];   // 日の種類の名前
+    /** 時刻を選ぶセレクト */
     const sel = (value, onPick, aria) => h("select", { class: "select num", "aria-label": aria, onchange: (e) => { onPick(Number(e.target.value)); hoursDraft.dirty = true; draw(); } },
       timeOptions(5 * 60, 24 * 60).map((o) => h("option", { value: o.value, selected: o.value === value }, o.label)));
     return h("section", { class: "card hours-card" },
@@ -151,7 +154,7 @@ export async function renderMap(app) {
 
   /** 間取り図とマーク */
   function floor() {
-    const map = h("div", { class: "floor", style: { aspectRatio: `${MAP_W} / ${MAP_H}` } },
+    const map = h("div", { class: "floor", style: { aspectRatio: `${MAP_W} / ${MAP_H}` } },   // マップの入れ物
       // 間取り（見本のコメダ。あとで店ごとに画像を入れられるようにする）
       zone("floor__kitchen", 500, 0, 340, 190, "キッチン"),
       zone("floor__counter", 520, 190, 270, 56, "カウンター"),
@@ -178,10 +181,10 @@ export async function renderMap(app) {
 
   /** 人のマーク（人の形のアイコン＋上に時間と人数） */
   function marker(p, map) {
-    const rows = rowsOf(p);
-    const area = p.id === selectedId && draft ? draft.area : p.area;
-    const name = p.id === selectedId && draft ? draft.name : p.name;
-    const el = h("button", {
+    const rows = rowsOf(p);   // そのマークの時間帯
+    const area = p.id === selectedId && draft ? draft.area : p.area;   // そのマークの場所（直している途中ならその値）
+    const name = p.id === selectedId && draft ? draft.name : p.name;   // そのマークの名前（直している途中ならその値）
+    const el = h("button", {   // 人のマーク
       class: `marker marker--${area} ${p.id === selectedId ? "is-selected" : ""} ${rows.length === 0 ? "is-empty" : ""}`,
       style: { left: `${(p.x / MAP_W) * 100}%`, top: `${(p.y / MAP_H) * 100}%` },
       "aria-label": `${name}：${rows.length ? rows.map((r) => `${range(r.from, r.to)} ${r.count}人`).join("、") : "未設定"}`,
@@ -196,19 +199,21 @@ export async function renderMap(app) {
     );
 
     el.addEventListener("pointerdown", (e) => {
-      const box = map.getBoundingClientRect();
-      const sx = e.clientX, sy = e.clientY, ox = p.x, oy = p.y;
-      let moved = false;
+      const box = map.getBoundingClientRect();   // マップの位置と大きさ
+      const sx = e.clientX, sy = e.clientY, ox = p.x, oy = p.y;   // 押し始めた位置と、マークの元の位置
+      let moved = false;   // 動かしたか
       el.setPointerCapture(e.pointerId);
+      /** 指・マウスを動かしている間 */
       const move = (ev) => {
-        const dx = ((ev.clientX - sx) / box.width) * MAP_W;
-        const dy = ((ev.clientY - sy) / box.height) * MAP_H;
+        const dx = ((ev.clientX - sx) / box.width) * MAP_W;   // 横に動いた分（マップの単位）
+        const dy = ((ev.clientY - sy) / box.height) * MAP_H;   // 縦に動いた分
         if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
         p.x = Math.round(Math.max(20, Math.min(MAP_W - 20, ox + dx)));
         p.y = Math.round(Math.max(40, Math.min(MAP_H - 20, oy + dy)));
         el.style.left = `${(p.x / MAP_W) * 100}%`;
         el.style.top = `${(p.y / MAP_H) * 100}%`;
       };
+      /** はなした時（動かしたら保存） */
       const up = async () => {
         el.removeEventListener("pointermove", move);
         el.removeEventListener("pointerup", up);
@@ -231,13 +236,13 @@ export async function renderMap(app) {
   /** 人の形のアイコン（丸い頭＋半円の体） */
   function personIcon() {
     const ns = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(ns, "svg");
+    const svg = document.createElementNS(ns, "svg");   // 人の形の絵
     svg.setAttribute("viewBox", "0 0 40 44");
     svg.setAttribute("class", "marker__person");
     svg.setAttribute("aria-hidden", "true");
-    const head = document.createElementNS(ns, "circle");
+    const head = document.createElementNS(ns, "circle");   // 頭
     head.setAttribute("cx", "20"); head.setAttribute("cy", "11"); head.setAttribute("r", "10");
-    const body = document.createElementNS(ns, "path");
+    const body = document.createElementNS(ns, "path");   // 体
     body.setAttribute("d", "M3 44 C3 30 10 23 20 23 C30 23 37 30 37 44 Z");
     svg.append(head, body);
     return svg;
@@ -245,7 +250,9 @@ export async function renderMap(app) {
 
   /** 右の欄：名前・種類・時間帯と人数・保存 */
   function panel() {
+    /** 直したことを覚えて描き直す */
     const touch = () => { draft.dirty = true; draw(); };
+    /** 時刻を選ぶセレクト */
     const timeSel = (value, onPick, aria) => h("select", { class: "select num", "aria-label": aria, onchange: (e) => { onPick(Number(e.target.value)); touch(); } },
       timeOptions(5 * 60, 24 * 60).map((o) => h("option", { value: o.value, selected: o.value === value }, o.label)));
 
@@ -280,7 +287,7 @@ export async function renderMap(app) {
         onclick: () => {
           // 前の時間帯の続きから2時間（営業時間の中に収める）
           const { open, close } = hours[dayType];
-          const start = draft.rows.length ? Math.min(draft.rows[draft.rows.length - 1].to, close - 60) : open;
+          const start = draft.rows.length ? Math.min(draft.rows[draft.rows.length - 1].to, close - 60) : open;   // 新しい時間帯の始まり
           draft.rows.push({ from: start, to: Math.min(close, start + 120), count: 1 });
           touch();
         },
@@ -296,7 +303,7 @@ export async function renderMap(app) {
   // ============================================================
   async function addMarker() {
     if (!(await leaveDraft())) return;
-    const p = { id: `p${Date.now()}`, name: "新しい場所", area: "hall", x: 420, y: 290 };
+    const p = { id: `p${Date.now()}`, name: "新しい場所", area: "hall", x: 420, y: 290 };   // 新しいマーク
     positions.push(p);
     await api.savePositions(positions);
     selectedId = p.id;
@@ -305,9 +312,10 @@ export async function renderMap(app) {
     draw();
   }
 
+  /** 選んでいるマークを消す */
   async function removeMarker() {
-    const p = positions.find((x) => x.id === selectedId);
-    const ok = await confirmDialog({ title: `「${p.name}」を削除しますか？`, body: h("p", { style: { margin: 0 } }, "この場所の必要人数も消えます。"), yes: "削除", no: "やめる" });
+    const p = positions.find((x) => x.id === selectedId);   // 選んでいるマーク
+    const ok = await confirmDialog({ title: `「${p.name}」を削除しますか？`, body: h("p", { style: { margin: 0 } }, "この場所の必要人数も消えます。"), yes: "削除", no: "やめる" });   // 本当に消すか聞く
     if (!ok) return;
     positions = positions.filter((x) => x.id !== selectedId);
     await api.savePositions(positions);
