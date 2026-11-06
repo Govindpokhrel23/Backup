@@ -7,346 +7,346 @@
    ============================================================ */
 
 /* ---------- ログイン ---------- */
-.login { max-width: 420px; margin: 0 auto; padding: 48px 16px; display: flex; flex-direction: column; gap: 14px; }
-.login__logo { font-size: 32px; font-weight: 700; text-align: center; }
-.login__sub { text-align: center; color: var(--ink-3); margin-top: -10px; }
+.login { max-width: 420px; margin: 0 auto; padding: 48px 16px; display: flex; flex-direction: column; gap: 14px; }   /* ログイン画面の入れ物（真ん中・幅をせまく） */
+.login__logo { font-size: 32px; font-weight: 700; text-align: center; }   /* アプリの名前（大きく） */
+.login__sub { text-align: center; color: var(--ink-3); margin-top: -10px; }   /* 小さい説明 */
 
 /* ---------- ホーム ---------- */
-.home-status { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 14px; }
-.home-muted { font-size: 13px; color: var(--ink-3); }
-.next-shift { background: var(--ink); color: #fff; border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
-.next-shift__label { font-size: 12px; opacity: 0.8; }
-.next-shift__time { font-size: 19px; font-weight: 700; }
-.next-shift__place { font-size: 13px; opacity: 0.85; }
-.menu-item { border: none; text-align: left; font-size: 16px; }
+.home-status { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 14px; }   /* 週の状態の行 */
+.home-muted { font-size: 13px; color: var(--ink-3); }   /* うすい小さい文字 */
+.next-shift { background: var(--ink); color: #fff; border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }   /* 次のシフトの黒い箱 */
+.next-shift__label { font-size: 12px; opacity: 0.8; }   /* 次のシフトの見出し */
+.next-shift__time { font-size: 19px; font-weight: 700; }   /* 次のシフトの時間 */
+.next-shift__place { font-size: 13px; opacity: 0.85; }   /* 次のシフトの店舗 */
+.menu-item { border: none; text-align: left; font-size: 16px; }   /* メニューのボタン（左寄せ） */
 
 /* ---------- 希望入力 ---------- */
-.kibou-deadline { font-size: 13px; color: var(--danger); font-weight: 700; }
-.kibou-day__head { display: flex; justify-content: space-between; align-items: center; }
-.kibou-day__date { font-size: 16px; font-weight: 700; }
-.kibou-day__state { font-size: 13px; font-weight: 700; color: var(--ink-3); }
-.kibou-day__state.is-none { color: var(--danger); }
-.is-sun { color: var(--danger); }
-.is-sat { color: var(--hall); }
+.kibou-deadline { font-size: 13px; color: var(--danger); font-weight: 700; }   /* 締切の文字（赤） */
+.kibou-day__head { display: flex; justify-content: space-between; align-items: center; }   /* 1日のカードの上の行 */
+.kibou-day__date { font-size: 16px; font-weight: 700; }   /* 日付 */
+.kibou-day__state { font-size: 13px; font-weight: 700; color: var(--ink-3); }   /* 今の状態 */
+.kibou-day__state.is-none { color: var(--danger); }   /* 未入力は赤 */
+.is-sun { color: var(--danger); }   /* 日曜は赤 */
+.is-sat { color: var(--hall); }   /* 土曜は青 */
 /* 保存ボタンは画面の下（タブバーの上）に固定。幅は本文と同じにそろえる */
-.kibou-footer {
-  position: fixed;
-  left: 0; right: 0;
-  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
-  z-index: 6;
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  padding: 10px max(14px, calc((100% - 640px) / 2));
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.kibou-footer {   /* 下の保存の所 */
+  position: fixed;   /* 画面に固定 */
+  left: 0; right: 0;   /* 左右いっぱい */
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));   /* タブのすぐ上 */
+  z-index: 6;   /* ほかのものより上 */
+  background: var(--surface);   /* 背景 */
+  border-top: 1px solid var(--line);   /* 上の線 */
+  padding: 10px max(14px, calc((100% - 640px) / 2));   /* 中の余白（PCでは真ん中に寄せる） */
+  display: flex;   /* 中を並べる */
+  flex-direction: column;   /* 縦に */
+  gap: 4px;   /* すき間 */
 }
 /* 希望入力の本文は、下の保存ボタンに隠れないよう余白をとり、幅を読みやすくする */
-.screen-body.kibou-body { max-width: 640px; padding-bottom: 120px; }
+.screen-body.kibou-body { max-width: 640px; padding-bottom: 120px; }   /* 希望入力の本文（保存の所にかくれないように下をあける） */
 
 /* ---------- カレンダー ---------- */
-.cal__nav { display: flex; justify-content: space-between; align-items: center; }
-.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
-.cal__wd { text-align: center; font-size: 11px; font-weight: 700; color: var(--ink-3); }
-.cal__cell {
-  min-height: 56px;
-  border: 2px solid transparent;
-  border-radius: 8px;
-  background: var(--surface-2);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 4px 0;
+.cal__nav { display: flex; justify-content: space-between; align-items: center; }   /* 月を変える行 */
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }   /* カレンダー（7列） */
+.cal__wd { text-align: center; font-size: 11px; font-weight: 700; color: var(--ink-3); }   /* 曜日 */
+.cal__cell {   /* 日のマス */
+  min-height: 56px;   /* 高さ */
+  border: 2px solid transparent;   /* 枠（ふだんは見えない） */
+  border-radius: 8px;   /* 角を丸く */
+  background: var(--surface-2);   /* 背景 */
+  display: flex;   /* 中を並べる */
+  flex-direction: column;   /* 縦に */
+  align-items: center;   /* 真ん中 */
+  gap: 3px;   /* すき間 */
+  padding: 4px 0;   /* 中の余白 */
 }
-.cal__cell.is-selected { border-color: var(--ink); }
-.cal__cell.is-today .cal__num { text-decoration: underline; }
-.cal__num { font-size: 13px; font-weight: 700; }
-.cal__chip { font-size: 10px; font-weight: 700; color: #fff; background: var(--hall); border-radius: 4px; padding: 1px 4px; }
-.cal__chip.is-help { background: #C27A00; }
-.cal__legend { display: flex; gap: 14px; font-size: 12px; color: var(--ink-2); }
-.cal__legend span { display: flex; gap: 4px; align-items: center; }
-.cal__dot { width: 12px; height: 12px; border-radius: 3px; background: var(--hall); display: inline-block; }
-.cal__dot--help { background: #C27A00; }
-.cal-detail { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
-.cal-detail__time { font-size: 22px; font-weight: 700; }
+.cal__cell.is-selected { border-color: var(--ink); }   /* 選んだ日は枠を出す */
+.cal__cell.is-today .cal__num { text-decoration: underline; }   /* 今日は下線 */
+.cal__num { font-size: 13px; font-weight: 700; }   /* 日の数字 */
+.cal__chip { font-size: 10px; font-weight: 700; color: #fff; background: var(--hall); border-radius: 4px; padding: 1px 4px; }   /* 勤務の時間の小さい印 */
+.cal__chip.is-help { background: #C27A00; }   /* 応援は黄土色 */
+.cal__legend { display: flex; gap: 14px; font-size: 12px; color: var(--ink-2); }   /* 色の説明 */
+.cal__legend span { display: flex; gap: 4px; align-items: center; }   /* 色の説明の1つ */
+.cal__dot { width: 12px; height: 12px; border-radius: 3px; background: var(--hall); display: inline-block; }   /* 色の四角 */
+.cal__dot--help { background: #C27A00; }   /* 応援の色 */
+.cal-detail { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }   /* 選んだ日のくわしい中身 */
+.cal-detail__time { font-size: 22px; font-weight: 700; }   /* 時間を大きく */
 
 /* ---------- シフト表（timeline） ---------- */
-.tl { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.tl__inner { min-width: 720px; display: flex; flex-direction: column; }
-.tl__row { display: flex; align-items: center; min-height: 46px; border-radius: 8px; }
-.tl__row.is-selected { background: #FCF3E8; outline: 2px solid #E2C9A8; }
-.tl__row--head { min-height: 24px; }
-.tl__row--need { min-height: 30px; }
-.tl__name { width: 130px; flex: none; padding-right: 8px; font-size: 12px; font-weight: 700; }
-.tl__name--btn { border: none; background: transparent; text-align: left; display: flex; flex-direction: column; min-height: 46px; justify-content: center; }
-.tl__person { font-size: 14px; color: var(--ink); }
-.tl__kind { font-size: 11px; font-weight: 400; color: var(--ink-3); }
-.tl__track { position: relative; flex: 1; height: 46px; }
-.tl__row--head .tl__track { height: 20px; }
-.tl__track--grid {
+.tl { overflow-x: auto; -webkit-overflow-scrolling: touch; }   /* タイムライン（横にスクロール） */
+.tl__inner { min-width: 720px; display: flex; flex-direction: column; }   /* 中身の最低の幅 */
+.tl__row { display: flex; align-items: center; min-height: 46px; border-radius: 8px; }   /* 1行 */
+.tl__row.is-selected { background: #FCF3E8; outline: 2px solid #E2C9A8; }   /* 選んでいる行は色を変える */
+.tl__row--head { min-height: 24px; }   /* 時間の見出しの行 */
+.tl__row--need { min-height: 30px; }   /* 必要人数の行 */
+.tl__name { width: 130px; flex: none; padding-right: 8px; font-size: 12px; font-weight: 700; }   /* 名前の所 */
+.tl__name--btn { border: none; background: transparent; text-align: left; display: flex; flex-direction: column; min-height: 46px; justify-content: center; }   /* 名前のボタン */
+.tl__person { font-size: 14px; color: var(--ink); }   /* 名前 */
+.tl__kind { font-size: 11px; font-weight: 400; color: var(--ink-3); }   /* 立場 */
+.tl__track { position: relative; flex: 1; height: 46px; }   /* 棒の所 */
+.tl__row--head .tl__track { height: 20px; }   /* 見出しの行の棒の所 */
+.tl__track--grid {   /* 1時間ごとの線 */
   /* 1時間ごとの縦線（表の時間の数で等分） */
-  background-image: linear-gradient(to right, #EFE6DA 1px, transparent 1px);
-  background-size: calc(100% / var(--hours, 15)) 100%;
+  background-image: linear-gradient(to right, #EFE6DA 1px, transparent 1px);   /* 線をかく */
+  background-size: calc(100% / var(--hours, 15)) 100%;   /* 1時間の幅 */
 }
-.tl__hour { position: absolute; top: 0; font-size: 11px; color: var(--ink-3); }
-.tl__needs { flex: 1; display: grid; grid-template-columns: repeat(var(--hours, 15), minmax(0, 1fr)); gap: 2px; }
-.tl__need { height: 24px; border-radius: 4px; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; background: #F2F6EE; color: #5B7A4A; }
-.tl__need.is-short { background: var(--danger-bg); color: var(--danger); }
-.tl__group { font-size: 12px; font-weight: 700; color: var(--ink-3); padding: 6px 0 2px; }
-.tl__group--line { border-top: 3px solid var(--ink); margin-top: 6px; }
-.tl__hope { position: absolute; top: 6px; height: 34px; border-radius: 6px; background: var(--hope); }
-.tl__hope--any { opacity: 0.5; }
-.tl__off { position: absolute; left: 8px; top: 12px; font-size: 13px; font-weight: 700; color: var(--danger); }
-.tl__bar {
-  position: absolute;
-  top: 12px;
-  height: 22px;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  white-space: nowrap;
-  overflow: visible;
+.tl__hour { position: absolute; top: 0; font-size: 11px; color: var(--ink-3); }   /* 時間の数字 */
+.tl__needs { flex: 1; display: grid; grid-template-columns: repeat(var(--hours, 15), minmax(0, 1fr)); gap: 2px; }   /* 必要人数のマス */
+.tl__need { height: 24px; border-radius: 4px; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; background: #F2F6EE; color: #5B7A4A; }   /* 必要人数の1マス */
+.tl__need.is-short { background: var(--danger-bg); color: var(--danger); }   /* 足りない所は赤 */
+.tl__group { font-size: 12px; font-weight: 700; color: var(--ink-3); padding: 6px 0 2px; }   /* 人の区切りの見出し */
+.tl__group--line { border-top: 3px solid var(--ink); margin-top: 6px; }   /* 区切りの太い線 */
+.tl__hope { position: absolute; top: 6px; height: 34px; border-radius: 6px; background: var(--hope); }   /* 希望の時間（うすい色） */
+.tl__hope--any { opacity: 0.5; }   /* いつでもOKはもっとうすく */
+.tl__off { position: absolute; left: 8px; top: 12px; font-size: 13px; font-weight: 700; color: var(--danger); }   /* 休みの文字 */
+.tl__bar {   /* 勤務の棒 */
+  position: absolute;   /* 位置を自由に */
+  top: 12px;   /* 上から */
+  height: 22px;   /* 高さ */
+  border-radius: 6px;   /* 角を丸く */
+  color: #fff;   /* 文字は白 */
+  font-size: 11px;   /* 文字の大きさ */
+  font-weight: 700;   /* 太字 */
+  display: flex;   /* 中を並べる */
+  align-items: center;   /* 縦の真ん中 */
+  padding: 0 12px;   /* 中の余白 */
+  white-space: nowrap;   /* 折り返さない */
+  overflow: visible;   /* はみ出しても見せる */
   touch-action: none;       /* ドラッグ中に画面がスクロールしないように */
-  user-select: none;
+  user-select: none;   /* 文字を選べないように（ドラッグのため） */
 }
-.tl__bar--hall { background: var(--hall); }
-.tl__bar--kitchen { background: var(--kitchen); }
-.tl__bar.is-fixed { outline: 2px dashed var(--ink); outline-offset: 1px; }
-.tl__bar.is-editable { cursor: grab; }
-.tl__bar.is-dragging { cursor: grabbing; opacity: 0.85; box-shadow: 0 4px 10px rgba(0,0,0,0.25); }
-.tl__label { overflow: hidden; }
-.tl__handle { position: absolute; top: 0; bottom: 0; width: 10px; background: rgba(255,255,255,0.35); cursor: ew-resize; }
-.tl__handle--l { left: 0; border-radius: 6px 0 0 6px; }
-.tl__handle--r { right: 0; border-radius: 0 6px 6px 0; }
-.tl__break { position: absolute; top: 3px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #fff; border: 2px solid var(--ink); pointer-events: none; }
+.tl__bar--hall { background: var(--hall); }   /* ホールは青 */
+.tl__bar--kitchen { background: var(--kitchen); }   /* キッチンはオレンジ */
+.tl__bar.is-fixed { outline: 2px dashed var(--ink); outline-offset: 1px; }   /* 固定は点線の枠 */
+.tl__bar.is-editable { cursor: grab; }   /* 動かせる時は手の形 */
+.tl__bar.is-dragging { cursor: grabbing; opacity: 0.85; box-shadow: 0 4px 10px rgba(0,0,0,0.25); }   /* 動かしている時 */
+.tl__label { overflow: hidden; }   /* 時間の文字 */
+.tl__handle { position: absolute; top: 0; bottom: 0; width: 10px; background: rgba(255,255,255,0.35); cursor: ew-resize; }   /* はしのつまみ */
+.tl__handle--l { left: 0; border-radius: 6px 0 0 6px; }   /* 左のつまみ */
+.tl__handle--r { right: 0; border-radius: 0 6px 6px 0; }   /* 右のつまみ */
+.tl__break { position: absolute; top: 3px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #fff; border: 2px solid var(--ink); pointer-events: none; }   /* 休憩の丸 */
 
 /* ---------- シフト作成 ---------- */
-.day-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
-.day-tab { position: relative; white-space: nowrap; }
-.day-tab__dot { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
-.editor { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
-.editor__table { flex: 999 1 640px; min-width: 0; }
-.editor__side { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
-.rule-memo { font-size: 13px; background: var(--surface-2); border-radius: 8px; padding: 6px 8px; }
-.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); align-items: center; }
-.legend span { display: flex; gap: 5px; align-items: center; }
-.legend__bar { display: inline-block; width: 18px; height: 10px; border-radius: 3px; }
-.legend__bar--hall { background: var(--hall); }
-.legend__bar--kitchen { background: var(--kitchen); }
-.legend__bar--hope { background: var(--hope); }
-.legend__bar--fixed { border: 2px dashed var(--ink); }
-.legend__circle { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); }
-.publish-problems .check-list { max-height: 260px; overflow-y: auto; }
+.day-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }   /* 日のタブ（横にスクロール） */
+.day-tab { position: relative; white-space: nowrap; }   /* 日のタブ */
+.day-tab__dot { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }   /* 問題がある日の赤い点 */
+.editor { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }   /* シフト作成の左右の入れ物 */
+.editor__table { flex: 999 1 640px; min-width: 0; }   /* 左（表） */
+.editor__side { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }   /* 右（選んだ人） */
+.rule-memo { font-size: 13px; background: var(--surface-2); border-radius: 8px; padding: 6px 8px; }   /* 店長のメモ */
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); align-items: center; }   /* 色の説明 */
+.legend span { display: flex; gap: 5px; align-items: center; }   /* 色の説明の1つ */
+.legend__bar { display: inline-block; width: 18px; height: 10px; border-radius: 3px; }   /* 色の四角 */
+.legend__bar--hall { background: var(--hall); }   /* ホール */
+.legend__bar--kitchen { background: var(--kitchen); }   /* キッチン */
+.legend__bar--hope { background: var(--hope); }   /* 希望 */
+.legend__bar--fixed { border: 2px dashed var(--ink); }   /* 固定 */
+.legend__circle { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); }   /* 休憩の丸 */
+.publish-problems .check-list { max-height: 260px; overflow-y: auto; }   /* 公開前の問題の一覧（長ければスクロール） */
 
 /* ---------- 店員管理 ---------- */
-.staff-row { border: none; background: var(--surface-2); border-radius: 10px; padding: 10px 12px; text-align: left; display: flex; flex-direction: column; gap: 2px; }
-.staff-row.is-stopped { opacity: 0.55; }
-.skill-row { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
-.skill-row__label { font-size: 13px; font-weight: 700; color: var(--ink-2); }
-.chip--small { min-height: 36px; padding: 0 10px; font-size: 13px; }
-.check { display: flex; gap: 8px; align-items: center; font-size: 14px; min-height: var(--tap); }
-.check input { width: 20px; height: 20px; }
-.code-box { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
-.code-box strong { font-size: 26px; margin-left: 10px; letter-spacing: 0.08em; }
+.staff-row { border: none; background: var(--surface-2); border-radius: 10px; padding: 10px 12px; text-align: left; display: flex; flex-direction: column; gap: 2px; }   /* 店員の1行 */
+.staff-row.is-stopped { opacity: 0.55; }   /* 停止中はうすく */
+.skill-row { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }   /* できること％の行 */
+.skill-row__label { font-size: 13px; font-weight: 700; color: var(--ink-2); }   /* 名前 */
+.chip--small { min-height: 36px; padding: 0 10px; font-size: 13px; }   /* 小さい選ぶボタン */
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; min-height: var(--tap); }   /* チェックの行 */
+.check input { width: 20px; height: 20px; }   /* チェックの大きさ */
+.code-box { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }   /* 初回コードの箱 */
+.code-box strong { font-size: 26px; margin-left: 10px; letter-spacing: 0.08em; }   /* コードを大きく */
 
 /* ---------- マップ ---------- */
-.floor {
-  position: relative;
-  width: 100%;
-  background: #FBF8F3;
-  border: 8px solid #3A2E26;
-  border-radius: 6px;
-  overflow: hidden;
+.floor {   /* お店の図 */
+  position: relative;   /* 中を自由に置く */
+  width: 100%;   /* 横いっぱい */
+  background: #FBF8F3;   /* 床の色 */
+  border: 8px solid #3A2E26;   /* 壁の太い線 */
+  border-radius: 6px;   /* 角を少し丸く */
+  overflow: hidden;   /* はみ出しは隠す */
 }
-.floor__zone { position: absolute; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--ink-2); border-radius: 6px; }
-.floor__kitchen { background: #FCE9D6; border-radius: 0; align-items: flex-end; padding-bottom: 6px; }
-.floor__counter { background: #DCC7AF; border: 2px solid #A88664; border-radius: 0 0 24px 24px; }
-.floor__sofa { background: #CDB79E; border-radius: 12px; }
-.floor__table { background: #EADCC8; border: 2px solid #B89B7A; }
-.floor__door { background: var(--ink); color: #fff; font-size: 11px; }
-.marker {
+.floor__zone { position: absolute; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--ink-2); border-radius: 6px; }   /* 図の中の区切り */
+.floor__kitchen { background: #FCE9D6; border-radius: 0; align-items: flex-end; padding-bottom: 6px; }   /* キッチン */
+.floor__counter { background: #DCC7AF; border: 2px solid #A88664; border-radius: 0 0 24px 24px; }   /* カウンター */
+.floor__sofa { background: #CDB79E; border-radius: 12px; }   /* ソファ席 */
+.floor__table { background: #EADCC8; border: 2px solid #B89B7A; }   /* テーブル席 */
+.floor__door { background: var(--ink); color: #fff; font-size: 11px; }   /* 入口 */
+.marker {   /* マーク */
   /* 座標は人の形の真ん中。吹き出しは上、名前は下に出す */
-  position: absolute;
-  width: 40px; height: 44px;
-  margin: -22px 0 0 -20px;
-  padding: 0;
-  border: none;
-  background: transparent;
+  position: absolute;   /* 位置を自由に */
+  width: 40px; height: 44px;   /* 大きさ */
+  margin: -22px 0 0 -20px;   /* 真ん中を位置に合わせる */
+  padding: 0;   /* 余白なし */
+  border: none;   /* 枠なし */
+  background: transparent;   /* 背景なし */
   touch-action: none;               /* ドラッグ中に画面が動かないように */
-  z-index: 2;
+  z-index: 2;   /* 区切りより上 */
 }
-.marker__person { width: 40px; height: 44px; display: block; filter: drop-shadow(0 1px 2px rgba(43, 33, 26, 0.35)); }
-.marker--hall .marker__person { fill: var(--hall); }
-.marker--kitchen .marker__person { fill: var(--kitchen); }
-.marker.is-selected { z-index: 4; }
-.marker.is-selected .marker__person { filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 4px var(--ink)); }
-.marker.is-empty .marker__person { opacity: 0.45; }
-.marker__bubble {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 3px 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid var(--line);
-  box-shadow: 0 1px 3px rgba(43, 33, 26, 0.2);
-  white-space: nowrap;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--ink);
-  line-height: 1.35;
+.marker__person { width: 40px; height: 44px; display: block; filter: drop-shadow(0 1px 2px rgba(43, 33, 26, 0.35)); }   /* 人の形 */
+.marker--hall .marker__person { fill: var(--hall); }   /* ホールは青 */
+.marker--kitchen .marker__person { fill: var(--kitchen); }   /* キッチンはオレンジ */
+.marker.is-selected { z-index: 4; }   /* 選んだマークを一番上に */
+.marker.is-selected .marker__person { filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 4px var(--ink)); }   /* 選んだマークを光らせる */
+.marker.is-empty .marker__person { opacity: 0.45; }   /* 未設定はうすく */
+.marker__bubble {   /* 吹き出し */
+  position: absolute;   /* 位置を自由に */
+  bottom: calc(100% + 4px);   /* マークの上 */
+  left: 50%;   /* 横の真ん中 */
+  transform: translateX(-50%);   /* 真ん中にそろえる */
+  display: flex;   /* 中を並べる */
+  flex-direction: column;   /* 縦に */
+  gap: 1px;   /* すき間 */
+  padding: 3px 6px;   /* 中の余白 */
+  border-radius: 6px;   /* 角を丸く */
+  background: rgba(255, 255, 255, 0.95);   /* ほぼ白 */
+  border: 1px solid var(--line);   /* 枠の線 */
+  box-shadow: 0 1px 3px rgba(43, 33, 26, 0.2);   /* うすい影 */
+  white-space: nowrap;   /* 折り返さない */
+  font-size: 10px;   /* 文字の大きさ */
+  font-weight: 700;   /* 太字 */
+  color: var(--ink);   /* 文字の色 */
+  line-height: 1.35;   /* 行の高さ */
 }
-.marker.is-selected .marker__bubble { border-color: var(--ink); }
-.marker.is-empty .marker__bubble { color: var(--ink-3); }
-.marker__name {
-  position: absolute; top: 46px; left: 50%; transform: translateX(-50%);
-  white-space: nowrap; font-size: 11px; font-weight: 700; color: var(--ink);
-  background: rgba(255, 255, 255, 0.92); padding: 0 5px; border-radius: 4px;
+.marker.is-selected .marker__bubble { border-color: var(--ink); }   /* 選んだマークの吹き出しはこい枠 */
+.marker.is-empty .marker__bubble { color: var(--ink-3); }   /* 未設定の吹き出しはうすい文字 */
+.marker__name {   /* マークの名前 */
+  position: absolute; top: 46px; left: 50%; transform: translateX(-50%);   /* マークの下・真ん中 */
+  white-space: nowrap; font-size: 11px; font-weight: 700; color: var(--ink);   /* 文字 */
+  background: rgba(255, 255, 255, 0.92); padding: 0 5px; border-radius: 4px;   /* 背景 */
 }
-.hours-card__row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.hours-card__times { flex: 1 1 240px; max-width: 360px; }
-.req-row { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: var(--surface-2); }
-.req-row.is-bad { outline: 2px solid var(--danger); }
-.req-row__count { display: flex; gap: 6px; align-items: center; }
-.req-row__count strong { min-width: 44px; text-align: center; font-size: 18px; }
+.hours-card__row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }   /* 営業時間の行 */
+.hours-card__times { flex: 1 1 240px; max-width: 360px; }   /* 時間の欄の幅 */
+.req-row { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: var(--surface-2); }   /* 時間帯の1行 */
+.req-row.is-bad { outline: 2px solid var(--danger); }   /* おかしい時は赤い枠 */
+.req-row__count { display: flex; gap: 6px; align-items: center; }   /* 人数の行 */
+.req-row__count strong { min-width: 44px; text-align: center; font-size: 18px; }   /* 人数 */
 
 /* ---------- シフト作成：右の欄の勤務1つ分 ---------- */
-.work-edit { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; background: var(--surface-2); }
+.work-edit { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; background: var(--surface-2); }   /* 勤務の編集の入れ物 */
 
 /* ---------- シフト表：「立」「締」の印 ---------- */
-.tl__role { background: #fff; color: var(--ink); border-radius: 4px; padding: 0 4px; margin-right: 4px; font-size: 10px; }
+.tl__role { background: #fff; color: var(--ink); border-radius: 4px; padding: 0 4px; margin-right: 4px; font-size: 10px; }   /* 立・締の印 */
 
 /* ---------- ホーム：希望を入れるボタン・自分のシフト ---------- */
-.home-kibou { min-height: 64px; flex-direction: column; gap: 2px; font-size: 17px; }
-.home-kibou__sub { font-size: 12px; font-weight: 400; opacity: 0.85; }
-.my-shifts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.my-shifts__item { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
-.my-shifts__item.is-today { background: var(--ink); color: #fff; }
-.my-shifts__item.is-today .home-muted { color: rgba(255, 255, 255, 0.8); }
-.my-shifts__day { font-size: 14px; font-weight: 700; }
-.my-shifts__store { font-size: 14px; }
-.my-shifts__time { font-size: 18px; font-weight: 700; }
+.home-kibou { min-height: 64px; flex-direction: column; gap: 2px; font-size: 17px; }   /* 希望を入れる大きいボタン */
+.home-kibou__sub { font-size: 12px; font-weight: 400; opacity: 0.85; }   /* 小さい説明 */
+.my-shifts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }   /* 自分のシフトの一覧 */
+.my-shifts__item { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }   /* 1件 */
+.my-shifts__item.is-today { background: var(--ink); color: #fff; }   /* 今日はこい色 */
+.my-shifts__item.is-today .home-muted { color: rgba(255, 255, 255, 0.8); }   /* 今日のうすい文字 */
+.my-shifts__day { font-size: 14px; font-weight: 700; }   /* 日付 */
+.my-shifts__store { font-size: 14px; }   /* 店舗 */
+.my-shifts__time { font-size: 18px; font-weight: 700; }   /* 時間（大きく） */
 
 /* ---------- カレンダー：1日に2つ以上の勤務 ---------- */
-.cal__cell { gap: 2px; }
+.cal__cell { gap: 2px; }   /* カレンダーのマスのすき間 */
 
 /* ---------- スマホ（はば600px以下） ---------- */
-@media (max-width: 600px) {
-  .screen-body { padding: 10px; }
+@media (max-width: 600px) {   /* スマホの幅なら */
+  .screen-body { padding: 10px; }   /* 本文の余白を小さく */
   .tl__name { width: 84px; }               /* 名前の列をせまくして、線の場所を広く */
-  .tl__inner { min-width: 640px; }
-  .editor__table, .editor__side { flex-basis: 100%; }
-  .cal__chip { font-size: 9px; padding: 1px 2px; }
+  .tl__inner { min-width: 640px; }   /* タイムラインの最低の幅 */
+  .editor__table, .editor__side { flex-basis: 100%; }   /* 左右を縦に並べる */
+  .cal__chip { font-size: 9px; padding: 1px 2px; }   /* カレンダーの印を小さく */
 }
 
 /* ---------- 希望入力：週の切り替え（2か月分。横にスクロール） ---------- */
-.week-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
-.week-tab { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50px; line-height: 1.2; }
-.week-tab__state { font-size: 10px; font-weight: 400; color: var(--danger); }
-.week-tab__state.is-done { color: var(--ok); }
-.week-tab[aria-pressed="true"] .week-tab__state { color: #fff; }
+.week-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }   /* 週のタブ（横にスクロール） */
+.week-tab { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50px; line-height: 1.2; }   /* 週のタブ */
+.week-tab__state { font-size: 10px; font-weight: 400; color: var(--danger); }   /* 未保存の文字 */
+.week-tab__state.is-done { color: var(--ok); }   /* 入力済みは緑 */
+.week-tab[aria-pressed="true"] .week-tab__state { color: #fff; }   /* 選んでいるタブは白 */
 
 /* ---------- 3店舗：見ている店舗 ---------- */
-.store-badge { display: inline-block; margin-left: 8px; vertical-align: middle; font-size: 12px; font-weight: 700; color: #fff; background: var(--ink-2); border-radius: 999px; padding: 2px 10px; }
+.store-badge { display: inline-block; margin-left: 8px; vertical-align: middle; font-size: 12px; font-weight: 700; color: #fff; background: var(--ink-2); border-radius: 999px; padding: 2px 10px; }   /* 店舗の名前のバッジ */
 .store-switch { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }   /* 店舗が増えても並ぶ */
-.store-switch__btn { min-height: 48px; border-radius: 12px; }
+.store-switch__btn { min-height: 48px; border-radius: 12px; }   /* 店舗の切りかえボタン */
 
 /* ---------- シフト作成：週の移動 ---------- */
-.week-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.week-nav__label { font-size: 15px; text-align: center; flex: 1; }
+.week-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }   /* 週を変える行 */
+.week-nav__label { font-size: 15px; text-align: center; flex: 1; }   /* 週の文字 */
 
 /* ---------- シフト表：名前を小さく・目盛りを読みやすく・ほかの店舗・○のドラッグ ---------- */
-.tl__name { width: 92px; }
-.tl__person { font-size: 12px; }
-.tl__hour { font-size: 12px; font-weight: 700; color: var(--ink-2); transform: translateX(-2px); }
-.tl__bar--away { background: repeating-linear-gradient(45deg, #C9BFB3, #C9BFB3 6px, #D8D0C6 6px, #D8D0C6 12px); color: var(--ink); cursor: default; }
-.tl__break.is-editable { pointer-events: auto; cursor: ew-resize; width: 18px; height: 18px; margin-left: -9px; top: 1px; touch-action: none; }
+.tl__name { width: 92px; }   /* 名前の所の幅 */
+.tl__person { font-size: 12px; }   /* 名前の文字 */
+.tl__hour { font-size: 12px; font-weight: 700; color: var(--ink-2); transform: translateX(-2px); }   /* 時間の数字 */
+.tl__bar--away { background: repeating-linear-gradient(45deg, #C9BFB3, #C9BFB3 6px, #D8D0C6 6px, #D8D0C6 12px); color: var(--ink); cursor: default; }   /* ほかの店舗の勤務（しま模様） */
+.tl__break.is-editable { pointer-events: auto; cursor: ew-resize; width: 18px; height: 18px; margin-left: -9px; top: 1px; touch-action: none; }   /* 休憩の丸（動かせる時は大きく） */
 
 /* ---------- その日の一覧 ---------- */
-.day-list { width: 100%; border-collapse: collapse; font-size: 14px; }
-.day-list th, .day-list td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
-.day-list th { font-weight: 700; }
-.day-list__time { font-weight: 700; font-size: 15px; }
+.day-list { width: 100%; border-collapse: collapse; font-size: 14px; }   /* 1日の一覧の表 */
+.day-list th, .day-list td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }   /* 表のマス */
+.day-list th { font-weight: 700; }   /* 名前 */
+.day-list__time { font-weight: 700; font-size: 15px; }   /* 時間 */
 
-@media (max-width: 600px) {
-  .tl__name { width: 70px; }
-  .tl__person { font-size: 11px; }
-  .day-list { font-size: 13px; }
+@media (max-width: 600px) {   /* スマホの幅なら */
+  .tl__name { width: 70px; }   /* 名前の所をせまく */
+  .tl__person { font-size: 11px; }   /* 名前を小さく */
+  .day-list { font-size: 13px; }   /* 表の文字を小さく */
 }
 
 /* ---------- シフト交代・人件費 ---------- */
-.swap-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px; border-radius: 10px; background: var(--surface-2); }
-.my-shifts__swap { align-self: flex-start; margin-top: 4px; }
-.my-shifts__item.is-today .my-shifts__swap { background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); }
-.labor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.labor > div { display: flex; flex-direction: column; background: var(--surface-2); border-radius: 10px; padding: 10px; }
-.labor strong { font-size: 20px; }
+.swap-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px; border-radius: 10px; background: var(--surface-2); }   /* 交代・募集の1行 */
+.my-shifts__swap { align-self: flex-start; margin-top: 4px; }   /* 交代のボタン */
+.my-shifts__item.is-today .my-shifts__swap { background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); }   /* 今日のカードの中のボタン */
+.labor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }   /* 人件費の数字の箱 */
+.labor > div { display: flex; flex-direction: column; background: var(--surface-2); border-radius: 10px; padding: 10px; }   /* 数字の箱 */
+.labor strong { font-size: 20px; }   /* 数字 */
 
 /* ---------- 印刷（紙に貼る用。画面には出さない） ---------- */
-#print-area { display: none; }
-@media print {
-  @page { size: A4 landscape; margin: 10mm; }
-  html, body { background: #fff !important; }
-  body > *:not(#print-area) { display: none !important; }
-  #print-area { display: block; color: #000; font-size: 11px; }
-  #print-area h1 { font-size: 16px; margin: 0 0 8px; }
-  #print-area table { width: 100%; border-collapse: collapse; }
-  #print-area th, #print-area td { border: 1px solid #000; padding: 4px; text-align: left; vertical-align: top; }
+#print-area { display: none; }   /* 印刷用の場所（ふだんは隠す） */
+@media print {   /* 印刷する時 */
+  @page { size: A4 landscape; margin: 10mm; }   /* A4横 */
+  html, body { background: #fff !important; }   /* 背景は白 */
+  body > *:not(#print-area) { display: none !important; }   /* 印刷用の場所以外は隠す */
+  #print-area { display: block; color: #000; font-size: 11px; }   /* 印刷用の場所を出す */
+  #print-area h1 { font-size: 16px; margin: 0 0 8px; }   /* タイトル */
+  #print-area table { width: 100%; border-collapse: collapse; }   /* 表 */
+  #print-area th, #print-area td { border: 1px solid #000; padding: 4px; text-align: left; vertical-align: top; }   /* 表のマス */
   #print-area tr:not(.is-baito) + tr.is-baito > * { border-top: 3px solid #000; }   /* 社員とバイトの間は太い線（紙と同じ） */
 }
 
 /* 公開シフトの店舗ボタン：自分のメインの店舗に小さく「メイン」 */
-.store-switch__btn { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
-.store-switch__mine { font-size: 10px; font-weight: 400; opacity: 0.8; }
+.store-switch__btn { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }   /* 店舗の切りかえボタンの中 */
+.store-switch__mine { font-size: 10px; font-weight: 400; opacity: 0.8; }   /* メインの文字 */
 
 /* ---------- 店舗の管理 ---------- */
-.store-row { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: var(--surface-2); }
-.store-row.is-paused { opacity: 0.6; }
-.store-row__fields { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+.store-row { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: var(--surface-2); }   /* 店舗の1行 */
+.store-row.is-paused { opacity: 0.6; }   /* 休止中はうすく */
+.store-row__fields { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }   /* 名前の欄（2:1） */
 
 /* ============================================================
    2026年11月5日に足した画面の部品
    ============================================================ */
 
 /* ---------- 店舗を増やす（screens/stores.js）：手順の番号 ---------- */
-.step { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-top: 6px; }
-.step__no { width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 13px; flex: none; }
+.step { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-top: 6px; }   /* 手順の行 */
+.step__no { width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 13px; flex: none; }   /* 手順の番号の丸 */
 /* チェックをつけて人を選ぶ一覧 */
-.pick-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; max-height: 260px; overflow: auto; }
-.pick-list__item { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border-radius: 8px; padding: 8px; min-height: var(--tap); }
-.pick-list__item input { width: 20px; height: 20px; }
+.pick-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; max-height: 260px; overflow: auto; }   /* 人のチェックの一覧 */
+.pick-list__item { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border-radius: 8px; padding: 8px; min-height: var(--tap); }   /* 1人 */
+.pick-list__item input { width: 20px; height: 20px; }   /* チェックの大きさ */
 /* 店舗を足したあとの「次にやること」 */
-.next-steps { border: 2px solid var(--ok); }
-.next-steps__list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
-.next-steps__list li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.next-steps { border: 2px solid var(--ok); }   /* 次にやることのカード（緑の枠） */
+.next-steps__list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }   /* 番号つきの一覧 */
+.next-steps__list li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }   /* 1行 */
 
 /* ---------- 人を追加（components/add-person.js） ---------- */
-.add-person { width: min(560px, 100%); }
-.add-person__body { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-.add-person__list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; margin-top: 8px; }
-.add-person__row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }
-.add-person__skills { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.add-person { width: min(560px, 100%); }   /* 人を追加の小さい画面 */
+.add-person__body { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }   /* 中身 */
+.add-person__list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; margin-top: 8px; }   /* 一覧（長ければスクロール） */
+.add-person__row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }   /* 1行 */
+.add-person__skills { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }   /* できること％の欄（2列） */
 
 /* ---------- 人が足りない時の募集（店員のホーム） ---------- */
-.call-card { border: 2px solid var(--danger); }
+.call-card { border: 2px solid var(--danger); }   /* 人が足りないカード（赤い枠） */
 .check-line { display: flex; align-items: center; gap: 8px; min-height: var(--tap); font-weight: 400; }   /* チェックボックスと文を横に並べる */
-.check-line input { width: 20px; height: 20px; }
+.check-line input { width: 20px; height: 20px; }   /* チェックの大きさ */
 
 /* ---------- 勤務時間の集計（screens/report.js）2026年11月6日 ---------- */
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }   /* スマホでは表を横にずらして見る */
-.report-table { width: 100%; border-collapse: collapse; font-size: 14px; white-space: nowrap; }
-.report-table th { text-align: left; font-size: 12px; color: var(--ink-3); border-bottom: 2px solid var(--line); padding: 6px 8px; }
-.report-table td { border-bottom: 1px solid var(--line); padding: 8px; }
-.report-table td.num { text-align: right; }
+.report-table { width: 100%; border-collapse: collapse; font-size: 14px; white-space: nowrap; }   /* 集計の表 */
+.report-table th { text-align: left; font-size: 12px; color: var(--ink-3); border-bottom: 2px solid var(--line); padding: 6px 8px; }   /* 見出し */
+.report-table td { border-bottom: 1px solid var(--line); padding: 8px; }   /* マス */
+.report-table td.num { text-align: right; }   /* 数字は右寄せ */
 /* 個人カレンダーの「今月の合計」 */
-.month-total { display: flex; justify-content: space-between; align-items: baseline; }
-.month-total strong { font-size: 20px; }
+.month-total { display: flex; justify-content: space-between; align-items: baseline; }   /* 月の合計の行 */
+.month-total strong { font-size: 20px; }   /* 合計の数字 */
