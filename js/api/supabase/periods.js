@@ -10,7 +10,7 @@
 
 import {
   sb, must, newId, requireMe, requireManager, currentStore,
-  periodMap, hopeMap, workMap, companyMembers, canWorkAt, notify,
+  periodMap, hopeMap, workMap, companyMembers, canWorkAt, notify, readAll,
 } from "./core.js";
 import { today, addDays, weekDates, label } from "../../lib/date.js";
 
@@ -132,11 +132,19 @@ export const periodsApi = {
     return must(await c.from("assignments").select("*").eq("period_id", periodId)).map(workMap.from);
   },
 
-  /** 会社の全部の店舗の勤務（日付の範囲。店長） */
-  async listAssignmentsByDates(from, to) {
+  /**
+   * 会社の全部の店舗の勤務（日付の範囲。店長）
+   * memberIds を渡すと、その人たちの分だけ（年の上限を数える時）
+   * 多い時は1000行ずつに分けて読む（Supabase は1回に1000行までしか返さないため）
+   */
+  async listAssignmentsByDates(from, to, memberIds = null) {
     await requireManager();
     const c = await sb();   // Supabase の道具
-    return must(await c.from("assignments").select("*").gte("date", from).lte("date", to)).map(workMap.from);
+    return (await readAll(() => {
+      let q = c.from("assignments").select("*").gte("date", from).lte("date", to);   // 問い合わせ
+      if (memberIds) q = q.in("member_id", memberIds);
+      return q.order("id");
+    })).map(workMap.from);
   },
 
   /** 自分の勤務（公開済みの週だけ。応援先も） */

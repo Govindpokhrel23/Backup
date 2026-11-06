@@ -338,3 +338,15 @@
 
 /* ---------- 人が足りない時の募集（店員のホーム） ---------- */
 .call-card { border: 2px solid var(--danger); }
+.check-line { display: flex; align-items: center; gap: 8px; min-height: var(--tap); font-weight: 400; }   /* チェックボックスと文を横に並べる */
+.check-line input { width: 20px; height: 20px; }
+
+/* ---------- 勤務時間の集計（screens/report.js）2026年11月6日 ---------- */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }   /* スマホでは表を横にずらして見る */
+.report-table { width: 100%; border-collapse: collapse; font-size: 14px; white-space: nowrap; }
+.report-table th { text-align: left; font-size: 12px; color: var(--ink-3); border-bottom: 2px solid var(--line); padding: 6px 8px; }
+.report-table td { border-bottom: 1px solid var(--line); padding: 8px; }
+.report-table td.num { text-align: right; }
+/* 個人カレンダーの「今月の合計」 */
+.month-total { display: flex; justify-content: space-between; align-items: baseline; }
+.month-total strong { font-size: 20px; }

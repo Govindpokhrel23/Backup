@@ -77,6 +77,7 @@ export async function createFakeSupabase() {
     in(c, list) { this.filters.push([c, "in", list]); return this; }
     order(c, opt = {}) { this.orders.push([c, opt.ascending !== false]); return this; }
     limit(n) { this.limitN = n; return this; }
+    range(a, b) { this.offsetN = a; this.limitN = b - a + 1; return this; }   // a行目〜b行目（0から数える）
     single() { this.mode = "single"; return this; }
     maybeSingle() { this.mode = "maybe"; return this; }
     then(ok, ng) { return this.exec().then(ok, ng); }
@@ -103,6 +104,7 @@ export async function createFakeSupabase() {
           sql = `select * from ${t}${this.where(params)}`;
           if (this.orders.length) sql += " order by " + this.orders.map(([c, asc]) => `${c} ${asc ? "asc" : "desc"}`).join(", ");
           if (this.limitN) sql += ` limit ${this.limitN}`;
+          if (this.offsetN) sql += ` offset ${this.offsetN}`;
         } else if (this.op === "insert" || this.op === "upsert") {
           const cols = [...new Set(this.payload.flatMap((r) => Object.keys(r)))];   // 入れる列
           const values = this.payload.map((r) => "(" + cols.map((c) => { params.push(Query.val(r[c] ?? null)); return `$${params.length}`; }).join(",") + ")");   // 入れる値の行

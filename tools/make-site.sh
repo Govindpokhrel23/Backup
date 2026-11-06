@@ -11,5 +11,5 @@ cd "$(dirname "$0")/.."                  # アプリのフォルダへ
 rm -rf dist && mkdir dist                # 前の dist を消して作り直す
 cp index.html manifest.webmanifest sw.js _headers dist/   # 入口・ホーム画面の設定・電波なしの仕組み・安全の設定
 cp -R css js dist/                       # 見た目とプログラム
-[ -d icons ] && cp -R icons dist/        # アイコン（あれば）
+cp -R icons dist/                        # アイコン（ホーム画面・通知）
 echo "dist ができました（$(find dist -type f | wc -l | tr -d ' ') ファイル）"

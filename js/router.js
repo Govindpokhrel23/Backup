@@ -23,6 +23,7 @@ import { renderMap } from "./screens/map.js";
 import { renderSettings } from "./screens/settings.js";
 import { renderStores } from "./screens/stores.js";
 import { renderAi } from "./screens/ai.js";
+import { renderReport } from "./screens/report.js";
 
 /**
  * 画面の一覧
@@ -42,7 +43,8 @@ const ROUTES = [
   { path: "/map", render: renderMap, who: "manager" },
   { path: "/settings", render: renderSettings, who: "all" },
   { path: "/stores", render: renderStores, who: "manager" },
-  { path: "/ai", render: renderAi, who: "manager" },          // AIの設定と覚えたこと（2026年11月5日）
+  { path: "/ai", render: renderAi, who: "manager" },
+  { path: "/report", render: renderReport, who: "manager" },  // 勤務時間の集計（2026年11月6日）          // AIの設定と覚えたこと（2026年11月5日）
 ];
 
 /** 下のタブバー（役割で中身が変わる） */
@@ -104,7 +106,7 @@ function renderTabbar(path) {
   if (!state.user) { bar.hidden = true; return; }
   const tabs = TABS[isManager() ? "manager" : "staff"];   // 店長か店員かで変わるタブ
   // 店舗メニューの中の画面（店員管理・マップ）も「店舗」タブを光らせる
-  const current = ["/staff", "/map", "/stores", "/ai"].includes(path) ? "/store" : path;
+  const current = ["/staff", "/map", "/stores", "/ai", "/report"].includes(path) ? "/store" : path;
   mount(bar, tabs.map((t) =>
     h("button", {
       class: "tabbar__btn",

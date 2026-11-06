@@ -80,3 +80,14 @@ export function shortLabel(iso) {
   const d = toDate(iso);   // Date にしたもの
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
+
+/** その月の1日（"2026-11-09" → "2026-11-01"） */
+export function monthStart(iso) {
+  return `${iso.slice(0, 7)}-01`;
+}
+
+/** その月の最後の日（"2026-11-09" → "2026-11-30"） */
+export function monthEnd(iso) {
+  const [y, m] = iso.split("-").map(Number);   // 年と月
+  return toIso(new Date(y, m, 0, 12));          // 次の月の0日＝その月の最後の日
+}

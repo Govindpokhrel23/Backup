@@ -10,7 +10,7 @@
 import { createMockData } from "./mock-data.js";
 
 // 形を変えたら番号を上げる（古い見本データは自動で作り直される）
-export const STORAGE_KEY = "shiftapp-mock-v6";
+export const STORAGE_KEY = "shiftapp-mock-v7";
 
 // ------------------------------------------------------------
 // 保存と読み込み

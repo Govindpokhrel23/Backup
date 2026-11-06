@@ -15,6 +15,8 @@ export const CONFIG = {
   SUPABASE_URL: "",
   SUPABASE_ANON_KEY: "",
   API_WORKER_URL: "",
+  // プッシュ通知の鍵（公開してよい方）。tools/make-vapid.html で作る。空なら通知は使わない（2026年11月6日）
+  VAPID_PUBLIC_KEY: "",
 
   // 見本か本物か（SUPABASE_URL があれば本物。下の一番最後で決める）
   API_MODE: "mock",
@@ -48,6 +50,9 @@ export const CONFIG = {
   //   1日目はふつうに出せる。2日目は店長の「特別許可」がいる。3日目からは出せない
   SHAIN_OFF_FREE: 1,    // 許可なしで出せる休み希望の日数
   SHAIN_OFF_MAX: 2,     // 休み希望を出せる一番多い日数（特別許可を入れて）
+
+  // 続けて働いてよい日数（連勤の上限）。これより多いとチェックで注意が出る（rules/labor-rules.js）
+  MAX_STREAK_DAYS: 6,
 
   // ---------- AI（Gemini）2026年11月5日 ----------
   // つなぎ方の最初の設定（店長が「AIの設定」画面で変えられる。ai/ai-settings.js）

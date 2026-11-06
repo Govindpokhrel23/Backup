@@ -222,4 +222,40 @@ export async function notify(memberIds, text) {
   if (!ids.length) return;
   const c = await sb();   // Supabase の道具
   must(await c.from("notifications").insert(ids.map((id) => ({ member_id: id, text }))));
+  sendPush(ids, text);   // スマホにも通知を送る（待たない）
+}
+
+/**
+ * プッシュ通知を送る（Worker の /push にたのむ）。2026年11月6日
+ * 通知が送れなくても、アプリのお知らせは残っているので、エラーでも止めない（待たない）
+ */
+export function sendPush(memberIds, text) {
+  if (!CONFIG.API_WORKER_URL || !CONFIG.VAPID_PUBLIC_KEY) return;
+  (async () => {
+    const c = await sb();   // Supabase の道具
+    const token = (await c.auth.getSession()).data?.session?.access_token;   // ログインの印
+    if (!token) return;
+    await fetch(`${CONFIG.API_WORKER_URL.replace(/\/$/, "")}/push`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ memberIds, text }),
+    });
+  })().catch((e) => console.warn("通知を送れませんでした（お知らせは残っています）", e));
+}
+
+/** 1回に読める行の数（Supabase の決まり） */
+const PAGE = 1000;
+
+/**
+ * 多い時も全部読む（1000行ずつに分けて読む）
+ * @param {() => object} make 問い合わせを作る関数（毎回新しく作る。order をつけておく）
+ * @returns {Promise<object[]>} 全部の行
+ */
+export async function readAll(make) {
+  const rows = [];                                                   // 読んだ行
+  for (let i = 0; ; i += PAGE) {
+    const part = must(await make().range(i, i + PAGE - 1));           // 1000行ぶん
+    rows.push(...part);
+    if (part.length < PAGE) return rows;
+  }
 }

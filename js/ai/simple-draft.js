@@ -20,6 +20,7 @@
 //        ・2回以上同じ時間に直された人と曜日 → 最初からその時間にする（希望の中で）
 //        ・2回以上外された人と曜日 → 入れない
 //        ・2回以上場所を変えられた人 → 最初からその場所にする
+//   9. 働き方のルール：18歳未満は5:00〜22:00に縮める、月・年の上限をこえる勤務は外す（2026年11月6日）
 // このファイルは、AIがつながっていない時と、Gemini に渡す「たたき台」を作る時に使う。
 // ============================================================
 
@@ -29,6 +30,7 @@ import { STEP, overlaps } from "../lib/time.js";
 import { defaultBreak } from "../lib/breaks.js";
 import { openerOf, openStart } from "../lib/roles.js";
 import { weekdayOf } from "./learning.js";
+import { clipForMinor } from "../rules/labor-rules.js";
 
 /**
  * @param {object} p
@@ -205,7 +207,29 @@ export function makeDraft(p) {
   }
 
   // ============================================================
-  // ⑤ 週1休み：7日全部入った人は、いちばん短い日を休みにする（固定は消さない）
+  // ⑤ 働き方のルール（2026年11月6日）
+  //    ・18歳未満の人は 5:00〜22:00 に縮める（1時間より短くなったら外す）
+  //    ・月・年の上限がある人は、残りの時間をこえる勤務を外す（短い日から残す）
+  // ============================================================
+  for (const m of p.members) {
+    if (m.minor) {
+      for (const a of result.filter((x) => x.memberId === m.id && !x.fixed)) {
+        Object.assign(a, clipForMinor(a.from, a.to));
+        if (a.breakAt != null && (a.breakAt < a.from || a.breakAt >= a.to)) a.breakAt = null;
+        if (a.to - a.from < 60) result.splice(result.indexOf(a), 1);
+      }
+    }
+    if (m.leftMinutes != null) {
+      let used = 0;                                                       // 入れた分
+      for (const a of result.filter((x) => x.memberId === m.id).sort((x, y) => x.date.localeCompare(y.date))) {
+        used += a.to - a.from;
+        if (used > m.leftMinutes && !a.fixed) { result.splice(result.indexOf(a), 1); used -= a.to - a.from; }
+      }
+    }
+  }
+
+  // ============================================================
+  // ⑥ 週1休み：7日全部入った人は、いちばん短い日を休みにする（固定は消さない）
   // ============================================================
   for (const m of p.members) {
     const mine = result.filter((a) => a.memberId === m.id);   // その人の勤務

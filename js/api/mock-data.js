@@ -196,6 +196,10 @@ export function createMockData() {
     memberId: x.id,
     hourly: x.kind === "shain" ? 0 : 1100,         // 社員は月給なので、時給の計算には入れない（0）
     transport: x.kind === "shain" ? 0 : 300,
+    // 働き方のルールの見本（2026年11月6日）：m8＝18歳未満、m5＝扶養の範囲で働く人
+    minor: x.id === "m8",
+    monthHoursMax: x.id === "m5" ? 60 : null,
+    yearYenMax: x.id === "m5" ? 1030000 : null,
   }));
 
   // ---------- 祝日（必要になったら足す） ----------

@@ -124,6 +124,8 @@ function storeFacts(ctx, toAlias) {
     const helper = (m.rankHere ?? 1) > 1 ? `・この店舗は${m.rankHere >= 9 ? "この週だけ応援" : `${m.rankHere}番目の店舗（応援）`}` : "・この店舗がメイン";   // この店舗がメインか応援か
     const rule = ctx.rules?.find((r) => r.memberId === m.id)?.text;                       // 人ごとのルール
     lines.push(`${toAlias.get(m.id)}: ${KIND_TEXT[m.kind] || m.kind}${m.everyday ? "・毎日入る人" : ""}${helper} / できること ホール${s.hall ?? 0}% キッチン${s.kitchen ?? 0}% 立ち上げ${s.open ?? 0}% 締め${s.close ?? 0}%`
+      + (m.minor ? " / 18歳未満（22:00〜05:00は入れない）" : "")                                             // 法律の決まり
+      + (m.leftMinutes != null ? ` / この週はあと${Math.floor(m.leftMinutes / 60)}時間まで（月・年の上限）` : "")   // 扶養などの上限
       + (rule ? ` / 店長のメモ: ${hideNames(rule, ctx.members, toAlias)}` : ""));
   }
   // ---- 日ごと：営業時間・必要人数・希望 ----
@@ -158,6 +160,8 @@ function rulesText() {
 6. 締めは閉店まで入る人。締め100%の人がよい
 7. ${CONFIG.BREAK_NEEDED_MIN / 60}時間以上の勤務には休憩を入れる。休憩は${fmt(CONFIG.BREAK_EARLIEST)}より前には入れない。勤務の始まりと終わりの15分以内にも入れない
 8. 同じ人を同じ時間に2つ入れない。ほかの店舗に入っている時間には入れない
+8-2. 「18歳未満」の人は 22:00〜05:00 に入れない。「この週はあと〇時間まで」の人は、その時間をこえない
+8-3. ${CONFIG.MAX_STREAK_DAYS}日より多く続けて入れない
 9. 時刻は15分きざみ。1回の勤務は3時間以上がよい
 10. 【固定・変えない】の勤務はそのまま残す
 

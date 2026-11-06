@@ -1,0 +1,51 @@
+<!doctype html>
+<!--
+  ============================================================
+  tools/make-vapid.html — プッシュ通知の鍵を作るページ
+  ------------------------------------------------------------
+  このファイルは、プッシュ通知に使う「鍵のペア（公開してよい方・秘密の方）」を
+  ブラウザの中だけで作るためのページのファイルです（2026年11月6日）。
+  使い方：このファイルを Chrome か Safari で開く（ダブルクリック）→「鍵を作る」
+    ・公開してよい方 → アプリの js/config.js の VAPID_PUBLIC_KEY と、Worker の VAPID_PUBLIC_KEY
+    ・秘密の方（JSON）→ Worker の VAPID_PRIVATE_JWK（Secret）にだけ入れる。ほかに貼らない
+  鍵はどこにも送られない（このページはインターネットを使わない）。1回作ったら、作り直さない（作り直すと全員の通知の登録がやり直しになる）
+  ============================================================
+-->
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>通知の鍵を作る</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; line-height: 1.7; color: #2B211A; background: #F4EEE6; }
+    textarea { width: 100%; height: 90px; font-family: ui-monospace, monospace; font-size: 13px; }
+    button { font-size: 16px; padding: 10px 18px; border-radius: 10px; border: 0; background: #2B211A; color: #fff; }
+    .warn { background: #FBE9E7; padding: 8px 12px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>プッシュ通知の鍵を作る</h1>
+  <p>ボタンを押すと、鍵のペアができます。<b>1回だけ</b>作って、下の2つをコピーして使います。</p>
+  <button id="make">鍵を作る</button>
+  <h2>① 公開してよい方（VAPID_PUBLIC_KEY）</h2>
+  <p>アプリの <code>js/config.js</code> と、Worker の <code>VAPID_PUBLIC_KEY</code>（Text）に入れる</p>
+  <textarea id="pub" readonly></textarea>
+  <h2>② 秘密の方（VAPID_PRIVATE_JWK）</h2>
+  <p class="warn">Worker の <code>VAPID_PRIVATE_JWK</code>（<b>Secret</b>）にだけ入れる。アプリや GitHub には絶対に貼らない</p>
+  <textarea id="priv" readonly></textarea>
+  <script>
+    // バイト → base64url の文字（URL で使える形）
+    function toB64url(bytes) {
+      let s = "";
+      for (const b of new Uint8Array(bytes)) s += String.fromCharCode(b);
+      return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+    // 「鍵を作る」を押した時：P-256 の ECDSA の鍵を作って、2つの形で見せる
+    document.getElementById("make").onclick = async () => {
+      const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);   // 鍵のペア
+      document.getElementById("pub").value = toB64url(await crypto.subtle.exportKey("raw", keys.publicKey));          // 公開してよい方
+      document.getElementById("priv").value = JSON.stringify(await crypto.subtle.exportKey("jwk", keys.privateKey));   // 秘密の方
+    };
+  </script>
+</body>
+</html>

@@ -35,7 +35,8 @@ import { openAddPerson } from "../components/add-person.js";
 import { mergeNeeds } from "../rules/candidates.js";
 import { go } from "../router.js";
 import { STATUS_LABEL, weekLabel, datesOf, workingPeriod } from "../lib/period.js";
-import { label, dayType, addDays, mondayOf, toIso } from "../lib/date.js";
+import { label, dayType, addDays, mondayOf, toIso, monthStart, monthEnd } from "../lib/date.js";
+import { checkLabor, usageOf } from "../rules/labor-rules.js";
 import { state } from "../store.js";
 import { range, EDIT_MIN, EDIT_MAX } from "../lib/time.js";
 import { createHistory } from "../lib/history.js";
@@ -69,6 +70,7 @@ export async function renderShiftEditor(app) {
   let date = null;         // 表示している日
   let selectedId = null;   // 右の欄で見ている店員
   let elsewhere = [];      // この週にほかの店舗に入っている勤務（重ねないため・見るだけ）
+  let others = [];         // この週以外の勤務（全部の店舗）＋この週のほかの店舗の勤務。月・年の上限と連勤を数える（2026年11月6日）
   let unlocked = false;    // 公開済みの週で「編集する」を押したか
   let aiResult = null;     // 一番上に出す「AIの結果」{result, kind, before}（閉じたら null）
   const history = createHistory();   // 「元に戻す」用
@@ -90,6 +92,20 @@ export async function renderShiftEditor(app) {
   await loadPeriod();
   draw();
 
+  /**
+   * AIに渡す店員に、働き方のルールをつける（2026年11月6日）
+   *   minor … 18歳未満（22時〜朝5時は入れない）
+   *   leftMinutes … この週に入れてよい残りの時間（月の上限・年の上限から計算。なければ null）
+   */
+  function withLimits(m) {
+    const lim = limitsMap().get(m.id) || {};                                      // その人のルール
+    const use = usageOf(m.id, period.weekStart, others, lim);                     // この週より前の今月・今年
+    const lefts = [];                                                             // 残りの時間の候補
+    if (lim.monthHoursMax) lefts.push(lim.monthHoursMax * 60 - use.monthMinutes);
+    if (lim.yearYenMax && lim.hourly) lefts.push(((lim.yearYenMax - use.yearYen) / lim.hourly) * 60);
+    return { ...m, minor: !!lim.minor, leftMinutes: lefts.length ? Math.max(0, Math.floor(Math.min(...lefts))) : null };
+  }
+
   // ============================================================
   // データの読み込みと保存
   // ============================================================
@@ -105,8 +121,32 @@ export async function renderShiftEditor(app) {
     // ほかの店舗の勤務に、店舗の短い名前（福釜・安城・今村）をつける
     const shortOf = (id) => state.stores.find((s) => s.id === id)?.short || "";
     elsewhere = all.filter((a) => a.storeId !== period.storeId).map((a) => ({ ...a, storeShort: shortOf(a.storeId) }));
+    await loadHistory(end);
     await loadGuests();
     if (!date || !datesOf(period).includes(date)) date = period.weekStart;
+  }
+
+  /**
+   * 働き方のルール（月・年の上限・連勤）を数えるための、ほかの週の勤務を読む
+   *   ・全員：その月の1日（か、6日前のおそい方）〜 その月の最後の日
+   *   ・年の上限がある人だけ：1月1日〜 その月の前の日
+   * @param {string} end その週の日曜
+   */
+  async function loadHistory(end) {
+    const from = [monthStart(period.weekStart), addDays(period.weekStart, -CONFIG.MAX_STREAK_DAYS)].sort()[0];   // 読み始める日
+    const to = monthEnd(end);                                                                                    // 読み終わる日
+    const yearIds = wages.filter((w) => w.yearYenMax).map((w) => w.memberId);                                     // 年の上限がある人
+    const yearStart = `${period.weekStart.slice(0, 4)}-01-01`;                                                    // その年の1月1日
+    const [near, year] = await Promise.all([   // 近くの日の勤務（全員）と、年の上限がある人の今年の勤務
+      api.listAssignmentsByDates(from, to),
+      yearIds.length && yearStart < from ? api.listAssignmentsByDates(yearStart, addDays(from, -1), yearIds) : [],
+    ]);
+    others = [...near, ...year].filter((a) => a.periodId !== period.id);
+  }
+
+  /** 店員ID → 働き方のルール（18歳未満・月の上限時間・年の上限金額・時給） */
+  function limitsMap() {
+    return new Map(wages.map((w) => [w.memberId, w]));
   }
 
   /**
@@ -182,7 +222,11 @@ export async function renderShiftEditor(app) {
     // 週1休み・社員の休みは、ほかの店舗に入った日も「入った日」として数える
     // （応援で来ている人は、その人のメインの店舗の画面で数える）
     const mains = active.filter((m) => (m.rankHere ?? 1) === 1);
-    return checkWeek({ dates: datesOf(period), assignments: [...rows, ...elsewhere], members: mains, availabilities: hopes });
+    return [
+      ...checkWeek({ dates: datesOf(period), assignments: [...rows, ...elsewhere], members: mains, availabilities: hopes }),
+      // 働き方のルール（18歳未満・連勤・月と年の上限）。応援の人も、この店舗の勤務の分は数える
+      ...checkLabor({ dates: datesOf(period), week: rows, others, members: active, limits: limitsMap() }),
+    ];
   }
 
   /** 守れていないもの全部（公開の確認・AIの結果で使う。rows：調べる勤務の一覧） */
@@ -202,7 +246,7 @@ export async function renderShiftEditor(app) {
   /** AIに渡す情報（ai/draft-service.js の ctx） */
   function aiContext(past = []) {
     return {
-      dates: datesOf(period), members: active, availabilities: hopes, requirements, positions,
+      dates: datesOf(period), members: active.map(withLimits), availabilities: hopes, requirements, positions,
       fixed: work.filter((a) => a.fixed), past, dayTypeOf, hoursOf, elsewhere, rules, learnings,
       problemsOf: (rows) => allProblems(rows),
     };
@@ -354,7 +398,14 @@ export async function renderShiftEditor(app) {
       weekText: (() => {
         const mine = [...work, ...elsewhere].filter((a) => a.memberId === id);   // その人のこの週の勤務（ほかの店舗も）
         const days = new Set(mine.map((a) => a.date)).size;   // 入っている日数
-        return `この週：${hoursText(minutesByMember(mine).get(id) || 0)}（${days}日）`;
+        const lim = limitsMap().get(id) || {};                                     // 働き方のルール
+        const use = usageOf(id, date, [...work, ...others], lim);                 // 今月・今年
+        return [
+          `この週：${hoursText(minutesByMember(mine).get(id) || 0)}（${days}日）`,
+          `今月：${hoursText(use.monthMinutes)}${lim.monthHoursMax ? ` / 上限 ${lim.monthHoursMax}時間` : ""}`,
+          lim.yearYenMax ? `今年：約${yen(use.yearYen)} / 上限 ${yen(lim.yearYenMax)}` : "",
+          lim.minor ? "18歳未満（22時〜朝5時は入れない）" : "",
+        ].filter(Boolean).join("　");
       })(),
       elsewhere: elsewhere.filter((a) => a.memberId === id && a.date === date),
       onEdit: (fn) => edit(fn),

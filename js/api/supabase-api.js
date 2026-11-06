@@ -13,6 +13,7 @@ import { periodsApi } from "./supabase/periods.js";   // 週・希望・勤務
 import { noticesApi } from "./supabase/notices.js";   // お知らせ・確認・交代
 import { callsApi } from "./supabase/calls.js";       // 人が足りない時の自動連絡
 import { aiApi } from "./supabase/ai.js";             // AIの下書き・学び
+import { backupApi } from "./supabase/backup.js";     // データの書き出し
 
 /** 画面が使う関数（mock-api.js と同じ名前） */
 export const supabaseApi = {
@@ -23,6 +24,7 @@ export const supabaseApi = {
   ...noticesApi,
   ...callsApi,
   ...aiApi,
+  ...backupApi,
   /** 見本データを戻す（本物では使えない） */
   async resetMock() {
     throw new Error("本物のデータは戻せません");

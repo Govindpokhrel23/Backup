@@ -104,15 +104,19 @@ export const membersApi = {
   async listWages() {
     await requireManager();
     const c = await sb();   // Supabase の道具
-    return must(await c.from("wages").select("*")).map((w) => ({ memberId: w.member_id, hourly: w.hourly, transport: w.transport }));
+    return must(await c.from("wages").select("*")).map((w) => ({
+      memberId: w.member_id, hourly: w.hourly, transport: w.transport,
+      minor: w.minor, monthHoursMax: w.month_hours_max, yearYenMax: w.year_yen_max,   // 働き方のルール
+    }));
   },
 
-  /** 時給・交通費を保存 */
-  async saveWage(memberId, hourly, transport) {
+  /** 時給・交通費と、働き方のルール（18歳未満・月の上限時間・年の上限金額）を保存 */
+  async saveWage(memberId, hourly, transport, extra = {}) {
     const boss = await requireManager();                               // 店長
     const c = await sb();   // Supabase の道具
     must(await c.from("wages").upsert({
       member_id: memberId, company_id: boss.companyId, hourly: Number(hourly) || 0, transport: Number(transport) || 0,
+      minor: !!extra.minor, month_hours_max: Number(extra.monthHoursMax) || null, year_yen_max: Number(extra.yearYenMax) || null,
     }, { onConflict: "member_id" }));
     return true;
   },

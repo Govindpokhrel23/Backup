@@ -9,7 +9,7 @@
 
 import {
   sb, must, newId, requireMe, requireManager, currentStore,
-  swapMap, workMap, companyMembers, companyStores, canWorkAt, notify,
+  swapMap, workMap, companyMembers, companyStores, canWorkAt, notify, sendPush,
 } from "./core.js";
 import { today, label } from "../../lib/date.js";
 import { range } from "../../lib/time.js";
@@ -42,6 +42,26 @@ export const noticesApi = {
     await requireManager();
     await notify(memberIds, text);
     return memberIds.length;
+  },
+
+  // ---------- プッシュ通知の宛先（2026年11月6日） ----------
+
+  /** このスマホの宛先を保存する（lib/push.js から） */
+  async savePushSubscription(sub) {
+    const user = await requireMe();   // ログイン中の人
+    const c = await sb();             // Supabase の道具
+    must(await c.from("push_subs").upsert({
+      endpoint: sub.endpoint, member_id: user.id, p256dh: sub.keys.p256dh, auth: sub.keys.auth,
+    }, { onConflict: "endpoint" }));
+    return true;
+  },
+
+  /** このスマホの宛先を消す */
+  async deletePushSubscription(endpoint) {
+    await requireMe();
+    const c = await sb();   // Supabase の道具
+    must(await c.from("push_subs").delete().eq("endpoint", endpoint));
+    return true;
   },
 
   // ---------- 「確認しました」 ----------
@@ -103,9 +123,14 @@ export const noticesApi = {
 
   /** 「代わります」（店員）→ データベースの関数 take_swap */
   async takeSwap(swapId) {
-    await requireMe();
-    const c = await sb();   // Supabase の道具
-    return must(await c.rpc("take_swap", { p_swap_id: swapId }));
+    const user = await requireMe();   // ログイン中の人
+    const c = await sb();             // Supabase の道具
+    const result = must(await c.rpc("take_swap", { p_swap_id: swapId }));   // データベースの関数の結果（お知らせもここで入る）
+    // 店長のスマホにも通知を送る（お知らせはデータベースの関数が入れたので、通知だけ）
+    const x = swapMap.from(must(await c.from("swaps").select("*").eq("id", swapId).maybeSingle()));   // そのお願い
+    const bosses = (await companyMembers()).filter((m) => m.role === "manager" && m.active).map((m) => m.id);   // 店長
+    if (x) sendPush(bosses, `${label(x.date)} ${range(x.from, x.to)} の交代：${user.name}さんが代わると言っています（承認待ち）`);
+    return result;
   },
 
   /** お願いを取り下げる（本人） */

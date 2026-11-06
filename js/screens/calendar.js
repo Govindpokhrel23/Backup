@@ -13,6 +13,7 @@ import { api } from "../api/index.js";
 import { state } from "../store.js";
 import { screenHeader } from "../components/header.js";
 import { myShifts } from "../components/my-shifts.js";
+import { workedMinutes, hoursText } from "../lib/labor.js";
 import { isManager } from "../store.js";
 import { toIso, today, label } from "../lib/date.js";
 import { fmt, range } from "../lib/time.js";
@@ -30,6 +31,20 @@ export async function renderCalendar(app) {
   let selected = today();   // 選んだ日
 
   draw();
+
+  /**
+   * この月の働いた時間の合計（休憩を引いた目安。2026年11月6日）
+   * 扶養の範囲で働く人が、自分で時間を見られるように
+   */
+  function monthTotal() {
+    const key = `${year}-${String(month + 1).padStart(2, "0")}`;               // 見ている月（例 2026-11）
+    const list = mine.filter((a) => a.date.startsWith(key));                   // その月の勤務
+    const days = new Set(list.map((a) => a.date)).size;                         // 入る日数
+    const minutes = list.reduce((s, a) => s + workedMinutes(a), 0);             // 働く時間（分）
+    return h("div", { class: "month-total" },
+      h("span", { class: "home-muted" }, `${month + 1}月の合計（${days}日・休憩を引いた目安）`),
+      h("strong", { class: "num" }, hoursText(minutes)));
+  }
 
   /** 画面を描く */
   function draw() {
@@ -49,6 +64,7 @@ export async function renderCalendar(app) {
             h("button", { class: "btn btn--small", "aria-label": "次の月", onclick: () => moveMonth(1) }, "›"),
           ),
           monthGrid(byDate),
+          monthTotal(),
           h("div", { class: "cal__legend" },
             h("span", null, h("i", { class: "cal__dot" }), "いつものお店"),
             h("span", null, h("i", { class: "cal__dot cal__dot--help" }), "応援"),

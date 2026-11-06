@@ -20,6 +20,7 @@ import { snap, overlaps, EDIT_MIN, EDIT_MAX, range } from "../lib/time.js";
 import { clampBreak, defaultBreak } from "../lib/breaks.js";
 import { CONFIG } from "../config.js";
 import { label } from "../lib/date.js";
+import { clipForMinor } from "../rules/labor-rules.js";
 
 /** "06:30" → 390（分）。形がおかしければ null */
 export function toMinutes(text) {
@@ -72,7 +73,14 @@ export function cleanShifts(raw, ctx, toId) {
       from = Math.max(from, hope.from);
       to = Math.min(to, hope.to);
     }
-    if (to - from < 60) { dropped.push(`${where}：短すぎる（または希望の外）ので外しました`); continue; }
+    // 18歳未満の人は 5:00〜22:00 に縮める（法律の決まり。rules/labor-rules.js）
+    if (member.minor) ({ from, to } = clipForMinor(from, to));
+    if (to - from < 60) { dropped.push(`${where}：短すぎる（または希望・18歳未満の時間の外）ので外しました`); continue; }
+    // 月・年の上限：この週に入れてよい残りの時間をこえたら外す
+    if (member.leftMinutes != null) {
+      const used = rows.filter((a) => a.memberId === memberId).reduce((s, a) => s + (a.to - a.from), 0);   // もう入れた分
+      if (used + (to - from) > member.leftMinutes) { dropped.push(`${where}：月・年の上限をこえるので外しました`); continue; }
+    }
 
     // ---- 重なり ----
     if (rows.some((a) => a.memberId === memberId && a.date === s.date && overlaps(a.from, a.to, from, to))) {

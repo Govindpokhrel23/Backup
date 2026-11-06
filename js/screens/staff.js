@@ -96,9 +96,13 @@ export async function renderStaff(app) {
       ? { ...member, skills: { ...member.skills }, rule: rules.find((r) => r.memberId === member.id)?.text || "",
           stores: (member.stores || [{ storeId: member.storeId, rank: 1 }]).map((x) => ({ ...x })),
           hourly: wages.find((w) => w.memberId === member.id)?.hourly ?? 0,
-          transport: wages.find((w) => w.memberId === member.id)?.transport ?? 0 }
+          transport: wages.find((w) => w.memberId === member.id)?.transport ?? 0,
+          // 働き方のルール（2026年11月6日）
+          minor: !!wages.find((w) => w.memberId === member.id)?.minor,                  // 18歳未満か
+          monthHoursMax: wages.find((w) => w.memberId === member.id)?.monthHoursMax ?? "",   // 月の上限時間
+          yearYenMax: wages.find((w) => w.memberId === member.id)?.yearYenMax ?? "" }       // 年の上限金額
       : { name: "", kind: "baito", everyday: false, skills: { hall: 0, kitchen: 0, open: 0, close: 0 }, rule: "",
-          stores: [{ storeId: state.storeId, rank: 1 }], hourly: 1100, transport: 0 };
+          stores: [{ storeId: state.storeId, rank: 1 }], hourly: 1100, transport: 0, minor: false, monthHoursMax: "", yearYenMax: "" };
 
     const box = h("section", { class: "card staff-form" });   // フォームの入れ物
     /** フォームの中だけ描き直す */
@@ -164,6 +168,19 @@ export async function renderStaff(app) {
               h("input", { class: "input num", type: "number", min: "0", step: "10", value: String(draft.transport), oninput: (e) => { draft.transport = e.target.value; } })),
           )),
 
+        // 働き方のルール（店長だけが見られる）：シフト作成のチェックとAIが守る（rules/labor-rules.js）
+        h("div", { class: "field" }, "働き方のルール（店長だけが見られる。空なら決めない）",
+          h("label", { class: "check-line" },
+            h("input", { type: "checkbox", checked: draft.minor, onchange: (e) => { draft.minor = e.target.checked; } }),
+            "18歳未満（22時〜朝5時は入れない）"),
+          h("div", { class: "time-range" },
+            h("label", { class: "field", style: { flex: 1 } }, "月の上限（時間）",
+              h("input", { class: "input num", type: "number", min: "0", step: "1", placeholder: "例 80", value: String(draft.monthHoursMax), oninput: (e) => { draft.monthHoursMax = e.target.value; } })),
+            h("label", { class: "field", style: { flex: 1 } }, "年の上限（円・扶養など）",
+              h("input", { class: "input num", type: "number", min: "0", step: "10000", placeholder: "例 1030000", value: String(draft.yearYenMax), oninput: (e) => { draft.yearYenMax = e.target.value; } })),
+          ),
+          h("div", { class: "home-muted" }, "年の上限は「時給×時間＋交通費」の目安で数えます。上限の金額は本人と決めてください")),
+
         h("label", { class: "field" }, "人ごとのルール（店長だけが見られる）",
           h("textarea", { class: "textarea", placeholder: "例：土曜はNG、週20時間まで", oninput: (e) => { draft.rule = e.target.value; } }, draft.rule)),
 
@@ -192,12 +209,12 @@ export async function renderStaff(app) {
     if (member) {
       await api.saveMember({ ...member, ...data });
       await api.saveMemberRule(member.id, draft.rule);
-      await api.saveWage(member.id, draft.hourly, draft.transport);
+      await api.saveWage(member.id, draft.hourly, draft.transport, draft);
       toast("保存しました");
     } else {
       const { member: created, code } = await api.createMember(data);
       await api.saveMemberRule(created.id, draft.rule);
-      await api.saveWage(created.id, draft.hourly, draft.transport);
+      await api.saveWage(created.id, draft.hourly, draft.transport, draft);
       await showCode(created.name, created.loginId, code);
     }
     members = await api.listMembers();

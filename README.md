@@ -45,10 +45,12 @@
    - `GEMINI_API_KEY`（Secret）… Google AI Studio の鍵
    - `LOGIN_EMAIL_DOMAIN`（Text）… `login.shiftapp.example.com`
    - `ALLOWED_ORIGIN`（Text）… ④でできるアプリのURL（④のあとに入れる）
+   - 通知を使う時（あとでもよい）：`tools/make-vapid.html` をブラウザで開いて「鍵を作る」→
+     `VAPID_PUBLIC_KEY`（Text）・`VAPID_PRIVATE_JWK`（Secret）・`VAPID_SUBJECT`（Text。`mailto:自分のメール`）
 4. Worker のURL（例 `https://shiftapp-api.〇〇.workers.dev`）をメモ
 
 ### ③ アプリの設定を書く
-`js/config.js` の一番上の3つに入れる：`SUPABASE_URL`（①）・`SUPABASE_ANON_KEY`（①の Publishable key）・`API_WORKER_URL`（②）
+`js/config.js` の一番上に入れる：`SUPABASE_URL`（①）・`SUPABASE_ANON_KEY`（①の Publishable key）・`API_WORKER_URL`（②）・`VAPID_PUBLIC_KEY`（通知を使う時。②で作った公開してよい方）
 > Publishable key は「画面に置いてよい鍵」。Secret key と Gemini の鍵は、ここには **絶対に書かない**。
 
 ### ④ Cloudflare Pages：アプリを公開する
@@ -58,7 +60,7 @@
 
 ### ⑤ 店長でログイン
 iPhone の Safari でアプリのURLを開く →「はじめての方」→ ID `1000` と①の初回コード → パスワードを決める
-→ Safari の共有ボタン →「ホーム画面に追加」
+→ Safari の共有ボタン →「ホーム画面に追加」→ ホーム画面のアプリから開いて「設定」→「通知を受け取る」
 
 ### ⑥ 店員を足す
 「店舗」→「店員管理」→ 店員を作ると初回コードが出る → 本人に ID とコードを渡す（本人が「はじめての方」で決める）
@@ -122,7 +124,8 @@ shift-app/
 │  │  └─ mock-data.js      見本データ（スタッフA など）
 │  ├─ rules/
 │  │  ├─ shift-rules.js    ルールチェック（必要人数・立ち上げ・締め・休憩・希望・週1休み…）
-│  │  └─ candidates.js     人が足りない時に「入れそうな人」をさがす
+│  │  ├─ candidates.js     人が足りない時に「入れそうな人」をさがす
+│  │  └─ labor-rules.js    働き方のルール（18歳未満の深夜・連勤・月と年の上限）
 │  ├─ ai/
 │  │  ├─ draft-service.js  「AIで作成」「AIに直してもらう」の流れ
 │  │  ├─ simple-draft.js   簡易版の下書き（AIのたたき台・AIなしの時）
@@ -140,7 +143,7 @@ shift-app/
 │  │  ├─ add-person.js     「＋ 人を追加」のダイアログ
 │  │  ├─ print-week.js     1週間のシフトを紙に印刷（お店に貼る用・PDFにも）
 │  │  └─ timeline.js       シフト表（時間の目盛り＋線、ドラッグ）
-│  ├─ lib/                 小さな道具（立ち上げ・締めの決まり・時刻・日付・週・HTML要素づくり・元に戻す・休憩の決まり・スマホへの保存）
+│  ├─ lib/                 小さな道具（立ち上げ・締めの決まり・時刻・日付・週・HTML要素づくり・元に戻す・休憩の決まり・スマホへの保存・ファイル保存・通知）
 │  └─ screens/             1画面＝1ファイル
 │     ├─ login.js          ログイン／はじめての方
 │     ├─ home.js           ホーム（店長・店員）
@@ -153,6 +156,7 @@ shift-app/
 │     ├─ map.js            マップ・必要人数・営業時間
 │     ├─ stores.js         店舗の管理（増やす・名前を変える・休止する）
 │     ├─ ai.js             AIの設定・AIが覚えたこと
+│     ├─ report.js         勤務時間の集計（月ごと・CSV）
 │     └─ settings.js       設定・ログアウト
 ├─ _headers               Cloudflare Pages の安全の設定
 ├─ package.json           テストの道具（npm はテストの時だけ。アプリには要らない）
@@ -161,6 +165,9 @@ shift-app/
 │  └─ seed.sql            最初のデータ（会社・3店舗・店長 1000・祝日）
 ├─ workers/api/           サーバー（Cloudflare Worker）：はじめての方・AI
 ├─ tools/make-site.sh     公開用の dist フォルダを作る
+├─ tools/make-vapid.html  プッシュ通知の鍵を作るページ
+├─ icons/                 ホーム画面・通知のアイコン
+├─ docs/はじめに読む.md    初めてコードを読む人へ（どこに何があるか）
 └─ tests/
    ├─ rules.test.mjs       ルールチェックの自動テスト
    ├─ breaks.test.mjs      休憩の決まりのテスト
@@ -168,6 +175,8 @@ shift-app/
    ├─ ai.test.mjs          AI（確かめ・学び・送る文・流れ・入れそうな人）のテスト
    ├─ supabase.test.mjs    本物用の api を、本物の Postgres（PGlite）＋決まり（RLS）で通して確かめる
    ├─ worker.test.mjs      Worker（はじめての方・AI）のテスト
+   ├─ webpush.test.mjs     プッシュ通知の暗号と送り方のテスト
+   ├─ labor-rules.test.mjs 働き方のルールのテスト
    └─ helpers/             テスト用の「にせもの Supabase」
 ```
 
@@ -191,8 +200,13 @@ shift-app/
 - シフト作成の「＋ 人を追加」：ほかの店舗の人（この週だけ応援／この店舗にも行ける）、まだアカウントがない人
 - 店舗を増やす時は、ほかの店舗の営業時間・マップ・必要人数を写せる。行ける人もまとめて選べる
 - どのファイルも一番上に「このファイルは〇〇のファイルです」、変数・関数にはそれぞれコメントをつける
+- 働き方のルール（rules/labor-rules.js）：18歳未満は22時〜朝5時に入れない、連勤は6日まで、月の上限時間・年の上限金額（店長が人ごとに決める）
+- 勤務時間の集計（screens/report.js）：公開したシフトだけを月ごとに数えて、CSV に書き出す（給与計算の元）
+- バックアップ：設定 →「バックアップを保存する」（店長）。Supabase の無料プランは自動のバックアップがないので月1回
+- プッシュ通知：お知らせを入れた時に Worker の /push が送る（lib/push.js・sw.js・workers/api/worker.js）
 
 ## 次にやること（ロードマップ）
 
 1. 本番の準備（上の①〜⑥）
-2. プッシュ通知・バックアップ
+2. 各店舗の店内図の写真をマップの背景にする
+3. 打刻（出勤・退勤）・有給の管理（必要になったら）

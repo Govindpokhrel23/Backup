@@ -75,7 +75,10 @@ create table if not exists wages (
   member_id  text primary key references members(id) on delete cascade,   -- だれの時給か
   company_id text not null references companies(id),                     -- 会社
   hourly     integer not null default 0,                                  -- 時給（円）
-  transport  integer not null default 0                                   -- 交通費（1日・円）
+  transport  integer not null default 0,                                  -- 交通費（1日・円）
+  minor      boolean not null default false,                              -- 18歳未満か（22時〜朝5時は入れない）
+  month_hours_max integer,                                                -- 月の上限時間（なければ決めない）
+  year_yen_max    integer                                                 -- 年の上限金額（扶養など。なければ決めない）
 );
 
 -- マップの人のマーク（担当場所）
@@ -224,6 +227,15 @@ create table if not exists login_codes (
   created_at timestamptz not null default now()      -- 出した日時（7日で使えなくなる）
 );
 
+-- プッシュ通知の宛先（スマホごと。2026年11月6日）
+create table if not exists push_subs (
+  endpoint   text primary key,                                        -- 通知を送る住所（スマホのブラウザが決める）
+  member_id  text not null references members(id) on delete cascade, -- だれのスマホか
+  p256dh     text not null,                                           -- 暗号の鍵（スマホが決める）
+  auth       text not null,                                           -- 暗号の合言葉（スマホが決める）
+  created_at timestamptz not null default now()                       -- 登録した日時
+);
+
 -- 祝日（みんな見られる）
 create table if not exists holidays (
   date date primary key,   -- 日付
@@ -292,6 +304,7 @@ alter table ai_drafts      enable row level security;
 alter table learnings      enable row level security;
 alter table login_codes    enable row level security;   -- 決まりを作らない＝アプリからはだれも見られない
 alter table holidays       enable row level security;
+alter table push_subs      enable row level security;
 
 -- 決まりを作り直せるように、前の決まりを消してから作る
 do $$
@@ -360,6 +373,9 @@ create policy calls_all on calls for all using (i_am_manager() and store_in_my_c
 -- AIの下書き・学び：店長だけ
 create policy drafts_all on ai_drafts for all using (i_am_manager() and store_in_my_company(store_id)) with check (i_am_manager() and store_in_my_company(store_id));
 create policy learn_all  on learnings for all using (i_am_manager() and store_in_my_company(store_id)) with check (i_am_manager() and store_in_my_company(store_id));
+
+-- プッシュ通知の宛先：自分のスマホの分だけ登録・解除できる（送るのは Worker が管理用の鍵で読む）
+create policy push_own on push_subs for all using (member_id = my_member_id()) with check (member_id = my_member_id());
 
 -- 祝日：ログインした人はみんな見られる
 create policy holidays_read on holidays for select using (auth.uid() is not null);

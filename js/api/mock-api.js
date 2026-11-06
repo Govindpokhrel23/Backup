@@ -466,10 +466,11 @@ export const mockApi = {
    * 全店舗の勤務（日付の範囲）。店長だけ
    * 他の店舗に入っている時間と重ならないか確かめるのに使う
    */
-  async listAssignmentsByDates(from, to) {
+  async listAssignmentsByDates(from, to, memberIds = null) {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
-    return reply(data.assignments.filter((a) => a.date >= from && a.date <= to));
+    // memberIds を渡すと、その人たちの分だけ（年の上限を数える時。2026年11月6日）
+    return reply(data.assignments.filter((a) => a.date >= from && a.date <= to && (!memberIds || memberIds.includes(a.memberId))));
   },
 
   /** 自分の勤務（個人カレンダー用。応援先の店舗も含む） */
@@ -653,14 +654,53 @@ export const mockApi = {
     return reply(data.wages || []);
   },
 
-  /** 時給・交通費を保存する（店長だけ） */
-  async saveWage(memberId, hourly, transport) {
+  /**
+   * 時給・交通費と、働き方のルールを保存する（店長だけ）
+   * @param {object} [extra] 働き方のルール {minor:18歳未満か, monthHoursMax:月の上限時間, yearYenMax:年の上限金額}
+   */
+  async saveWage(memberId, hourly, transport, extra = {}) {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
     data.wages = (data.wages || []).filter((w) => w.memberId !== memberId);
-    data.wages.push({ memberId, hourly: Number(hourly) || 0, transport: Number(transport) || 0 });
+    data.wages.push({
+      memberId, hourly: Number(hourly) || 0, transport: Number(transport) || 0,
+      minor: !!extra.minor,                                         // 18歳未満か
+      monthHoursMax: Number(extra.monthHoursMax) || null,           // 月の上限時間（0や空＝決めない）
+      yearYenMax: Number(extra.yearYenMax) || null,                 // 年の上限金額（0や空＝決めない）
+    });
     save(data);
     return reply(true);
+  },
+
+  // ---------- プッシュ通知の宛先（2026年11月6日） ----------
+  // 見本データでは通知は送らない。形だけ本物とそろえる
+
+  /** このスマホの宛先を保存する */
+  async savePushSubscription(sub) {
+    const data = load();   // 保存してあるデータを読む
+    const user = me(data);   // ログイン中の人
+    data.pushSubs = (data.pushSubs || []).filter((x) => x.endpoint !== sub.endpoint);
+    data.pushSubs.push({ endpoint: sub.endpoint, memberId: user.id });
+    save(data);
+    return reply(true);
+  },
+
+  /** このスマホの宛先を消す */
+  async deletePushSubscription(endpoint) {
+    const data = load();   // 保存してあるデータを読む
+    data.pushSubs = (data.pushSubs || []).filter((x) => x.endpoint !== endpoint);
+    save(data);
+    return reply(true);
+  },
+
+  // ---------- バックアップ（2026年11月6日） ----------
+
+  /** 全部のデータを1つにまとめる（店長）。パスワード・初回コード・ログインの情報は入れない */
+  async exportAll() {
+    const data = load();   // 保存してあるデータを読む
+    requireManager(data);
+    const { passwords, loginCodes, session, ...tables } = data;   // 書き出さないもの を外す
+    return reply({ app: "shiftapp", kind: "mock", exportedAt: new Date().toISOString(), tables });
   },
 
   // ---------- 開発用 ----------

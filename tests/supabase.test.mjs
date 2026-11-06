@@ -203,3 +203,29 @@ test("人が足りない時：入れそうな人に連絡 → 入れます → �
   assert.ok(work.some((a) => a.memberId === ctx.a.id && a.createdBy === "call"));
   assert.equal((await api.listCalls()).length, 0);
 });
+
+test("バックアップ：店長は全部の表を書き出せる。初回コードは入らない", { skip }, async () => {
+  const data = await api.exportAll();                                 // 書き出したもの
+  assert.equal(data.kind, "supabase");
+  assert.ok(data.tables.members.length >= 4);
+  assert.ok(data.tables.assignments.length >= 2);
+  assert.equal(data.tables.login_codes, undefined);
+});
+
+test("働き方のルール：時給と一緒に、18歳未満・月の上限・年の上限を保存できる", { skip }, async () => {
+  await api.saveWage(ctx.a.id, 1100, 300, { minor: true, monthHoursMax: 60, yearYenMax: 1030000 });
+  const w = (await api.listWages()).find((x) => x.memberId === ctx.a.id);   // A の時給とルール
+  assert.deepEqual([w.minor, w.monthHoursMax, w.yearYenMax], [true, 60, 1030000]);
+  const d0 = weekDates(nextMonday)[0];                                 // 来週の月曜
+  assert.ok((await api.listAssignmentsByDates(d0, d0, [ctx.a.id])).every((a) => a.memberId === ctx.a.id));
+});
+
+test("プッシュ通知の宛先：自分のスマホの分だけ登録でき、ほかの人からは見えない", { skip }, async () => {
+  await api.logout();
+  await api.login(ctx.a.loginId, "pass-a");
+  await api.savePushSubscription({ endpoint: "https://push.example/a", keys: { p256dh: "p", auth: "q" } });
+  assert.equal((await fake.client.from("push_subs").select("*")).data.length, 1);
+  await api.logout();
+  await api.login(ctx.b.loginId, "pass-b");
+  assert.equal((await fake.client.from("push_subs").select("*")).data.length, 0);   // B から A の宛先は見えない
+});
