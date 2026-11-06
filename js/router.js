@@ -32,34 +32,34 @@ import { renderReport } from "./screens/report.js";
  *   who    … "all"=全員 / "manager"=店長だけ / "guest"=ログイン前
  */
 const ROUTES = [
-  { path: "/login", render: renderLogin, who: "guest" },
-  { path: "/home", render: renderHome, who: "all" },
-  { path: "/kibou", render: renderKibou, who: "all" },
-  { path: "/calendar", render: renderCalendar, who: "all" },
-  { path: "/published", render: renderPublished, who: "all" },
-  { path: "/shift", render: renderShiftEditor, who: "manager" },
-  { path: "/store", render: renderStoreMenu, who: "manager" },
-  { path: "/staff", render: renderStaff, who: "manager" },
-  { path: "/map", render: renderMap, who: "manager" },
-  { path: "/settings", render: renderSettings, who: "all" },
-  { path: "/stores", render: renderStores, who: "manager" },
-  { path: "/ai", render: renderAi, who: "manager" },
-  { path: "/report", render: renderReport, who: "manager" },  // 勤務時間の集計（2026年11月6日）          // AIの設定と覚えたこと（2026年11月5日）
+  { path: "/login", render: renderLogin, who: "guest" },   // ログイン画面（ログイン前の人だけ）
+  { path: "/home", render: renderHome, who: "all" },   // ホーム（店長と店員で中身が変わる）
+  { path: "/kibou", render: renderKibou, who: "all" },   // 希望入力（入れる日・休み希望）
+  { path: "/calendar", render: renderCalendar, who: "all" },   // 自分の勤務のカレンダー
+  { path: "/published", render: renderPublished, who: "all" },   // 公開したシフト（お店全員の分）
+  { path: "/shift", render: renderShiftEditor, who: "manager" },   // シフト作成（店長だけ）
+  { path: "/store", render: renderStoreMenu, who: "manager" },   // 店舗メニュー（店長だけ）
+  { path: "/staff", render: renderStaff, who: "manager" },   // 店員管理（追加・時給・働き方のルール）
+  { path: "/map", render: renderMap, who: "manager" },   // お店の地図（人の配置）
+  { path: "/settings", render: renderSettings, who: "all" },   // 設定（通知・パスワード・バックアップ）
+  { path: "/stores", render: renderStores, who: "manager" },   // 店舗の追加・編集（4店舗目から）
+  { path: "/ai", render: renderAi, who: "manager" },   // AIの設定と覚えたこと（2026年11月5日）
+  { path: "/report", render: renderReport, who: "manager" },   // 勤務時間の集計（月ごと・CSV）（2026年11月6日）
 ];
 
 /** 下のタブバー（役割で中身が変わる） */
 const TABS = {
-  manager: [
-    { path: "/home", label: "ホーム", icon: "home" },
-    { path: "/shift", label: "シフト作成", icon: "edit" },
-    { path: "/calendar", label: "自分の勤務", icon: "calendar" },   // 店長も仕事に入るので、自分の勤務を見るタブ
-    { path: "/store", label: "店舗", icon: "store" },
+  manager: [                                                          // 店長のタブ（4つ）
+    { path: "/home", label: "ホーム", icon: "home" },                  // 今日の様子・お知らせ・やること
+    { path: "/shift", label: "シフト作成", icon: "edit" },             // 週のシフトを作る・AIに下書きを頼む・公開する
+    { path: "/calendar", label: "自分の勤務", icon: "calendar" },      // 店長も仕事に入るので、自分の勤務を見るタブ
+    { path: "/store", label: "店舗", icon: "store" },                  // 店員管理・地図・集計・店舗の追加などのメニュー
   ],
-  staff: [
-    { path: "/home", label: "ホーム", icon: "home" },
-    { path: "/kibou", label: "希望入力", icon: "edit" },
-    { path: "/calendar", label: "カレンダー", icon: "calendar" },
-    { path: "/published", label: "公開シフト", icon: "list" },
+  staff: [                                                            // 店員のタブ（4つ）
+    { path: "/home", label: "ホーム", icon: "home" },                  // 次のシフト・お知らせ・交代のお願い
+    { path: "/kibou", label: "希望入力", icon: "edit" },               // 入れる日・時間と休み希望を出す
+    { path: "/calendar", label: "カレンダー", icon: "calendar" },      // 自分の勤務を月のカレンダーで見る
+    { path: "/published", label: "公開シフト", icon: "list" },         // お店全員の決まったシフトを見る
   ],
 };
 
