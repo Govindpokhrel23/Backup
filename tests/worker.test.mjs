@@ -47,19 +47,19 @@ const req = (path, body, headers = {}) => new Request(`https://api.example${path
 const now = new Date().toISOString();
 
 test("はじめての方：コードが合えばログインの人を作り、コードを使用済みにする", async () => {
-  const s = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 0, created_at: now }, member: { id: "m1", auth_id: null, active: true } });   // にせものの Supabase・Gemini
-  const res = await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdef" }), env, { fetch: s.fetch });   // Worker の返事
+  const server = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 0, created_at: now }, member: { id: "m1", auth_id: null, active: true } });   // にせものの Supabase・Gemini
+  const res = await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdef" }), env, { fetch: server.fetch });   // Worker の返事
   assert.equal(res.status, 200);
-  const created = s.calls.find((c) => c.url.endsWith("/auth/v1/admin/users"));   // ログインの人を作ったお願い
+  const created = server.calls.find((call) => call.url.endsWith("/auth/v1/admin/users"));   // ログインの人を作ったお願い
   assert.equal(created.body.email, "2004@login.test");
-  assert.ok(s.calls.some((c) => c.method === "PATCH" && c.body.used === true));
+  assert.ok(server.calls.some((call) => call.method === "PATCH" && call.body.used === true));
 });
 
 test("はじめての方：コードがちがうと止まり、まちがえた回数が増える。5回で使えなくなる", async () => {
-  const s = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 2, created_at: now }, member: { id: "m1", active: true } });   // にせものの Supabase・Gemini
-  const res = await worker.fetch(req("/activate", { loginId: "2004", code: "000000", password: "abcdef" }), env, { fetch: s.fetch });   // Worker の返事
+  const server = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 2, created_at: now }, member: { id: "m1", active: true } });   // にせものの Supabase・Gemini
+  const res = await worker.fetch(req("/activate", { loginId: "2004", code: "000000", password: "abcdef" }), env, { fetch: server.fetch });   // Worker の返事
   assert.equal(res.status, 400);
-  assert.ok(s.calls.some((c) => c.method === "PATCH" && c.body.attempts === 3));
+  assert.ok(server.calls.some((call) => call.method === "PATCH" && call.body.attempts === 3));
   const locked = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 5, created_at: now }, member: { id: "m1", active: true } });   // にせものの Supabase・Gemini
   const res2 = await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdef" }), env, { fetch: locked.fetch });   // Worker の返事
   assert.equal(res2.status, 429);
@@ -67,17 +67,17 @@ test("はじめての方：コードがちがうと止まり、まちがえた�
 
 test("はじめての方：期限切れのコード・ほかのサイトからのお願いは止まる", async () => {
   const old = new Date(Date.now() - 8 * 86400000).toISOString();   // 8日前（期限切れ）
-  const s = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 0, created_at: old }, member: { id: "m1", active: true } });   // にせものの Supabase・Gemini
-  assert.equal((await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdef" }), env, { fetch: s.fetch })).status, 400);
+  const server = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 0, created_at: old }, member: { id: "m1", active: true } });   // にせものの Supabase・Gemini
+  assert.equal((await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdef" }), env, { fetch: server.fetch })).status, 400);
   const evil = req("/activate", { loginId: "2004", code: "123456", password: "abcdef" }, { Origin: "https://evil.example" });
-  assert.equal((await worker.fetch(evil, env, { fetch: s.fetch })).status, 403);
+  assert.equal((await worker.fetch(evil, env, { fetch: server.fetch })).status, 403);
 });
 
 test("AI：ログインした店長だけ Gemini に送れる（鍵は Worker が足す）", async () => {
   const boss = fakeServer({ role: "manager" });   // にせものの Supabase・Gemini
   const ok = await worker.fetch(req("/ai", { model: "gemini-3-flash-preview", body: { contents: [] } }, { Authorization: "Bearer good" }), env, { fetch: boss.fetch });   // Worker の返事
   assert.equal(ok.status, 200);
-  assert.ok(boss.calls.some((c) => c.url.includes("generativelanguage")));
+  assert.ok(boss.calls.some((call) => call.url.includes("generativelanguage")));
   const staff = fakeServer({ role: "staff" });   // にせものの Supabase・Gemini
   assert.equal((await worker.fetch(req("/ai", { model: "gemini-3-flash-preview", body: {} }, { Authorization: "Bearer good" }), env, { fetch: staff.fetch })).status, 403);
   assert.equal((await worker.fetch(req("/ai", { model: "gemini-3-flash-preview", body: {} }, { Authorization: "Bearer bad" }), env, { fetch: boss.fetch })).status, 401);

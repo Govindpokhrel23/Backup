@@ -41,13 +41,13 @@ export function weekdayOf(date) {
  */
 export function diffDraft(aiRows, finalRows) {
   const out = [];                                             // 見つけた学び
-  const key = (a) => `${a.memberId}|${a.date}`;                 // 人と日で1つにまとめる
+  const key = (shift) => `${shift.memberId}|${shift.date}`;                 // 人と日で1つにまとめる
   const group = (rows) => {                                     // 人と日ごとの勤務（固定したものは比べない）
     const map = new Map();   // 人と日 → 勤務の一覧
-    for (const a of rows) {
-      if (a.fixed) continue;
-      if (!map.has(key(a))) map.set(key(a), []);
-      map.get(key(a)).push(a);
+    for (const shift of rows) {
+      if (shift.fixed) continue;
+      if (!map.has(key(shift))) map.set(key(shift), []);
+      map.get(key(shift)).push(shift);
     }
     return map;
   };
@@ -55,10 +55,10 @@ export function diffDraft(aiRows, finalRows) {
   const fin = group(finalRows);                                 // 公開したもの
   const allKeys = new Set([...ai.keys(), ...fin.keys()]);       // どちらかにある人と日
 
-  for (const k of allKeys) {
-    const [memberId, date] = k.split("|");   // 人のIDと日付
-    const before = (ai.get(k) || []).sort((a, b) => a.from - b.from)[0];   // AIの1つ目の勤務
-    const after = (fin.get(k) || []).sort((a, b) => a.from - b.from)[0];   // 公開の1つ目の勤務
+  for (const key of allKeys) {
+    const [memberId, date] = key.split("|");   // 人のIDと日付
+    const before = (ai.get(key) || []).sort((shiftA, shiftB) => shiftA.from - shiftB.from)[0];   // AIの1つ目の勤務
+    const after = (fin.get(key) || []).sort((shiftA, shiftB) => shiftA.from - shiftB.from)[0];   // 公開の1つ目の勤務
     const base = { memberId, date, weekday: weekdayOf(date) };              // どの学びにも入る情報
     if (before && !after) {
       out.push({ ...base, kind: "remove", aiFrom: before.from, aiTo: before.to });
@@ -89,24 +89,24 @@ export function diffDraft(aiRows, finalRows) {
  *   areaPref … 人 → 店長がよく変える先の場所
  */
 export function summarize(learnings, members) {
-  const nameOf = (id) => members.find((m) => m.id === id)?.name || "？";   // 人の名前
+  const nameOf = (id) => members.find((member) => member.id === id)?.name || "？";   // 人の名前
   const groups = new Map();                                                 // まとめた学び
-  const add = (k, row, make) => {                                           // 同じ種類の学びを数える
-    if (!groups.has(k)) groups.set(k, { ...make(), count: 0, ids: [], rows: [] });
-    const g = groups.get(k);   // 今数えている学びのまとまり
-    g.count++;
-    g.ids.push(row.id);
-    g.rows.push(row);
+  const add = (key, row, make) => {                                           // 同じ種類の学びを数える
+    if (!groups.has(key)) groups.set(key, { ...make(), count: 0, ids: [], rows: [] });
+    const group = groups.get(key);   // 今数えている学びのまとまり
+    group.count++;
+    group.ids.push(row.id);
+    group.rows.push(row);
   };
 
-  for (const r of learnings) {
-    const who = `${r.memberId}|${r.weekday}`;                               // 人と曜日
-    if (r.kind === "time" || r.kind === "add") {
-      add(`t|${who}|${r.from}|${r.to}`, r, () => ({ type: "time", memberId: r.memberId, weekday: r.weekday, from: r.from, to: r.to, area: r.area }));
-    } else if (r.kind === "remove") {
-      add(`r|${who}`, r, () => ({ type: "remove", memberId: r.memberId, weekday: r.weekday }));
-    } else if (r.kind === "area") {
-      add(`a|${r.memberId}|${r.area}`, r, () => ({ type: "area", memberId: r.memberId, area: r.area }));
+  for (const hope of learnings) {
+    const who = `${hope.memberId}|${hope.weekday}`;                               // 人と曜日
+    if (hope.kind === "time" || hope.kind === "add") {
+      add(`t|${who}|${hope.from}|${hope.to}`, hope, () => ({ type: "time", memberId: hope.memberId, weekday: hope.weekday, from: hope.from, to: hope.to, area: hope.area }));
+    } else if (hope.kind === "remove") {
+      add(`r|${who}`, hope, () => ({ type: "remove", memberId: hope.memberId, weekday: hope.weekday }));
+    } else if (hope.kind === "area") {
+      add(`a|${hope.memberId}|${hope.area}`, hope, () => ({ type: "area", memberId: hope.memberId, area: hope.area }));
     }
   }
 
@@ -114,23 +114,23 @@ export function summarize(learnings, members) {
   const prefer = new Map();                               // よく入れる時間
   const avoid = new Map();                                // よく外す
   const areaPref = new Map();                             // よく変える場所
-  for (const [k, g] of groups) {
-    const strong = g.count >= LEARN_MIN_COUNT;            // 2回以上＝覚えた
-    const day = `${WEEKDAY_LABEL[g.weekday]}曜`;          // 曜日の文字
+  for (const [key, shift] of groups) {
+    const strong = shift.count >= LEARN_MIN_COUNT;            // 2回以上＝覚えた
+    const day = `${WEEKDAY_LABEL[shift.weekday]}曜`;          // 曜日の文字
     let text = "";                                        // 1行の説明
-    if (g.type === "time") {
-      text = `${nameOf(g.memberId)}：${day}は ${range(g.from, g.to)} にする`;
-      const pk = `${g.memberId}|${g.weekday}`;   // 「人|曜日」のキー
-      if (strong && (!prefer.has(pk) || prefer.get(pk).count < g.count)) prefer.set(pk, { from: g.from, to: g.to, count: g.count, area: g.area });
-    } else if (g.type === "remove") {
-      text = `${nameOf(g.memberId)}：${day}は入れないことが多い`;
-      if (strong) avoid.set(`${g.memberId}|${g.weekday}`, g.count);
-    } else if (g.type === "area") {
-      text = `${nameOf(g.memberId)}：${g.area === "hall" ? "ホール" : "キッチン"}に入れる`;
-      if (strong) areaPref.set(g.memberId, g.area);
+    if (shift.type === "time") {
+      text = `${nameOf(shift.memberId)}：${day}は ${range(shift.from, shift.to)} にする`;
+      const pk = `${shift.memberId}|${shift.weekday}`;   // 「人|曜日」のキー
+      if (strong && (!prefer.has(pk) || prefer.get(pk).count < shift.count)) prefer.set(pk, { from: shift.from, to: shift.to, count: shift.count, area: shift.area });
+    } else if (shift.type === "remove") {
+      text = `${nameOf(shift.memberId)}：${day}は入れないことが多い`;
+      if (strong) avoid.set(`${shift.memberId}|${shift.weekday}`, shift.count);
+    } else if (shift.type === "area") {
+      text = `${nameOf(shift.memberId)}：${shift.area === "hall" ? "ホール" : "キッチン"}に入れる`;
+      if (strong) areaPref.set(shift.memberId, shift.area);
     }
-    notes.push({ key: k, text, count: g.count, strong, ids: g.ids });
+    notes.push({ key: key, text, count: shift.count, strong, ids: shift.ids });
   }
-  notes.sort((a, b) => b.count - a.count);
+  notes.sort((noteA, noteB) => noteB.count - noteA.count);
   return { notes, prefer, avoid, areaPref };
 }

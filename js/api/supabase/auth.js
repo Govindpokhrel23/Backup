@@ -10,18 +10,18 @@
 // ============================================================
 
 import { CONFIG } from "../../config.js";
-import { sb, me, forgetMe, emailOf } from "./core.js";
+import { supabaseClient, me, forgetMe, emailOf } from "./core.js";
 
 /** 画面の関数（supabase-api.js で合体する） */
 export const authApi = {
   /** ID とパスワードでログイン */
   async login(loginId, password) {
-    const c = await sb();   // Supabase の道具
-    const res = await c.auth.signInWithPassword({ email: emailOf(loginId), password });   // ログインの結果
+    const client = await supabaseClient();   // Supabase の道具
+    const res = await client.auth.signInWithPassword({ email: emailOf(loginId), password });   // ログインの結果
     if (res.error) throw new Error("IDかパスワードが違います");
     const user = await me(true);                                         // その店員
     if (!user) {
-      await c.auth.signOut();
+      await client.auth.signOut();
       throw new Error("このIDは今は使えません（店長に聞いてください）");
     }
     return user;
@@ -29,8 +29,8 @@ export const authApi = {
 
   /** ログアウト */
   async logout() {
-    const c = await sb();   // Supabase の道具
-    await c.auth.signOut();
+    const client = await supabaseClient();   // Supabase の道具
+    await client.auth.signOut();
     forgetMe();
     return true;
   },

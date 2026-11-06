@@ -21,7 +21,7 @@ let client = null;
  * Supabase の道具を返す（はじめての時は CDN から読み込んで作る）
  * @returns {Promise<object>} supabase-js の client
  */
-export async function sb() {
+export async function supabaseClient() {
   if (client) return client;
   const { createClient } = await import(CONFIG.SUPABASE_JS_URL);   // supabase-js を読む
   client = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
@@ -73,11 +73,11 @@ export const emailOf = (loginId) => `${String(loginId).trim()}@${CONFIG.LOGIN_EM
  */
 export async function me(fresh = false) {
   if (cachedMe && !fresh) return cachedMe;
-  const c = await sb();   // Supabase の道具
-  const { data } = await c.auth.getSession();                      // ログインの情報
+  const client = await supabaseClient();   // Supabase の道具
+  const { data } = await client.auth.getSession();                      // ログインの情報
   const authId = data?.session?.user?.id;                           // Supabase のログインの人のID
   if (!authId) { cachedMe = null; return null; }
-  const row = must(await c.from("members").select("*").eq("auth_id", authId).maybeSingle());   // その店員
+  const row = must(await client.from("members").select("*").eq("auth_id", authId).maybeSingle());   // その店員
   cachedMe = row && row.active ? memberFrom(row) : null;
   return cachedMe;
 }
@@ -195,24 +195,24 @@ export const learnMap = mapper([
 
 /** 会社の店員みんな（休止中も） */
 export async function companyMembers() {
-  const c = await sb();   // Supabase の道具
-  return must(await c.from("members").select("*").order("login_id")).map(memberFrom);
+  const client = await supabaseClient();   // Supabase の道具
+  return must(await client.from("members").select("*").order("login_id")).map(memberFrom);
 }
 
 /** 会社の店舗みんな */
 export async function companyStores() {
-  const c = await sb();   // Supabase の道具
-  return must(await c.from("stores").select("*").order("created_at")).map(storeMap.from);
+  const client = await supabaseClient();   // Supabase の道具
+  return must(await client.from("stores").select("*").order("created_at")).map(storeMap.from);
 }
 
 /** その人がその店舗に行けるか */
 export function canWorkAt(member, storeId) {
-  return member.storeId === storeId || (member.stores || []).some((s) => s.storeId === storeId);
+  return member.storeId === storeId || (member.stores || []).some((store) => store.storeId === storeId);
 }
 
 /** その店舗での順番（1＝メイン。行けなければ null） */
 export function rankAt(member, storeId) {
-  if (member.stores?.length) return member.stores.find((s) => s.storeId === storeId)?.rank ?? null;
+  if (member.stores?.length) return member.stores.find((store) => store.storeId === storeId)?.rank ?? null;
   return member.storeId === storeId ? 1 : null;
 }
 
@@ -220,8 +220,8 @@ export function rankAt(member, storeId) {
 export async function notify(memberIds, text) {
   const ids = [...new Set(memberIds.filter(Boolean))];             // 同じ人には1回
   if (!ids.length) return;
-  const c = await sb();   // Supabase の道具
-  must(await c.from("notifications").insert(ids.map((id) => ({ member_id: id, text }))));
+  const client = await supabaseClient();   // Supabase の道具
+  must(await client.from("notifications").insert(ids.map((id) => ({ member_id: id, text }))));
   sendPush(ids, text);   // スマホにも通知を送る（待たない）
 }
 
@@ -232,15 +232,15 @@ export async function notify(memberIds, text) {
 export function sendPush(memberIds, text) {
   if (!CONFIG.API_WORKER_URL || !CONFIG.VAPID_PUBLIC_KEY) return;
   (async () => {
-    const c = await sb();   // Supabase の道具
-    const token = (await c.auth.getSession()).data?.session?.access_token;   // ログインの印
+    const client = await supabaseClient();   // Supabase の道具
+    const token = (await client.auth.getSession()).data?.session?.access_token;   // ログインの印
     if (!token) return;
     await fetch(`${CONFIG.API_WORKER_URL.replace(/\/$/, "")}/push`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ memberIds, text }),
     });
-  })().catch((e) => console.warn("通知を送れませんでした（お知らせは残っています）", e));
+  })().catch((event) => console.warn("通知を送れませんでした（お知らせは残っています）", event));
 }
 
 /** 1回に読める行の数（Supabase の決まり） */
@@ -253,8 +253,8 @@ const PAGE = 1000;
  */
 export async function readAll(make) {
   const rows = [];                                                   // 読んだ行
-  for (let i = 0; ; i += PAGE) {
-    const part = must(await make().range(i, i + PAGE - 1));           // 1000行ぶん
+  for (let index = 0; ; index += PAGE) {
+    const part = must(await make().range(index, index + PAGE - 1));           // 1000行ぶん
     rows.push(...part);
     if (part.length < PAGE) return rows;
   }

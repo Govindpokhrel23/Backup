@@ -37,9 +37,9 @@ const AI_TOLERANCE = 1;
 async function askWithFallback(settings, prompt, schema, fetchImpl) {
   try {
     return { answer: await askGemini({ settings, prompt, schema, fetchImpl }), model: settings.model };
-  } catch (e) {
-    const canRetry = /このモデルは使えません|混んでいます/.test(e.message) && CONFIG.AI_MODEL_FALLBACK && settings.model !== CONFIG.AI_MODEL_FALLBACK;   // モデルが使えない・混んでいる時だけ、次のモデルで聞き直す
-    if (!canRetry) throw e;
+  } catch (error) {
+    const canRetry = /このモデルは使えません|混んでいます/.test(error.message) && CONFIG.AI_MODEL_FALLBACK && settings.model !== CONFIG.AI_MODEL_FALLBACK;   // モデルが使えない・混んでいる時だけ、次のモデルで聞き直す
+    if (!canRetry) throw error;
     const next = { ...settings, model: CONFIG.AI_MODEL_FALLBACK };      // 次のモデル
     return { answer: await askGemini({ settings: next, prompt, schema, fetchImpl }), model: next.model };
   }
@@ -61,7 +61,7 @@ export async function runAiDraft(ctx, opt = {}) {
   // ① 学びをまとめる
   step("店長の直し方を読んでいます");
   const learned = summarize(ctx.learnings || [], ctx.members);          // 学びのまとめ
-  const learnedCount = learned.notes.filter((n) => n.strong).length;    // 覚えている数（2回以上）
+  const learnedCount = learned.notes.filter((note) => note.strong).length;    // 覚えている数（2回以上）
 
   // ② たたき台
   step("たたき台を作っています");
@@ -88,7 +88,7 @@ export async function runAiDraft(ctx, opt = {}) {
 
     // ⑤ よい方を使う
     const compare = { ai: aiProblems.length, local: baseProblems.length };
-    const aiUsable = rows.some((a) => !a.fixed) && aiProblems.length <= baseProblems.length + AI_TOLERANCE;   // AIの案を使ってよいか（勤務があり、問題がたたき台＋1件以内）
+    const aiUsable = rows.some((row) => !row.fixed) && aiProblems.length <= baseProblems.length + AI_TOLERANCE;   // AIの案を使ってよいか（勤務があり、問題がたたき台＋1件以内）
     if (!aiUsable) {
       return {
         rows: baseline, source: "local", model, summary: answer.summary || "", concerns: answer.concerns || [], dropped,
@@ -98,9 +98,9 @@ export async function runAiDraft(ctx, opt = {}) {
     }
     // ⑥ 結果
     return { rows, source: "gemini", model, summary: answer.summary || "", concerns: answer.concerns || [], dropped, problems: aiProblems, compare, learnedCount };
-  } catch (e) {
+  } catch (error) {
     // エラー → たたき台を使う（止まらない）
-    return { rows: baseline, source: "local", summary: "", concerns: [], dropped: [], problems: baseProblems, error: e.message, learnedCount };
+    return { rows: baseline, source: "local", summary: "", concerns: [], dropped: [], problems: baseProblems, error: error.message, learnedCount };
   }
 }
 
@@ -121,10 +121,10 @@ export async function fixWithAi(ctx, current, problems, opt = {}) {
     const learned = summarize(ctx.learnings || [], ctx.members);   // 店長の直し方のまとめ
     const { prompt, schema, toId } = buildFixPrompt({ ...ctx, learned }, current, problems);   // 送る文・答えの形・番号→IDの表
     const { answer, model } = await askWithFallback(settings, prompt, schema, opt.fetchImpl);   // AIの答えと、使ったモデル
-    const { rows, dropped } = cleanShifts(answer.shifts, { ...ctx, fixed: current.filter((a) => a.fixed) }, toId);   // 使える勤務と外した理由（固定は今のまま）
+    const { rows, dropped } = cleanShifts(answer.shifts, { ...ctx, fixed: current.filter((shift) => shift.fixed) }, toId);   // 使える勤務と外した理由（固定は今のまま）
     const after = ctx.problemsOf(rows).length;                          // 直したあとの問題の数
     return { applied: after < problems.length, rows, summary: answer.summary || "", concerns: answer.concerns || [], dropped, before: problems.length, after, model };
-  } catch (e) {
-    return { applied: false, rows: current, summary: "", concerns: [], dropped: [], before: problems.length, after: problems.length, error: e.message };
+  } catch (error) {
+    return { applied: false, rows: current, summary: "", concerns: [], dropped: [], before: problems.length, after: problems.length, error: error.message };
   }
 }

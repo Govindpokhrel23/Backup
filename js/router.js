@@ -8,7 +8,7 @@
 // ============================================================
 
 import { state, isManager } from "./store.js";
-import { h, mount, icon } from "./lib/dom.js";
+import { createElement, mount, icon } from "./lib/dom.js";
 
 // 画面のファイル（1画面＝1ファイル）
 import { renderLogin } from "./screens/login.js";
@@ -78,7 +78,7 @@ export async function render() {
   if (!state.user && path !== "/login") return go("/login");
   if (state.user && path === "/login") return go("/home");
 
-  const route = ROUTES.find((r) => r.path === path);   // その住所の画面
+  const route = ROUTES.find((route) => route.path === path);   // その住所の画面
   if (!route) return go("/home");
   if (route.who === "manager" && !isManager()) return go("/home");
 
@@ -88,15 +88,15 @@ export async function render() {
   // 画面ごとに新しい入れ物（view）を作って、その中に描く（2026年11月5日）
   // → 前の画面の読み込みがおそく終わっても、もう外した入れ物に描くだけなので、
   //   新しい画面が古い画面で上書きされない
-  const view = h("div", { class: "view" });   // この画面の入れ物
+  const view = createElement("div", { class: "view" });   // この画面の入れ物
   app.replaceChildren(view);
 
   try {
     await route.render(view);
-  } catch (e) {
-    console.error(e);
-    mount(view, h("div", { class: "screen-body" },
-      h("div", { class: "notice notice--danger" }, `画面を開けませんでした：${e.message}`)));
+  } catch (error) {
+    console.error(error);
+    mount(view, createElement("div", { class: "screen-body" },
+      createElement("div", { class: "notice notice--danger" }, `画面を開けませんでした：${error.message}`)));
   }
 }
 
@@ -107,12 +107,12 @@ function renderTabbar(path) {
   const tabs = TABS[isManager() ? "manager" : "staff"];   // 店長か店員かで変わるタブ
   // 店舗メニューの中の画面（店員管理・マップ）も「店舗」タブを光らせる
   const current = ["/staff", "/map", "/stores", "/ai", "/report"].includes(path) ? "/store" : path;
-  mount(bar, tabs.map((t) =>
-    h("button", {
+  mount(bar, tabs.map((tab) =>
+    createElement("button", {
       class: "tabbar__btn",
-      "aria-current": t.path === current ? "page" : null,
-      onclick: () => go(t.path),
-    }, icon(t.icon), t.label)));
+      "aria-current": tab.path === current ? "page" : null,
+      onclick: () => go(tab.path),
+    }, icon(tab.icon), tab.label)));
   bar.hidden = false;
 }
 

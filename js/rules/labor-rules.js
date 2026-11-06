@@ -31,8 +31,8 @@ export const yearOf = (date) => date.slice(0, 4);
  * その勤務が18歳未満の人にだめな時間にかかっているか
  * @param {{from:number,to:number}} a 勤務（分）
  */
-export function minorNightNG(a) {
-  return a.to > MINOR_NIGHT_FROM || a.from < MINOR_MORNING_TO;
+export function minorNightNG(shift) {
+  return shift.to > MINOR_NIGHT_FROM || shift.from < MINOR_MORNING_TO;
 }
 
 /**
@@ -45,47 +45,47 @@ export function clipForMinor(from, to) {
 
 /**
  * 働き方のルールを調べる
- * @param {object} p
- * @param {string[]} p.dates      その週の7日
- * @param {object[]} p.week       その週の勤務（この店舗の、今作っているもの）
- * @param {object[]} p.others     その週以外の勤務＋その週のほかの店舗の勤務（月・年・連勤を数えるため）
- * @param {object[]} p.members    店員
- * @param {Map<string,object>} p.limits  店員ID → {minor, monthHoursMax, yearYenMax, hourly, transport}
+ * @param {object} props
+ * @param {string[]} props.dates      その週の7日
+ * @param {object[]} props.week       その週の勤務（この店舗の、今作っているもの）
+ * @param {object[]} props.others     その週以外の勤務＋その週のほかの店舗の勤務（月・年・連勤を数えるため）
+ * @param {object[]} props.members    店員
+ * @param {Map<string,object>} props.limits  店員ID → {minor, monthHoursMax, yearYenMax, hourly, transport}
  * @returns {{ok:boolean, code:string, text:string}[]} 守れていないものだけ（全部守れていれば「OK」が1つ）
  */
-export function checkLabor(p) {
+export function checkLabor(props) {
   const out = [];                                                     // 見つかった問題
-  const all = [...p.week, ...p.others];                               // 数えるための勤務全部
-  const nameOf = (id) => p.members.find((m) => m.id === id)?.name || "？";   // IDから名前
-  const people = new Set(p.week.map((a) => a.memberId));             // この週に入っている人
+  const all = [...props.week, ...props.others];                               // 数えるための勤務全部
+  const nameOf = (id) => props.members.find((member) => member.id === id)?.name || "？";   // IDから名前
+  const people = new Set(props.week.map((shift) => shift.memberId));             // この週に入っている人
 
   for (const id of people) {
-    const lim = p.limits.get(id) || {};                               // その人のルール
-    const mine = all.filter((a) => a.memberId === id);                // その人の勤務（全部）
-    const myWeek = p.week.filter((a) => a.memberId === id);           // その人のこの週の勤務
+    const lim = props.limits.get(id) || {};                               // その人のルール
+    const mine = all.filter((shift) => shift.memberId === id);                // その人の勤務（全部）
+    const myWeek = props.week.filter((shift) => shift.memberId === id);           // その人のこの週の勤務
 
     // ① 18歳未満の深夜
     if (lim.minor) {
       const bad = myWeek.filter(minorNightNG);                        // だめな時間の勤務
-      if (bad.length) out.push({ ok: false, code: "minor-night", text: `18歳未満は22時〜朝5時に入れない：${nameOf(id)}（${bad.map((a) => label(a.date)).join("、")}）` });
+      if (bad.length) out.push({ ok: false, code: "minor-night", text: `18歳未満は22時〜朝5時に入れない：${nameOf(id)}（${bad.map((shift) => label(shift.date)).join("、")}）` });
     }
 
     // ② 連勤（この週の最後の日から、さかのぼって数える。この週の中の一番長い連続も見る）
-    const workDays = new Set(mine.map((a) => a.date));                // 入っている日
-    const streak = longestStreak(workDays, addDays(p.dates[0], -CONFIG.MAX_STREAK_DAYS), p.dates[p.dates.length - 1]);   // この週の前の6日から、この週の最後の日までの一番長い連続
+    const workDays = new Set(mine.map((shift) => shift.date));                // 入っている日
+    const streak = longestStreak(workDays, addDays(props.dates[0], -CONFIG.MAX_STREAK_DAYS), props.dates[props.dates.length - 1]);   // この週の前の6日から、この週の最後の日までの一番長い連続
     if (streak > CONFIG.MAX_STREAK_DAYS) out.push({ ok: false, code: "streak", text: `${CONFIG.MAX_STREAK_DAYS + 1}日以上続けて入っている：${nameOf(id)}（${streak}連勤）` });
 
     // ③ 月の上限時間（この週にかかる月ごと）
     if (lim.monthHoursMax) {
-      for (const month of new Set(p.dates.map(monthOf))) {
-        const minutes = mine.filter((a) => monthOf(a.date) === month).reduce((s, a) => s + workedMinutes(a), 0);   // その月の働いた分
+      for (const month of new Set(props.dates.map(monthOf))) {
+        const minutes = mine.filter((shift) => monthOf(shift.date) === month).reduce((sum, shift) => sum + workedMinutes(shift), 0);   // その月の働いた分
         if (minutes > lim.monthHoursMax * 60) out.push({ ok: false, code: "month-hours", text: `月の上限時間をこえる：${nameOf(id)}（${Number(month.slice(5))}月 ${hoursText(minutes)} / 上限 ${lim.monthHoursMax}時間）` });
       }
     }
 
     // ④ 年の上限金額（1月〜12月）
     if (lim.yearYenMax && lim.hourly) {
-      for (const year of new Set(p.dates.map(yearOf))) {
+      for (const year of new Set(props.dates.map(yearOf))) {
         const yenNow = yearYen(mine, year, lim);                      // その年の目安の金額
         if (yenNow > lim.yearYenMax) out.push({ ok: false, code: "year-yen", text: `年の上限金額をこえる見込み：${nameOf(id)}（${year}年 約${yen(yenNow)} / 上限 ${yen(lim.yearYenMax)}）` });
       }
@@ -100,16 +100,16 @@ export function checkLabor(p) {
  * @returns {{monthMinutes:number, yearYen:number}}
  */
 export function usageOf(memberId, date, all, lim = {}) {
-  const mine = all.filter((a) => a.memberId === memberId);           // その人の勤務
+  const mine = all.filter((shift) => shift.memberId === memberId);           // その人の勤務
   return {
-    monthMinutes: mine.filter((a) => monthOf(a.date) === monthOf(date)).reduce((s, a) => s + workedMinutes(a), 0),
+    monthMinutes: mine.filter((shift) => monthOf(shift.date) === monthOf(date)).reduce((sum, shift) => sum + workedMinutes(shift), 0),
     yearYen: lim.hourly ? yearYen(mine, yearOf(date), lim) : 0,
   };
 }
 
 /** その年の目安の金額（時給×時間＋交通費） */
 function yearYen(rows, year, lim) {
-  return laborCost(rows.filter((a) => yearOf(a.date) === year), [{ memberId: rows[0]?.memberId, hourly: lim.hourly, transport: lim.transport || 0 }]);
+  return laborCost(rows.filter((row) => yearOf(row.date) === year), [{ memberId: rows[0]?.memberId, hourly: lim.hourly, transport: lim.transport || 0 }]);
 }
 
 /**
@@ -119,8 +119,8 @@ function yearYen(rows, year, lim) {
 export function longestStreak(days, from, to) {
   let best = 0;                                                       // 一番長い連続
   let run = 0;                                                        // 今の連続
-  for (let d = from; d <= to; d = addDays(d, 1)) {
-    run = days.has(d) ? run + 1 : 0;
+  for (let day = from; day <= to; day = addDays(day, 1)) {
+    run = days.has(day) ? run + 1 : 0;
     best = Math.max(best, run);
   }
   return best;

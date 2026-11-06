@@ -6,7 +6,7 @@
 // mock-ai.js の同じ名前の関数と、同じ動き・同じ形で返す。
 // ============================================================
 
-import { sb, must, newId, requireManager, currentStore, learnMap, workMap } from "./core.js";
+import { supabaseClient, must, newId, requireManager, currentStore, learnMap, workMap } from "./core.js";
 import { diffDraft } from "../../ai/learning.js";
 
 /** 学びを何個まで残すか（1店舗あたり。古いものから消す） */
@@ -17,43 +17,43 @@ export const aiApi = {
   /** AIが作った下書きを覚えておく */
   async saveAiDraft(periodId, rows) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    const p = must(await c.from("periods").select("store_id").eq("id", periodId).single());   // その週
-    const slim = rows.map((a) => ({ memberId: a.memberId, date: a.date, from: a.from, to: a.to, area: a.area, fixed: !!a.fixed }));   // AIの下書き（比べるのに要る所だけ）
-    must(await c.from("ai_drafts").upsert({ period_id: periodId, store_id: p.store_id, rows: slim }, { onConflict: "period_id" }));
+    const client = await supabaseClient();   // Supabase の道具
+    const period = must(await client.from("periods").select("store_id").eq("id", periodId).single());   // その週
+    const slim = rows.map((row) => ({ memberId: row.memberId, date: row.date, from: row.from, to: row.to, area: row.area, fixed: !!row.fixed }));   // AIの下書き（比べるのに要る所だけ）
+    must(await client.from("ai_drafts").upsert({ period_id: periodId, store_id: period.store_id, rows: slim }, { onConflict: "period_id" }));
     return true;
   },
 
   /** 公開した時：AIの下書きと公開したシフトを比べて学ぶ。学んだら下書きは消す */
   async learnFromPublish(periodId) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    const draft = must(await c.from("ai_drafts").select("*").eq("period_id", periodId).maybeSingle());   // AIの下書き
+    const client = await supabaseClient();   // Supabase の道具
+    const draft = must(await client.from("ai_drafts").select("*").eq("period_id", periodId).maybeSingle());   // AIの下書き
     if (!draft) return 0;
-    const final = must(await c.from("assignments").select("*").eq("period_id", periodId)).map(workMap.from);   // 公開したもの
-    const rows = diffDraft(draft.rows, final).map((r) => learnMap.to({ ...r, id: newId(), storeId: draft.store_id }));   // 新しい学び（データベースの形）
-    if (rows.length) must(await c.from("learnings").insert(rows));
+    const final = must(await client.from("assignments").select("*").eq("period_id", periodId)).map(workMap.from);   // 公開したもの
+    const rows = diffDraft(draft.rows, final).map((learning) => learnMap.to({ ...learning, id: newId(), storeId: draft.store_id }));   // 新しい学び（データベースの形）
+    if (rows.length) must(await client.from("learnings").insert(rows));
     // 古いものから消す（LEARN_KEEP 個まで）
-    const all = must(await c.from("learnings").select("id").eq("store_id", draft.store_id).order("at", { ascending: false }));
-    const drop = all.slice(LEARN_KEEP).map((l) => l.id);   // 多すぎる古い学びのID
-    if (drop.length) must(await c.from("learnings").delete().in("id", drop));
-    must(await c.from("ai_drafts").delete().eq("period_id", periodId));
+    const all = must(await client.from("learnings").select("id").eq("store_id", draft.store_id).order("at", { ascending: false }));
+    const drop = all.slice(LEARN_KEEP).map((learning) => learning.id);   // 多すぎる古い学びのID
+    if (drop.length) must(await client.from("learnings").delete().in("id", drop));
+    must(await client.from("ai_drafts").delete().eq("period_id", periodId));
     return rows.length;
   },
 
   /** 今の店舗の学び */
   async listLearnings() {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    return must(await c.from("learnings").select("*").eq("store_id", await currentStore()).order("at")).map(learnMap.from);
+    const client = await supabaseClient();   // Supabase の道具
+    return must(await client.from("learnings").select("*").eq("store_id", await currentStore()).order("at")).map(learnMap.from);
   },
 
   /** 学びを消す */
   async deleteLearnings(ids) {
     await requireManager();
     if (!ids.length) return true;
-    const c = await sb();   // Supabase の道具
-    must(await c.from("learnings").delete().in("id", ids));
+    const client = await supabaseClient();   // Supabase の道具
+    must(await client.from("learnings").delete().in("id", ids));
     return true;
   },
 };

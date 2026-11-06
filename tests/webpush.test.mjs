@@ -64,28 +64,28 @@ test("通知の暗号：スマホ側の計算で元の文にもどせる", async
 });
 
 test("VAPID の印：公開鍵で署名を確かめられる", async () => {
-  const v = await makeVapid();   // 通知の鍵
-  const header = await vapidHeader("https://web.push.apple.com/abc", { ...v, VAPID_SUBJECT: "mailto:test@example.com" });
-  const [, token, k] = /^vapid t=([^,]+), k=(.+)$/.exec(header);   // 印の中身と公開鍵
-  assert.equal(k, v.VAPID_PUBLIC_KEY);
-  const [h, c, s] = token.split(".");   // 印の3つの部分
-  const claims = JSON.parse(dec.decode(fromB64url(c)));   // 印の中身
+  const vapid = await makeVapid();   // 通知の鍵
+  const header = await vapidHeader("https://web.push.apple.com/abc", { ...vapid, VAPID_SUBJECT: "mailto:test@example.com" });
+  const [, token, match] = /^vapid t=([^,]+), k=(.+)$/.exec(header);   // 印の中身と公開鍵
+  assert.equal(match, vapid.VAPID_PUBLIC_KEY);
+  const [headerPart, claimsPart, signaturePart] = token.split(".");   // 印の3つの部分
+  const claims = JSON.parse(dec.decode(fromB64url(claimsPart)));   // 印の中身
   assert.equal(claims.aud, "https://web.push.apple.com");
-  const ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, v.keys.publicKey, fromB64url(s), enc.encode(`${h}.${c}`));   // 署名が正しいか
+  const ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, vapid.keys.publicKey, fromB64url(signaturePart), enc.encode(`${headerPart}.${claimsPart}`));   // 署名が正しいか
   assert.ok(ok);
 });
 
 test("/push：同じ会社の人だけに送り、使えなくなった宛先は消す", async () => {
-  const v = await makeVapid();   // 通知の鍵
+  const vapid = await makeVapid();   // 通知の鍵
   const p1 = await makePhone();   // 宛先が使えるスマホ
   const p2 = await makePhone();   // 宛先が使えなくなったスマホ
-  const env = { SUPABASE_URL: "https://x.supabase.co", SUPABASE_SERVICE_KEY: "sb_secret_x", ALLOWED_ORIGIN: "", ...v };
+  const env = { SUPABASE_URL: "https://x.supabase.co", SUPABASE_SERVICE_KEY: "sb_secret_x", ALLOWED_ORIGIN: "", ...vapid };
   const calls = [];                                                  // 送られたお願い
   /** にせものの Supabase と通知サーバー */
   const fake = async (url, init = {}) => {
     calls.push({ url, method: init.method || "GET" });
     /** にせものの返事を作る */
-    const ok = (b, status = 200) => new Response(b == null ? null : JSON.stringify(b), { status });
+    const ok = (body, status = 200) => new Response(body == null ? null : JSON.stringify(body), { status });
     if (url.endsWith("/auth/v1/user")) return ok({ id: "u1" });
     if (url.includes("members?auth_id")) return ok([{ id: "boss", role: "manager", active: true, company_id: "c1" }]);
     if (url.includes("members?id=in.")) { assert.match(decodeURIComponent(url), /company_id=eq\.c1/); return ok([{ id: "a" }]); }
@@ -104,5 +104,5 @@ test("/push：同じ会社の人だけに送り、使えなくなった宛先は
   });
   const res = await worker.fetch(req, env, { fetch: fake });   // Worker の返事
   assert.deepEqual(await res.json(), { sent: 1, removed: 1 });
-  assert.ok(calls.some((c) => c.method === "DELETE" && c.url.includes("push_subs")));
+  assert.ok(calls.some((call) => call.method === "DELETE" && call.url.includes("push_subs")));
 });

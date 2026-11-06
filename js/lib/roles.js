@@ -23,17 +23,17 @@ export function openStart(hours) {
 export function openerOf(dayAssignments, hours) {
   const start = openStart(hours);   // 立ち上げの人が入る時刻
   return [...dayAssignments]
-    .filter((a) => a.from <= start)
-    .sort((a, b) => a.from - b.from)[0] || null;
+    .filter((dayAssignment) => dayAssignment.from <= start)
+    .sort((shiftA, shiftB) => shiftA.from - shiftB.from)[0] || null;
 }
 
 /** 締めの人か */
-export function isCloser(a, hours) {
-  return a.to >= hours.close;
+export function isCloser(shift, hours) {
+  return shift.to >= hours.close;
 }
 
 /** 「立」「締」の印（例 ["立"]） */
-export function roleMarks(a, dayAssignments, hours) {
+export function roleMarks(shift, dayAssignments, hours) {
   if (!hours) return [];
-  return [openerOf(dayAssignments, hours) === a ? "立" : null, isCloser(a, hours) ? "締" : null].filter(Boolean);
+  return [openerOf(dayAssignments, hours) === shift ? "立" : null, isCloser(shift, hours) ? "締" : null].filter(Boolean);
 }

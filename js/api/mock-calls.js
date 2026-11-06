@@ -23,8 +23,8 @@ import { CONFIG } from "../config.js";
 const AREA_LABEL = { hall: "ホール", kitchen: "キッチン" };
 
 /** 連絡の中身を文にする（例：11/9（月）ホール 16:00〜19:00） */
-function callText(c) {
-  return `${label(c.date)} ${AREA_LABEL[c.area]} ${range(c.from, c.to)}`;
+function callText(shift) {
+  return `${label(shift.date)} ${AREA_LABEL[shift.area]} ${range(shift.from, shift.to)}`;
 }
 
 /** お知らせを1つ足す */
@@ -47,7 +47,7 @@ export const callsApi = {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
     const store = storeOf(data);                                       // 今見ている店舗
-    const storeName = data.stores.find((s) => s.id === store)?.name || "";   // 店舗の名前（お知らせに出す）
+    const storeName = data.stores.find((eachStore) => eachStore.id === store)?.name || "";   // 店舗の名前（お知らせに出す）
     data.calls = data.calls || [];
     let sent = 0;                                                      // 新しく送った連絡の数
     let none = 0;                                                      // 入れそうな人がいなかった数
@@ -55,18 +55,18 @@ export const callsApi = {
     // 自動の時は多くなりすぎないように、まとめてから上限まで（CONFIG.CALL_AUTO_MAX）
     // 自動の時は、短すぎる不足（CONFIG.CALL_MIN_MIN より短い）は送らない（店長が直す方が早い）
     const list = mergeNeeds(needs)
-      .filter((n) => !opt.auto || n.to - n.from >= CONFIG.CALL_MIN_MIN)
+      .filter((need) => !opt.auto || need.to - need.from >= CONFIG.CALL_MIN_MIN)
       .slice(0, opt.auto ? CONFIG.CALL_AUTO_MAX : undefined);
     for (const need of list) {
       // もう同じ連絡を出している → 飛ばす
-      const dup = data.calls.some((c) => c.storeId === store && c.status === "open"
-        && c.date === need.date && c.area === need.area && c.from === need.from && c.to === need.to);
+      const dup = data.calls.some((call) => call.storeId === store && call.status === "open"
+        && call.date === need.date && call.area === need.area && call.from === need.from && call.to === need.to);
       if (dup) continue;
       const candidates = findCandidates({   // 入れそうな人（上から何人まで）
         need, storeId: store,
         members: data.members,
-        dayAssignments: data.assignments.filter((a) => a.date === need.date),
-        availabilities: data.availabilities.filter((a) => a.date === need.date),
+        dayAssignments: data.assignments.filter((shift) => shift.date === need.date),
+        availabilities: data.availabilities.filter((hope) => hope.date === need.date),
       }).slice(0, CONFIG.CALL_MAX_PEOPLE);                             // 多すぎないように上から何人まで
       if (!candidates.length) { none++; continue; }
       const call = {   // 新しい募集
@@ -75,12 +75,12 @@ export const callsApi = {
         date: need.date, area: need.area, from: need.from, to: need.to, short: need.short || 1,
         status: "open",                                                // open＝さがし中 / filled＝決まった / closed＝やめた
         auto: !!opt.auto,
-        candidateIds: candidates.map((c) => c.member.id),
+        candidateIds: candidates.map((candidate) => candidate.member.id),
         answers: [],                                                   // 「入れます」を押した人 {memberId, at}
         createdAt: new Date().toISOString(),
       };
       data.calls.push(call);
-      candidates.forEach((c) => perPerson.set(c.member.id, [...(perPerson.get(c.member.id) || []), call]));
+      candidates.forEach((candidate) => perPerson.set(candidate.member.id, [...(perPerson.get(candidate.member.id) || []), call]));
       sent++;
     }
     // お知らせ：1人に1つだけ（募集がいくつあっても）
@@ -102,21 +102,21 @@ export const callsApi = {
     const data = load();   // 保存してあるデータを読む
     const user = me(data);   // ログイン中の人
     if (!user) return fail("ログインしてください");
-    const calls = (data.calls || []).filter((c) => c.status === "open");   // さがし中の募集
+    const calls = (data.calls || []).filter((call) => call.status === "open");   // さがし中の募集
     /** IDから名前 */
-    const nameOf = (id) => data.members.find((m) => m.id === id)?.name || "？";
+    const nameOf = (id) => data.members.find((member) => member.id === id)?.name || "？";
     /** 店舗のIDから短い名前 */
-    const storeShort = (id) => data.stores.find((s) => s.id === id)?.short || "";
+    const storeShort = (id) => data.stores.find((store) => store.id === id)?.short || "";
     if (user.role === "manager") {
-      return reply(calls.filter((c) => c.storeId === storeOf(data)).map((c) => ({
-        ...c,
-        answers: c.answers.map((a) => ({ ...a, name: nameOf(a.memberId) })),
-        candidateCount: c.candidateIds.length,
+      return reply(calls.filter((call) => call.storeId === storeOf(data)).map((call) => ({
+        ...call,
+        answers: call.answers.map((answer) => ({ ...answer, name: nameOf(answer.memberId) })),
+        candidateCount: call.candidateIds.length,
       })));
     }
-    return reply(calls.filter((c) => c.candidateIds.includes(user.id)).map((c) => ({
-      id: c.id, date: c.date, area: c.area, from: c.from, to: c.to, storeShort: storeShort(c.storeId),
-      answered: c.answers.some((a) => a.memberId === user.id),
+    return reply(calls.filter((call) => call.candidateIds.includes(user.id)).map((call) => ({
+      id: call.id, date: call.date, area: call.area, from: call.from, to: call.to, storeShort: storeShort(call.storeId),
+      answered: call.answers.some((answer) => answer.memberId === user.id),
     })));
   },
 
@@ -124,10 +124,10 @@ export const callsApi = {
   async answerCall(callId, yes) {
     const data = load();   // 保存してあるデータを読む
     const user = me(data);   // ログイン中の人
-    const call = (data.calls || []).find((c) => c.id === callId);   // その募集
+    const call = (data.calls || []).find((call) => call.id === callId);   // その募集
     if (!call || call.status !== "open") return fail("この募集はもう終わりました");
     if (!call.candidateIds.includes(user.id)) return fail("この募集には返事できません");
-    call.answers = call.answers.filter((a) => a.memberId !== user.id);
+    call.answers = call.answers.filter((answer) => answer.memberId !== user.id);
     if (yes) call.answers.push({ memberId: user.id, at: new Date().toISOString() });
     save(data);
     return reply(true);
@@ -140,12 +140,12 @@ export const callsApi = {
   async fillCall(callId, memberId) {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
-    const call = (data.calls || []).find((c) => c.id === callId);   // その募集
+    const call = (data.calls || []).find((call) => call.id === callId);   // その募集
     if (!call || call.status !== "open") return fail("この募集はもう終わりました");
-    const period = data.periods.find((p) => p.id === call.periodId);   // その週
+    const period = data.periods.find((period) => period.id === call.periodId);   // その週
     // その人がその日、募集の時間とつながる勤務をもう持っていれば、のばす（勤務を2つに分けない）
-    const next = data.assignments.find((a) => a.memberId === memberId && a.date === call.date && a.storeId === call.storeId
-      && a.area === call.area && (a.to === call.from || a.from === call.to));
+    const next = data.assignments.find((shift) => shift.memberId === memberId && shift.date === call.date && shift.storeId === call.storeId
+      && shift.area === call.area && (shift.to === call.from || shift.from === call.to));
     if (next) {
       next.from = Math.min(next.from, call.from);
       next.to = Math.max(next.to, call.to);
@@ -162,8 +162,8 @@ export const callsApi = {
     call.status = "filled";
     call.filledBy = memberId;
     notify(data, memberId, `${callText(call)} に入ることになりました。ありがとうございます${period?.status === "published" ? "" : "（シフトの公開で確定します）"}`);
-    call.answers.filter((a) => a.memberId !== memberId)
-      .forEach((a) => notify(data, a.memberId, `${callText(call)} はほかの人に決まりました。返事ありがとうございました`));
+    call.answers.filter((answer) => answer.memberId !== memberId)
+      .forEach((answer) => notify(data, answer.memberId, `${callText(call)} はほかの人に決まりました。返事ありがとうございました`));
     save(data);
     return reply(true);
   },
@@ -172,7 +172,7 @@ export const callsApi = {
   async closeCall(callId) {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
-    const call = (data.calls || []).find((c) => c.id === callId);   // その募集
+    const call = (data.calls || []).find((call) => call.id === callId);   // その募集
     if (call) call.status = "closed";
     save(data);
     return reply(true);

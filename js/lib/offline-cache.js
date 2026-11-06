@@ -20,8 +20,8 @@ export function readCache(memberId) {
     const saved = JSON.parse(localStorage.getItem(KEY) || "null");   // 保存してある中身
     // 別の人のデータは使わない（memberId が分からない時＝サーバーにつながらない時は、この端末の分を使う）
     if (saved && (!memberId || saved.memberId === memberId)) return saved.items;
-  } catch (e) {
-    console.warn("スマホの保存を読めませんでした", e);
+  } catch (error) {
+    console.warn("スマホの保存を読めませんでした", error);
   }
   return [];
 }
@@ -35,17 +35,17 @@ export function writeCache(memberId, fresh) {
   const cutoff = new Date(Date.now() - KEEP_DAYS * 86400000).toISOString().slice(0, 10);   // これより古い日は消す（2年前）
   const byKey = new Map();   // 勤務を1つずつ入れる入れ物（同じ勤務は上書き）
   /** 勤務を見分けるキー */
-  const key = (a) => a.id || `${a.date}|${a.storeId}|${a.from}`;
-  for (const a of readCache(memberId)) byKey.set(key(a), a);
+  const key = (shift) => shift.id || `${shift.date}|${shift.storeId}|${shift.from}`;
+  for (const shift of readCache(memberId)) byKey.set(key(shift), shift);
   // サーバーにある日付の分は、サーバーの内容に入れ替える（消えた勤務も消す）
-  const freshDates = new Set(fresh.map((a) => a.date));
-  for (const [k, a] of byKey) if (freshDates.has(a.date)) byKey.delete(k);
-  for (const a of fresh) byKey.set(key(a), a);
-  const items = [...byKey.values()].filter((a) => a.date >= cutoff);   // 2年以内の勤務
+  const freshDates = new Set(fresh.map((shift) => shift.date));
+  for (const [key, shift] of byKey) if (freshDates.has(shift.date)) byKey.delete(key);
+  for (const shift of fresh) byKey.set(key(shift), shift);
+  const items = [...byKey.values()].filter((shift) => shift.date >= cutoff);   // 2年以内の勤務
   try {
     localStorage.setItem(KEY, JSON.stringify({ memberId, savedAt: new Date().toISOString(), items }));
-  } catch (e) {
-    console.warn("スマホに保存できませんでした", e);
+  } catch (error) {
+    console.warn("スマホに保存できませんでした", error);
   }
   return items;
 }
@@ -54,6 +54,6 @@ export function writeCache(memberId, fresh) {
 export function cacheInfo() {
   const raw = localStorage.getItem(KEY) || "";   // 保存してある文字
   let count = 0, savedAt = null;   // 件数と保存した時刻
-  try { const x = JSON.parse(raw || "null"); count = x?.items?.length || 0; savedAt = x?.savedAt || null; } catch (e) { /* 読めなければ 0 */ }
+  try { const saved = JSON.parse(raw || "null"); count = saved?.items?.length || 0; savedAt = saved?.savedAt || null; } catch (error) { /* 読めなければ 0 */ }
   return { count, kb: Math.ceil(new Blob([raw]).size / 1024), savedAt };
 }

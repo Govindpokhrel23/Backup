@@ -48,7 +48,7 @@ export const SHIFT_SCHEMA = {
 };
 
 /** 分 → "06:30"（AIに渡す形。24時をこえても 25:00 のまま） */
-export const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+export const hhmm = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 
 /** 立場の英語の名前 → AIに渡す日本語 */
 const KIND_TEXT = { shain: "社員", baito: "バイト", full: "フルで入るバイト" };
@@ -61,7 +61,7 @@ const KIND_TEXT = { shain: "社員", baito: "バイト", full: "フルで入る�
 export function makeAliases(members) {
   const toAlias = new Map();                            // 店員のID → S1
   const toId = new Map();                               // S1 → 店員のID
-  members.forEach((m, i) => { toAlias.set(m.id, `S${i + 1}`); toId.set(`S${i + 1}`, m.id); });
+  members.forEach((member, index) => { toAlias.set(member.id, `S${index + 1}`); toId.set(`S${index + 1}`, member.id); });
   return { toAlias, toId };
 }
 
@@ -69,8 +69,8 @@ export function makeAliases(members) {
 function hideNames(text, members, toAlias) {
   let out = text || "";                                 // 置きかえた文
   // 長い名前から置きかえる（「スタッフAA」より先に「スタッフA」を置きかえないように）
-  [...members].sort((a, b) => b.name.length - a.name.length)
-    .forEach((m) => { out = out.split(m.name).join(toAlias.get(m.id)); });
+  [...members].sort((memberA, memberB) => memberB.name.length - memberA.name.length)
+    .forEach((member) => { out = out.split(member.name).join(toAlias.get(member.id)); });
   return out;
 }
 
@@ -84,29 +84,29 @@ function needLine(ctx, date, area) {
   const parts = [];                                     // 時間帯ごとの文
   let start = hrs.open;                                 // 今まとめている時間帯の始まり
   let count = requiredAt(ctx.requirements, ctx.positions, type, area, hrs.open);   // その人数
-  for (let m = hrs.open + 15; m <= hrs.close; m += 15) {
-    const n = m < hrs.close ? requiredAt(ctx.requirements, ctx.positions, type, area, m) : -1;   // この15分の必要人数（閉店の時は -1 で最後をしめる）
-    if (n !== count) {
-      if (count > 0) parts.push(`${hhmm(start)}-${hhmm(m)} ${count}人`);
-      start = m; count = n;
+  for (let minutes = hrs.open + 15; minutes <= hrs.close; minutes += 15) {
+    const need = minutes < hrs.close ? requiredAt(ctx.requirements, ctx.positions, type, area, minutes) : -1;   // この15分の必要人数（閉店の時は -1 で最後をしめる）
+    if (need !== count) {
+      if (count > 0) parts.push(`${hhmm(start)}-${hhmm(minutes)} ${count}人`);
+      start = minutes; count = need;
     }
   }
   return parts.join(", ") || "なし";
 }
 
 /** 1人分の希望を文にする */
-function hopeText(h) {
-  if (!h) return "希望なし";
-  return { no: "入れない", off: "休み希望", offx: "休み希望（2日目。店長の特別許可待ち。休みにしておく）", any: "いつでもOK" }[h.kind]
-    || `${hhmm(h.from)}-${hhmm(h.to)} なら入れる`;
+function hopeText(shift) {
+  if (!shift) return "希望なし";
+  return { no: "入れない", off: "休み希望", offx: "休み希望（2日目。店長の特別許可待ち。休みにしておく）", any: "いつでもOK" }[shift.kind]
+    || `${hhmm(shift.from)}-${hhmm(shift.to)} なら入れる`;
 }
 
 /** 勤務の一覧を、AIに渡す行の形にする */
 function shiftLines(rows, toAlias) {
   return rows
-    .filter((a) => toAlias.has(a.memberId))
-    .sort((a, b) => a.date.localeCompare(b.date) || a.from - b.from)
-    .map((a) => `${toAlias.get(a.memberId)} ${a.date} ${hhmm(a.from)}-${hhmm(a.to)} ${a.area}${a.breakAt != null ? ` 休憩${hhmm(a.breakAt)}` : ""}${a.fixed ? " 【固定・変えない】" : ""}`)
+    .filter((row) => toAlias.has(row.memberId))
+    .sort((rowA, rowB) => rowA.date.localeCompare(rowB.date) || rowA.from - rowB.from)
+    .map((row) => `${toAlias.get(row.memberId)} ${row.date} ${hhmm(row.from)}-${hhmm(row.to)} ${row.area}${row.breakAt != null ? ` 休憩${hhmm(row.breakAt)}` : ""}${row.fixed ? " 【固定・変えない】" : ""}`)
     .join("\n");
 }
 
@@ -119,32 +119,32 @@ function storeFacts(ctx, toAlias) {
   const lines = [];                                     // 送る文の行
   // ---- 店員 ----
   lines.push("## 店員（名前は番号にしています）");
-  for (const m of ctx.members) {
-    const s = m.skills || {};   // できること％
-    const helper = (m.rankHere ?? 1) > 1 ? `・この店舗は${m.rankHere >= 9 ? "この週だけ応援" : `${m.rankHere}番目の店舗（応援）`}` : "・この店舗がメイン";   // この店舗がメインか応援か
-    const rule = ctx.rules?.find((r) => r.memberId === m.id)?.text;                       // 人ごとのルール
-    lines.push(`${toAlias.get(m.id)}: ${KIND_TEXT[m.kind] || m.kind}${m.everyday ? "・毎日入る人" : ""}${helper} / できること ホール${s.hall ?? 0}% キッチン${s.kitchen ?? 0}% 立ち上げ${s.open ?? 0}% 締め${s.close ?? 0}%`
-      + (m.minor ? " / 18歳未満（22:00〜05:00は入れない）" : "")                                             // 法律の決まり
-      + (m.leftMinutes != null ? ` / この週はあと${Math.floor(m.leftMinutes / 60)}時間まで（月・年の上限）` : "")   // 扶養などの上限
+  for (const member of ctx.members) {
+    const hours = member.skills || {};   // できること％
+    const helper = (member.rankHere ?? 1) > 1 ? `・この店舗は${member.rankHere >= 9 ? "この週だけ応援" : `${member.rankHere}番目の店舗（応援）`}` : "・この店舗がメイン";   // この店舗がメインか応援か
+    const rule = ctx.rules?.find((row) => row.memberId === member.id)?.text;                       // 人ごとのルール
+    lines.push(`${toAlias.get(member.id)}: ${KIND_TEXT[member.kind] || member.kind}${member.everyday ? "・毎日入る人" : ""}${helper} / できること ホール${hours.hall ?? 0}% キッチン${hours.kitchen ?? 0}% 立ち上げ${hours.open ?? 0}% 締め${hours.close ?? 0}%`
+      + (member.minor ? " / 18歳未満（22:00〜05:00は入れない）" : "")                                             // 法律の決まり
+      + (member.leftMinutes != null ? ` / この週はあと${Math.floor(member.leftMinutes / 60)}時間まで（月・年の上限）` : "")   // 扶養などの上限
       + (rule ? ` / 店長のメモ: ${hideNames(rule, ctx.members, toAlias)}` : ""));
   }
   // ---- 日ごと：営業時間・必要人数・希望 ----
   lines.push("\n## 日ごとの営業時間・必要人数・希望");
-  for (const d of ctx.dates) {
-    const hrs = ctx.hoursOf(d);   // その日の営業時間
-    lines.push(`### ${d}（${WEEKDAY_LABEL[weekdayOf(d)]}） 営業 ${hhmm(hrs.open)}-${hhmm(hrs.close)}（立ち上げの人は ${hhmm(openStart(hrs))} から）`);
-    lines.push(`必要人数 ホール: ${needLine(ctx, d, "hall")}`);
-    lines.push(`必要人数 キッチン: ${needLine(ctx, d, "kitchen")}`);
-    const hopes = ctx.members.map((m) => `${toAlias.get(m.id)}=${hopeText(ctx.availabilities.find((x) => x.memberId === m.id && x.date === d))}`);   // 全員のその日の希望
+  for (const date of ctx.dates) {
+    const hrs = ctx.hoursOf(date);   // その日の営業時間
+    lines.push(`### ${date}（${WEEKDAY_LABEL[weekdayOf(date)]}） 営業 ${hhmm(hrs.open)}-${hhmm(hrs.close)}（立ち上げの人は ${hhmm(openStart(hrs))} から）`);
+    lines.push(`必要人数 ホール: ${needLine(ctx, date, "hall")}`);
+    lines.push(`必要人数 キッチン: ${needLine(ctx, date, "kitchen")}`);
+    const hopes = ctx.members.map((member) => `${toAlias.get(member.id)}=${hopeText(ctx.availabilities.find((hope) => hope.memberId === member.id && hope.date === date))}`);   // 全員のその日の希望
     lines.push(`希望: ${hopes.join(" / ")}`);
-    const busy = (ctx.elsewhere || []).filter((a) => a.date === d && toAlias.has(a.memberId));   // その日ほかの店舗に入っている勤務
-    if (busy.length) lines.push(`ほかの店舗に入っている（この時間は入れない）: ${busy.map((a) => `${toAlias.get(a.memberId)} ${hhmm(a.from)}-${hhmm(a.to)}`).join(" / ")}`);
+    const busy = (ctx.elsewhere || []).filter((shift) => shift.date === date && toAlias.has(shift.memberId));   // その日ほかの店舗に入っている勤務
+    if (busy.length) lines.push(`ほかの店舗に入っている（この時間は入れない）: ${busy.map((shift) => `${toAlias.get(shift.memberId)} ${hhmm(shift.from)}-${hhmm(shift.to)}`).join(" / ")}`);
   }
   // ---- 店長の直し方メモ（学び） ----
   const notes = (ctx.learned?.notes || []).slice(0, 40);                                   // 多すぎないように
   if (notes.length) {
     lines.push("\n## 店長のいつもの直し方（前に店長がAIの下書きを直した記録。回数が多いものほど大事）");
-    notes.forEach((n) => lines.push(`- ${hideNames(n.text, ctx.members, toAlias)}（${n.count}回）`));
+    notes.forEach((note) => lines.push(`- ${hideNames(note.text, ctx.members, toAlias)}（${note.count}回）`));
   }
   return lines.join("\n");
 }
@@ -207,7 +207,7 @@ ${shiftLines(baseline, toAlias) || "なし"}
  */
 export function buildFixPrompt(ctx, current, problems) {
   const { toAlias, toId } = makeAliases(ctx.members);   // ID ⇔ 番号の表
-  const probText = problems.map((p) => `- ${p.day}: ${hideNames(p.text, ctx.members, toAlias)}`).join("\n");   // 守れていないルールの一覧（名前は番号に）
+  const probText = problems.map((problem) => `- ${problem.day}: ${hideNames(problem.text, ctx.members, toAlias)}`).join("\n");   // 守れていないルールの一覧（名前は番号に）
   // Gemini に送る文（問題だけ直す）
   const prompt = `あなたは飲食店（喫茶店）のシフトを直す係です。今のシフトには、下の「守れていないルール」があります。
 これを直してください。直す必要のない勤務は、なるべく変えないでください（店長が手で直した所かもしれないため）。

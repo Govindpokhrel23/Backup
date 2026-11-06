@@ -11,27 +11,27 @@ import { checkLabor, longestStreak, clipForMinor, usageOf } from "../js/rules/la
 import { weekDates, addDays } from "../js/lib/date.js";
 
 /** 時 → 分 */
-const H = (h) => h * 60;
+const hoursToMin = (hours) => hours * 60;
 /** テスト用の週（2026-11-09 月曜〜） */
 const dates = weekDates("2026-11-09");
 /** テスト用の店員 */
 const members = [{ id: "a", name: "スタッフA", active: true }];
 /** テスト用の勤務を1つ作る */
-const work = (date, from, to) => ({ memberId: "a", date, from: H(from), to: H(to) });
+const work = (date, from, to) => ({ memberId: "a", date, from: hoursToMin(from), to: hoursToMin(to) });
 /** 結果のコードの一覧 */
-const codes = (r) => r.filter((x) => !x.ok).map((x) => x.code);
+const codes = (results) => results.filter((result) => !result.ok).map((check) => check.code);
 
 test("18歳未満：22時をこえる勤務はだめ。21:30までならOK", () => {
   const limits = new Map([["a", { minor: true }]]);   // A は18歳未満
   assert.deepEqual(codes(checkLabor({ dates, week: [work(dates[0], 17, 22.5)], others: [], members, limits })), ["minor-night"]);
   assert.deepEqual(codes(checkLabor({ dates, week: [work(dates[0], 17, 21.5)], others: [], members, limits })), []);
-  assert.deepEqual(clipForMinor(H(17), H(23)), { from: H(17), to: H(22) });
+  assert.deepEqual(clipForMinor(hoursToMin(17), hoursToMin(23)), { from: hoursToMin(17), to: hoursToMin(22) });
 });
 
 test("連勤：前の週から続けて7日入るとだめ（6日までOK）", () => {
-  const before = [1, 2, 3].map((n) => work(addDays(dates[0], -n), 9, 13));   // 前の週の金・土・日
-  const four = dates.slice(0, 4).map((d) => work(d, 9, 13));                   // この週の月〜木 → 7連勤
-  const three = dates.slice(0, 3).map((d) => work(d, 9, 13));                  // この週の月〜水 → 6連勤
+  const before = [1, 2, 3].map((daysBack) => work(addDays(dates[0], -daysBack), 9, 13));   // 前の週の金・土・日
+  const four = dates.slice(0, 4).map((date) => work(date, 9, 13));                   // この週の月〜木 → 7連勤
+  const three = dates.slice(0, 3).map((date) => work(date, 9, 13));                  // この週の月〜水 → 6連勤
   const limits = new Map();   // ルールなし（連勤だけ見る）
   assert.deepEqual(codes(checkLabor({ dates, week: four, others: before, members, limits })), ["streak"]);
   assert.deepEqual(codes(checkLabor({ dates, week: three, others: before, members, limits })), []);

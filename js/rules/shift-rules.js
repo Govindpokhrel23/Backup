@@ -42,19 +42,19 @@ const DEFAULT_HOURS = { open: CONFIG.DAY_START, close: CONFIG.DAY_END };
  * @param {number}   minute        時刻（分）
  */
 export function requiredAt(requirements, positions, dayType, area, minute) {
-  const areaOf = new Map(positions.map((p) => [p.id, p.area]));   // 担当場所のID → ホール／キッチン
+  const areaOf = new Map(positions.map((position) => [position.id, position.area]));   // 担当場所のID → ホール／キッチン
   let total = 0;   // 必要な人数の合計
-  for (const r of requirements) {
-    if (r.dayType !== dayType) continue;
-    if (areaOf.get(r.positionId) !== area) continue;
-    if (r.from <= minute && minute < r.to) total += r.count;
+  for (const shift of requirements) {
+    if (shift.dayType !== dayType) continue;
+    if (areaOf.get(shift.positionId) !== area) continue;
+    if (shift.from <= minute && minute < shift.to) total += shift.count;
   }
   return total;
 }
 
 /** ある時刻に、そのエリアで実際に入っている人数 */
 export function assignedAt(dayAssignments, area, minute) {
-  return dayAssignments.filter((a) => a.area === area && a.from <= minute && minute < a.to).length;
+  return dayAssignments.filter((shift) => shift.area === area && shift.from <= minute && minute < shift.to).length;
 }
 
 /**
@@ -66,15 +66,15 @@ export function findShortages(dayAssignments, requirements, positions, dayType, 
   const result = [];   // 見つかった不足
   for (const area of ["hall", "kitchen"]) {
     let open = null;                       // 今まとめている不足の時間帯
-    for (let m = hours.open; m < hours.close; m += STEP) {          // 営業時間の中だけ見る
-      const need = requiredAt(requirements, positions, dayType, area, m);   // この15分に必要な人数
-      const have = assignedAt(dayAssignments, area, m);   // この15分に入っている人数
+    for (let minutes = hours.open; minutes < hours.close; minutes += STEP) {          // 営業時間の中だけ見る
+      const need = requiredAt(requirements, positions, dayType, area, minutes);   // この15分に必要な人数
+      const have = assignedAt(dayAssignments, area, minutes);   // この15分に入っている人数
       const short = Math.max(0, need - have);   // 足りない人数
       if (short > 0 && open && open.short === short) {
-        open.to = m + STEP;                // 同じ不足が続いている → のばす
+        open.to = minutes + STEP;                // 同じ不足が続いている → のばす
       } else {
         if (open) result.push(open);
-        open = short > 0 ? { area, from: m, to: m + STEP, short } : null;
+        open = short > 0 ? { area, from: minutes, to: minutes + STEP, short } : null;
       }
     }
     if (open) result.push(open);
@@ -88,34 +88,34 @@ export function findShortages(dayAssignments, requirements, positions, dayType, 
 
 /**
  * 1日分のルールを全部確かめる
- * @param {object} p
- * @param {string}   p.date          日付 "2026-11-09"
- * @param {string}   p.dayType       "weekday" / "sat" / "sun"
- * @param {object[]} p.assignments   その日の勤務（この店舗）
- * @param {object[]} p.allStoreAssignments その日の勤務（全店舗。応援の重なりを見る）
- * @param {object[]} p.members       店員
- * @param {object[]} p.requirements  場所ごとの必要人数
- * @param {object[]} p.positions     担当場所
- * @param {object[]} p.availabilities その日の希望
- * @param {{open:number,close:number}} [p.hours] その日の営業時間（なければ7:00〜22:00）
+ * @param {object} req
+ * @param {string}   req.date          日付 "2026-11-09"
+ * @param {string}   req.dayType       "weekday" / "sat" / "sun"
+ * @param {object[]} req.assignments   その日の勤務（この店舗）
+ * @param {object[]} req.allStoreAssignments その日の勤務（全店舗。応援の重なりを見る）
+ * @param {object[]} req.members       店員
+ * @param {object[]} req.requirements  場所ごとの必要人数
+ * @param {object[]} req.positions     担当場所
+ * @param {object[]} req.availabilities その日の希望
+ * @param {{open:number,close:number}} [req.hours] その日の営業時間（なければ7:00〜22:00）
  * @returns {Problem[]}
  */
-export function checkDay(p) {
+export function checkDay(req) {
   const out = [];   // チェックの結果
-  const hours = p.hours || DEFAULT_HOURS;   // その日の営業時間
-  const memberOf = new Map(p.members.map((m) => [m.id, m]));   // ID → 店員
+  const hours = req.hours || DEFAULT_HOURS;   // その日の営業時間
+  const memberOf = new Map(req.members.map((member) => [member.id, member]));   // ID → 店員
   /** IDから名前 */
   const nameOf = (id) => memberOf.get(id)?.name || "？";
 
   // ① 必要人数
-  const shortages = findShortages(p.assignments, p.requirements, p.positions, p.dayType, hours);
+  const shortages = findShortages(req.assignments, req.requirements, req.positions, req.dayType, hours);
   if (shortages.length === 0) {
     out.push({ ok: true, code: "shortage", text: "場所ごとの必要人数" });
   } else {
-    for (const s of shortages) {
+    for (const shift of shortages) {
       out.push({
-        ok: false, code: "shortage", date: p.date,
-        text: `${s.area === "hall" ? "ホール" : "キッチン"}が${s.short}人足りない：${fmt(s.from)}〜${fmt(s.to)}`,
+        ok: false, code: "shortage", date: req.date,
+        text: `${shift.area === "hall" ? "ホール" : "キッチン"}が${shift.short}人足りない：${fmt(shift.from)}〜${fmt(shift.to)}`,
       });
     }
   }
@@ -125,66 +125,66 @@ export function checkDay(p) {
   //   閉店の時刻（またはそれより後）まで入っている人＝その日の「締め」
   //   その人ができること％が100でなければ注意を出す
   const roleCheck = (code, word, people, skillKey, time) => {
-    const names = [...new Set(people.map((a) => nameOf(a.memberId)))];   // その役の人の名前（同じ人は1回）
-    if (!people.length) return { ok: false, code, date: p.date, text: `${word}（${fmt(time)}）の人がいない` };
-    const able = people.some((a) => memberOf.get(a.memberId)?.skills?.[skillKey] === 100);   // 100%できる人がいるか
+    const names = [...new Set(people.map((member) => nameOf(member.memberId)))];   // その役の人の名前（同じ人は1回）
+    if (!people.length) return { ok: false, code, date: req.date, text: `${word}（${fmt(time)}）の人がいない` };
+    const able = people.some((member) => memberOf.get(member.memberId)?.skills?.[skillKey] === 100);   // 100%できる人がいるか
     if (!able) {
-      const detail = names.map((n) => `${n} ${word}${p.members.find((m) => m.name === n)?.skills?.[skillKey] ?? 0}％`).join("、");   // 名前とできる％の文
-      return { ok: false, code, date: p.date, text: `${word}の人が100％ではない：${detail}` };
+      const detail = names.map((name) => `${name} ${word}${req.members.find((member) => member.name === name)?.skills?.[skillKey] ?? 0}％`).join("、");   // 名前とできる％の文
+      return { ok: false, code, date: req.date, text: `${word}の人が100％ではない：${detail}` };
     }
-    return { ok: true, code, date: p.date, text: `${word}（${fmt(time)}）：${names.join("、")}` };
+    return { ok: true, code, date: req.date, text: `${word}（${fmt(time)}）：${names.join("、")}` };
   };
-  const opener = openerOf(p.assignments, hours);   // その日の立ち上げの人（1人）
+  const opener = openerOf(req.assignments, hours);   // その日の立ち上げの人（1人）
   out.push(roleCheck("open", "立ち上げ", opener ? [opener] : [], "open", openStart(hours)));
-  out.push(roleCheck("close", "締め", p.assignments.filter((a) => isCloser(a, hours)), "close", hours.close));
+  out.push(roleCheck("close", "締め", req.assignments.filter((shift) => isCloser(shift, hours)), "close", hours.close));
 
   // ④ 休憩：長い勤務には休憩の目安（○）がある
-  const noBreak = p.assignments.filter((a) => a.to - a.from >= CONFIG.BREAK_NEEDED_MIN && a.breakAt == null);
+  const noBreak = req.assignments.filter((shift) => shift.to - shift.from >= CONFIG.BREAK_NEEDED_MIN && shift.breakAt == null);
   out.push({
-    ok: noBreak.length === 0, code: "break", date: p.date,
-    text: noBreak.length ? `休憩なし（${CONFIG.BREAK_NEEDED_MIN / 60}時間以上）：${noBreak.map((a) => nameOf(a.memberId)).join("、")}` : "長い勤務には休憩あり",
+    ok: noBreak.length === 0, code: "break", date: req.date,
+    text: noBreak.length ? `休憩なし（${CONFIG.BREAK_NEEDED_MIN / 60}時間以上）：${noBreak.map((shift) => nameOf(shift.memberId)).join("、")}` : "長い勤務には休憩あり",
   });
   // 朝11:00より前に休憩を入れていないか
-  const early = p.assignments.filter((a) => a.breakAt != null && a.breakAt < CONFIG.BREAK_EARLIEST);
+  const early = req.assignments.filter((shift) => shift.breakAt != null && shift.breakAt < CONFIG.BREAK_EARLIEST);
   if (early.length) {
-    out.push({ ok: false, code: "break-early", date: p.date, text: `休憩が${fmt(CONFIG.BREAK_EARLIEST)}より前：${early.map((a) => nameOf(a.memberId)).join("、")}` });
+    out.push({ ok: false, code: "break-early", date: req.date, text: `休憩が${fmt(CONFIG.BREAK_EARLIEST)}より前：${early.map((shift) => nameOf(shift.memberId)).join("、")}` });
   }
 
   // ⑤ 希望：希望の外の時間に入っていない（短く入れるのはOK）
   const outside = [];
-  for (const a of p.assignments) {
-    const member = memberOf.get(a.memberId);   // その店員
-    const hope = p.availabilities.find((x) => x.memberId === a.memberId);   // その人のその日の希望
+  for (const shift of req.assignments) {
+    const member = memberOf.get(shift.memberId);   // その店員
+    const hope = req.availabilities.find((hope) => hope.memberId === shift.memberId);   // その人のその日の希望
     if (!hope) {
       // 希望を出していない：社員は「全部入れる」扱い（要件 F-49）
-      if (member?.kind !== "shain") outside.push(`${nameOf(a.memberId)}（希望なし）`);
+      if (member?.kind !== "shain") outside.push(`${nameOf(shift.memberId)}（希望なし）`);
       continue;
     }
-    if (["no", "off", "offx"].includes(hope.kind)) outside.push(`${nameOf(a.memberId)}（休み希望の日）`);
-    else if (hope.kind === "time" && (a.from < hope.from || a.to > hope.to)) outside.push(nameOf(a.memberId));
+    if (["no", "off", "offx"].includes(hope.kind)) outside.push(`${nameOf(shift.memberId)}（休み希望の日）`);
+    else if (hope.kind === "time" && (shift.from < hope.from || shift.to > hope.to)) outside.push(nameOf(shift.memberId));
   }
   out.push({
-    ok: outside.length === 0, code: "hope", date: p.date,
+    ok: outside.length === 0, code: "hope", date: req.date,
     text: outside.length ? `希望の外：${[...new Set(outside)].join("、")}` : "希望の時間の中で入っている",
   });
 
   // ⑥ 同じ人が同じ時間に2つ入っていない（ほかの店舗への応援も含む）
-  const all = p.allStoreAssignments || p.assignments;
+  const all = req.allStoreAssignments || req.assignments;
   const doubled = new Set();   // 時間が重なっている人
-  for (let i = 0; i < all.length; i++) {
-    for (let j = i + 1; j < all.length; j++) {
-      const a = all[i], b = all[j];   // 比べる2つの勤務
-      if (a.memberId === b.memberId && overlaps(a.from, a.to, b.from, b.to)) doubled.add(a.memberId);
+  for (let index = 0; index < all.length; index++) {
+    for (let index2 = index + 1; index2 < all.length; index2++) {
+      const shiftA = all[index], shiftB = all[index2];   // 比べる2つの勤務
+      if (shiftA.memberId === shiftB.memberId && overlaps(shiftA.from, shiftA.to, shiftB.from, shiftB.to)) doubled.add(shiftA.memberId);
     }
   }
   if (doubled.size) {
-    out.push({ ok: false, code: "double", date: p.date, text: `同じ時間に2つ入っている：${[...doubled].map(nameOf).join("、")}` });
+    out.push({ ok: false, code: "double", date: req.date, text: `同じ時間に2つ入っている：${[...doubled].map(nameOf).join("、")}` });
   }
 
   // ⑦ 勤務の時間がおかしくないか（終わりが始まりより前など）
-  const broken = p.assignments.filter((a) => a.to <= a.from);
+  const broken = req.assignments.filter((shift) => shift.to <= shift.from);
   if (broken.length) {
-    out.push({ ok: false, code: "time", date: p.date, text: `時間がおかしい：${broken.map((a) => nameOf(a.memberId)).join("、")}` });
+    out.push({ ok: false, code: "time", date: req.date, text: `時間がおかしい：${broken.map((shift) => nameOf(shift.memberId)).join("、")}` });
   }
 
   return out;
@@ -196,36 +196,36 @@ export function checkDay(p) {
 
 /**
  * 週全体のルール
- * @param {object} p
- * @param {string[]} p.dates          7日分の日付
- * @param {object[]} p.assignments    その週の勤務（この店舗）
- * @param {object[]} p.members        店員
- * @param {object[]} p.availabilities その週の希望
+ * @param {object} props
+ * @param {string[]} props.dates          7日分の日付
+ * @param {object[]} props.assignments    その週の勤務（この店舗）
+ * @param {object[]} props.members        店員
+ * @param {object[]} props.availabilities その週の希望
  * @returns {Problem[]}
  */
-export function checkWeek(p) {
+export function checkWeek(props) {
   const out = [];   // チェックの結果
-  const active = p.members.filter((m) => m.active);   // 働いている人（休止していない）
+  const active = props.members.filter((member) => member.active);   // 働いている人（休止していない）
 
   // ① 全員、週1日は必ず休み
-  const noRest = active.filter((m) => {
-    const days = new Set(p.assignments.filter((a) => a.memberId === m.id).map((a) => a.date));   // その人が入っている日
-    return p.dates.every((d) => days.has(d));
+  const noRest = active.filter((member) => {
+    const days = new Set(props.assignments.filter((shift) => shift.memberId === member.id).map((shift) => shift.date));   // その人が入っている日
+    return props.dates.every((date) => days.has(date));
   });
   out.push({
     ok: noRest.length === 0, code: "rest",
-    text: noRest.length ? `週1日の休みがない：${noRest.map((m) => m.name).join("、")}` : "全員、週1日の休みあり",
+    text: noRest.length ? `週1日の休みがない：${noRest.map((member) => member.name).join("、")}` : "全員、週1日の休みあり",
   });
 
   // ② 社員の休みの日数（要件 F-48・F-49）
   //    希望なし → 休みは週1日だけ（店長が決める）／ 休み希望あり → 希望した日数（2日目は特別許可）
   const tooMany = [];
-  for (const m of active.filter((x) => x.kind === "shain")) {
-    const asked = p.availabilities.filter((a) => a.memberId === m.id && ["off", "offx", "no"].includes(a.kind)).length;   // 休み希望の日数
+  for (const member of active.filter((member) => member.kind === "shain")) {
+    const asked = props.availabilities.filter((hope) => hope.memberId === member.id && ["off", "offx", "no"].includes(hope.kind)).length;   // 休み希望の日数
     const allowed = asked > 0 ? asked : 1;   // 休んでよい日数（希望なし＝1日）
-    const worked = new Set(p.assignments.filter((a) => a.memberId === m.id).map((a) => a.date));   // 入っている日
-    const off = p.dates.filter((d) => !worked.has(d)).length;   // 休みの日数
-    if (off > allowed) tooMany.push(`${m.name}（${asked ? `休み希望${asked}日` : "希望なし＝週1日"}、今${off}日休み）`);
+    const worked = new Set(props.assignments.filter((shift) => shift.memberId === member.id).map((shift) => shift.date));   // 入っている日
+    const off = props.dates.filter((date) => !worked.has(date)).length;   // 休みの日数
+    if (off > allowed) tooMany.push(`${member.name}（${asked ? `休み希望${asked}日` : "希望なし＝週1日"}、今${off}日休み）`);
   }
   out.push({
     ok: tooMany.length === 0, code: "shain-off",
@@ -233,11 +233,11 @@ export function checkWeek(p) {
   });
 
   // ③ 社員の2日目の休み希望は特別許可の申請（offx）。店長が許可するまで警告
-  const waiting = p.availabilities.filter((a) => a.kind === "offx");
+  const waiting = props.availabilities.filter((hope) => hope.kind === "offx");
   if (waiting.length) {
     /** IDから名前 */
-    const nameOf = (id) => p.members.find((m) => m.id === id)?.name || "？";
-    out.push({ ok: false, code: "special", text: `特別許可を待っている休み：${waiting.map((a) => `${nameOf(a.memberId)} ${a.date.slice(5)}`).join("、")}` });
+    const nameOf = (id) => props.members.find((member) => member.id === id)?.name || "？";
+    out.push({ ok: false, code: "special", text: `特別許可を待っている休み：${waiting.map((shift) => `${nameOf(shift.memberId)} ${shift.date.slice(5)}`).join("、")}` });
   }
 
   return out;
@@ -245,5 +245,5 @@ export function checkWeek(p) {
 
 /** チェック結果から「守れていないもの」だけを取り出す */
 export function onlyProblems(results) {
-  return results.filter((r) => !r.ok);
+  return results.filter((result) => !result.ok);
 }

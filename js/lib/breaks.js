@@ -19,9 +19,9 @@ export function breakWindow(from, to) {
 
 /** 時刻を、休憩を置ける範囲に収める（置けなければ null） */
 export function clampBreak(from, to, minute) {
-  const w = breakWindow(from, to);   // 置ける範囲
-  if (!w) return null;
-  return Math.max(w.earliest, Math.min(w.latest, snap(minute)));
+  const range = breakWindow(from, to);   // 置ける範囲
+  if (!range) return null;
+  return Math.max(range.earliest, Math.min(range.latest, snap(minute)));
 }
 
 /** ふつうの休憩の位置：勤務の真ん中（11:00より前なら11:00） */

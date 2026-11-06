@@ -5,10 +5,10 @@
 // なぜ innerHTML を使わないの？
 //   innerHTML に人の名前などをそのまま入れると、
 //   名前に <script> などが入っていた時に悪さをされる（XSSという攻撃）。
-//   h() は文字を「ただの文字」として入れるので安全。
+//   createElement() は文字を「ただの文字」として入れるので安全。
 //
 // 使い方：
-//   h("button", { class: "btn", onclick: save }, "保存")
+//   createElement("button", { class: "btn", onclick: save }, "保存")
 //     → <button class="btn">保存</button> を作る（押すと save が動く）
 // ============================================================
 
@@ -19,7 +19,7 @@
  * @param {...any} children  中身（文字・要素・配列。null/false は無視）
  * @returns {HTMLElement}
  */
-export function h(tag, attrs = {}, ...children) {
+export function createElement(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);   // 作る要素
 
   for (const [key, value] of Object.entries(attrs || {})) {
@@ -31,9 +31,9 @@ export function h(tag, attrs = {}, ...children) {
     } else if (key === "style" && typeof value === "object") {
       // style は { left: "10px" } のような形でも渡せる
       // "--hours" のような CSS変数 は setProperty でないと入らない
-      for (const [prop, v] of Object.entries(value)) {
-        if (prop.startsWith("--")) el.style.setProperty(prop, v);
-        else el.style[prop] = v;
+      for (const [prop, styleValue] of Object.entries(value)) {
+        if (prop.startsWith("--")) el.style.setProperty(prop, styleValue);
+        else el.style[prop] = styleValue;
       }
     } else if (key === "value") {
       // 入力欄の値は属性ではなくプロパティで入れる
@@ -115,13 +115,13 @@ export function confirmDialog({ title, body, yes = "はい", no = "いいえ", w
   return new Promise((resolve) => {
     /** ダイアログを閉じて、押したボタンを返す */
     const close = (answer) => { backdrop.remove(); resolve(answer); };
-    const backdrop = h("div", { class: "dialog-backdrop" },   // うしろを暗くする幕（中にダイアログ）
-      h("div", { class: "dialog", role: "dialog", "aria-modal": "true", "aria-label": title },
-        h("h2", { class: "dialog__title" }, warn ? h("span", { style: { color: "#C27A00", display: "flex" } }, icon("warn")) : null, title),
+    const backdrop = createElement("div", { class: "dialog-backdrop" },   // うしろを暗くする幕（中にダイアログ）
+      createElement("div", { class: "dialog", role: "dialog", "aria-modal": "true", "aria-label": title },
+        createElement("h2", { class: "dialog__title" }, warn ? createElement("span", { style: { color: "#C27A00", display: "flex" } }, icon("warn")) : null, title),
         body,
-        h("div", { class: "dialog__actions" },
-          no === null ? null : h("button", { class: "btn", onclick: () => close(false) }, no),   // no を null にするとボタン1つ
-          h("button", { class: "btn btn--primary", onclick: () => close(true) }, yes),
+        createElement("div", { class: "dialog__actions" },
+          no === null ? null : createElement("button", { class: "btn", onclick: () => close(false) }, no),   // no を null にするとボタン1つ
+          createElement("button", { class: "btn btn--primary", onclick: () => close(true) }, yes),
         ),
       ),
     );
@@ -136,9 +136,9 @@ export function confirmDialog({ title, body, yes = "はい", no = "いいえ", w
  * @returns {{update:(text:string)=>void, done:()=>void}} 文を変える／消す
  */
 export function busy(text) {
-  const message = h("div", { class: "busy__text" }, text);        // 出している文
-  const layer = h("div", { class: "busy", role: "status", "aria-live": "polite" },   // 画面全体の幕
-    h("div", { class: "busy__box" }, h("div", { class: "busy__spinner", "aria-hidden": "true" }), message));
+  const message = createElement("div", { class: "busy__text" }, text);        // 出している文
+  const layer = createElement("div", { class: "busy", role: "status", "aria-live": "polite" },   // 画面全体の幕
+    createElement("div", { class: "busy__box" }, createElement("div", { class: "busy__spinner", "aria-hidden": "true" }), message));
   document.body.appendChild(layer);
   return {
     update: (next) => { message.textContent = next; },

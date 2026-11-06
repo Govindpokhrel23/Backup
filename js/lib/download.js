@@ -17,12 +17,12 @@
 export function saveFile(name, text, type) {
   const blob = new Blob([text], { type });                   // ファイルの中身
   const url = URL.createObjectURL(blob);                     // そのファイルの一時的な住所
-  const a = document.createElement("a");                     // 見えないリンク
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();                                                 // 押したことにして保存する
-  a.remove();
+  const link = document.createElement("a");                     // 見えないリンク
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();                                                 // 押したことにして保存する
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);          // 少し待ってから一時的な住所を消す
 }
 
@@ -33,9 +33,9 @@ export function saveFile(name, text, type) {
  */
 export function toCsv(rows) {
   /** 1つのマスを CSV の形にする（, や " や改行があれば "" でかこむ） */
-  const cell = (v) => {
-    const s = v == null ? "" : String(v);                    // マスの文字
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  const cell = (value) => {
+    const text = value == null ? "" : String(value);                    // マスの文字
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
-  return "﻿" + rows.map((r) => r.map(cell).join(",")).join("\r\n");
+  return "﻿" + rows.map((row) => row.map(cell).join(",")).join("\r\n");
 }

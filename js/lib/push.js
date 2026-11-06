@@ -73,5 +73,5 @@ export async function turnOffPush(remove) {
 /** base64url の鍵 → バイト（ブラウザに渡す形） */
 function keyBytes(b64url) {
   const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b64url.length + 3) % 4);   // ふつうの base64 にもどした文字
-  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  return Uint8Array.from(atob(b64), (char) => char.charCodeAt(0));
 }

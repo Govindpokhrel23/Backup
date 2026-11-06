@@ -24,12 +24,12 @@ export function isManager() {
 
 /** 営業している店舗（休止した店舗は、切り替えのボタンなどに出さない） */
 export function activeStores() {
-  return state.stores.filter((s) => s.active !== false);
+  return state.stores.filter((store) => store.active !== false);
 }
 
 /** 今見ている店舗 */
 export function currentStore() {
-  return state.stores.find((s) => s.id === state.storeId) || null;
+  return state.stores.find((store) => store.id === state.storeId) || null;
 }
 
 /** ログインした時・開き直した時に、店舗の情報を読み直す */

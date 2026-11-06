@@ -41,8 +41,8 @@ export const api = {
     try {
       const fresh = await base.listMyAssignments();   // サーバーから読んだ自分の勤務
       return id ? writeCache(id, fresh) : fresh;
-    } catch (e) {
-      console.warn("サーバーにつながらないので、スマホに保存した自分のシフトを出します", e);
+    } catch (error) {
+      console.warn("サーバーにつながらないので、スマホに保存した自分のシフトを出します", error);
       return id ? readCache(id) : [];
     }
   },

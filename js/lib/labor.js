@@ -24,13 +24,13 @@ export function breakMinutes(from, to) {
 }
 
 /** 働いた時間（分）＝勤務の長さ − 休憩 */
-export function workedMinutes(a) {
-  return Math.max(0, a.to - a.from - breakMinutes(a.from, a.to));
+export function workedMinutes(shift) {
+  return Math.max(0, shift.to - shift.from - breakMinutes(shift.from, shift.to));
 }
 
 /** 深夜（22:00〜翌5:00）に入っている分 */
-export function nightMinutes(a) {
-  return Math.max(0, Math.min(a.to, NIGHT_TO) - Math.max(a.from, NIGHT_FROM));
+export function nightMinutes(shift) {
+  return Math.max(0, Math.min(shift.to, NIGHT_TO) - Math.max(shift.from, NIGHT_FROM));
 }
 
 /**
@@ -40,17 +40,17 @@ export function nightMinutes(a) {
  * @returns {number}
  */
 export function laborCost(assignments, wages) {
-  const wageOf = new Map(wages.map((w) => [w.memberId, w]));   // ID → 時給・交通費
+  const wageOf = new Map(wages.map((wage) => [wage.memberId, wage]));   // ID → 時給・交通費
   let yen = 0;   // 合計（円）
   const days = new Set();                 // 交通費を数えた「人×日」
-  for (const a of assignments) {
-    const w = wageOf.get(a.memberId);   // その人の時給・交通費
-    if (!w || !w.hourly) continue;
-    const night = nightMinutes(a);   // 深夜の分
-    const normal = workedMinutes(a) - night;   // ふつうの分
-    yen += (Math.max(0, normal) / 60) * w.hourly + (night / 60) * w.hourly * 1.25;
-    const key = `${a.memberId}|${a.date}`;   // 人と日（交通費を1日1回にするため）
-    if (!days.has(key)) { days.add(key); yen += w.transport || 0; }
+  for (const shift of assignments) {
+    const wage = wageOf.get(shift.memberId);   // その人の時給・交通費
+    if (!wage || !wage.hourly) continue;
+    const night = nightMinutes(shift);   // 深夜の分
+    const normal = workedMinutes(shift) - night;   // ふつうの分
+    yen += (Math.max(0, normal) / 60) * wage.hourly + (night / 60) * wage.hourly * 1.25;
+    const key = `${shift.memberId}|${shift.date}`;   // 人と日（交通費を1日1回にするため）
+    if (!days.has(key)) { days.add(key); yen += wage.transport || 0; }
   }
   return Math.round(yen);
 }
@@ -58,17 +58,17 @@ export function laborCost(assignments, wages) {
 /** 人ごとの、その週の働いた時間（分） */
 export function minutesByMember(assignments) {
   const map = new Map();   // ID → 働いた分
-  for (const a of assignments) map.set(a.memberId, (map.get(a.memberId) || 0) + workedMinutes(a));
+  for (const shift of assignments) map.set(shift.memberId, (map.get(shift.memberId) || 0) + workedMinutes(shift));
   return map;
 }
 
 /** "32時間30分" の形 */
 export function hoursText(minutes) {
-  const h = Math.floor(minutes / 60), m = minutes % 60;   // 時間と分
-  return m ? `${h}時間${m}分` : `${h}時間`;
+  const hours = Math.floor(minutes / 60), member = minutes % 60;   // 時間と分
+  return member ? `${hours}時間${member}分` : `${hours}時間`;
 }
 
 /** "12,345円" の形 */
-export function yen(n) {
-  return `${n.toLocaleString("ja-JP")}円`;
+export function yen(count) {
+  return `${count.toLocaleString("ja-JP")}円`;
 }

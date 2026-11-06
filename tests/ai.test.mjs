@@ -13,9 +13,9 @@ import assert from "node:assert/strict";
 // ブラウザの localStorage のかわり（テストの中だけ）
 const memory = new Map();                                             // 保存の入れ物
 globalThis.localStorage = {
-  getItem: (k) => (memory.has(k) ? memory.get(k) : null),
-  setItem: (k, v) => memory.set(k, String(v)),
-  removeItem: (k) => memory.delete(k),
+  getItem: (key) => (memory.has(key) ? memory.get(key) : null),
+  setItem: (key, value) => memory.set(key, String(value)),
+  removeItem: (key) => memory.delete(key),
 };
 
 const { cleanShifts, toMinutes } = await import("../js/ai/validate.js");   // テストする関数を validate.js から読み込む
@@ -27,7 +27,7 @@ const { findCandidates } = await import("../js/rules/candidates.js");   // テ�
 const { makeDraft } = await import("../js/ai/simple-draft.js");   // テストする関数を simple-draft.js から読み込む
 
 /** 時 → 分 */
-const H = (h) => h * 60;
+const hoursToMin = (hours) => hours * 60;
 /** テスト用の週（2026-11-09 月曜〜） */
 const dates = ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"];
 /** テスト用の店員 */
@@ -40,16 +40,16 @@ const members = [
 const ctx = {
   dates, members,
   availabilities: [
-    { memberId: "b", date: "2026-11-09", kind: "time", from: H(9), to: H(15) },
+    { memberId: "b", date: "2026-11-09", kind: "time", from: hoursToMin(9), to: hoursToMin(15) },
     { memberId: "b", date: "2026-11-10", kind: "off" },
     { memberId: "a", date: "2026-11-15", kind: "off" },
   ],
-  requirements: [{ id: "r1", positionId: "p1", dayType: "weekday", from: H(7), to: H(22), count: 1 }],
+  requirements: [{ id: "r1", positionId: "p1", dayType: "weekday", from: hoursToMin(7), to: hoursToMin(22), count: 1 }],
   positions: [{ id: "p1", area: "hall" }],
-  fixed: [], past: [], elsewhere: [{ memberId: "a", date: "2026-11-11", from: H(9), to: H(18) }],
+  fixed: [], past: [], elsewhere: [{ memberId: "a", date: "2026-11-11", from: hoursToMin(9), to: hoursToMin(18) }],
   rules: [{ memberId: "b", text: "スタッフBは土曜NG" }], learnings: [],
   dayTypeOf: () => "weekday",
-  hoursOf: () => ({ open: H(7), close: H(22) }),
+  hoursOf: () => ({ open: hoursToMin(7), close: hoursToMin(22) }),
   problemsOf: () => [],
 };
 /** S1→a, S2→b, S3→c */
@@ -79,45 +79,45 @@ test("AIの答え：希望の時間の中に縮める・休憩を決まりに合
     { staff: "S2", date: "2026-11-09", start: "07:00", end: "16:00", area: "hall", break: "10:00", reason: "朝が足りない" },
   ], ctx, toId);
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].from, H(9));       // 希望 9:00〜15:00 に縮めた
-  assert.equal(rows[0].to, H(15));
-  assert.ok(rows[0].breakAt >= H(11));    // 休憩は11:00より前にしない
+  assert.equal(rows[0].from, hoursToMin(9));       // 希望 9:00〜15:00 に縮めた
+  assert.equal(rows[0].to, hoursToMin(15));
+  assert.ok(rows[0].breakAt >= hoursToMin(11));    // 休憩は11:00より前にしない
   assert.equal(rows[0].reason, "朝が足りない");
 });
 
 test("AIの答え：固定した勤務は、AIが何を言っても元のまま", () => {
-  const fixed = [{ memberId: "a", date: "2026-11-09", from: H(8), to: H(17), area: "hall", fixed: true }];   // 固定した勤務
+  const fixed = [{ memberId: "a", date: "2026-11-09", from: hoursToMin(8), to: hoursToMin(17), area: "hall", fixed: true }];   // 固定した勤務
   const { rows } = cleanShifts([{ staff: "S1", date: "2026-11-09", start: "12:00", end: "22:00", area: "kitchen" }], { ...ctx, fixed }, toId);   // 確かめたあとの勤務
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].from, H(8));
+  assert.equal(rows[0].from, hoursToMin(8));
 });
 
 // ---------- learning ----------
 
 test("店長の直し方：時間を直した・外した・足した・場所を変えた を見つける", () => {
   const ai = [   // AIの下書き
-    { memberId: "a", date: "2026-11-09", from: H(6.5), to: H(15.5), area: "hall" },
-    { memberId: "b", date: "2026-11-09", from: H(9), to: H(15), area: "hall" },
-    { memberId: "c", date: "2026-11-10", from: H(9), to: H(15), area: "hall" },
+    { memberId: "a", date: "2026-11-09", from: hoursToMin(6.5), to: hoursToMin(15.5), area: "hall" },
+    { memberId: "b", date: "2026-11-09", from: hoursToMin(9), to: hoursToMin(15), area: "hall" },
+    { memberId: "c", date: "2026-11-10", from: hoursToMin(9), to: hoursToMin(15), area: "hall" },
   ];
   const fin = [   // 店長が直して公開したもの
-    { memberId: "a", date: "2026-11-09", from: H(7), to: H(16), area: "hall" },     // 時間
-    { memberId: "c", date: "2026-11-10", from: H(9), to: H(15), area: "kitchen" },  // 場所
-    { memberId: "c", date: "2026-11-12", from: H(16), to: H(22), area: "hall" },    // 足した
+    { memberId: "a", date: "2026-11-09", from: hoursToMin(7), to: hoursToMin(16), area: "hall" },     // 時間
+    { memberId: "c", date: "2026-11-10", from: hoursToMin(9), to: hoursToMin(15), area: "kitchen" },  // 場所
+    { memberId: "c", date: "2026-11-12", from: hoursToMin(16), to: hoursToMin(22), area: "hall" },    // 足した
   ];                                                                                // b は外した
-  const kinds = diffDraft(ai, fin).map((x) => x.kind).sort();   // 見つけた直しの種類
+  const kinds = diffDraft(ai, fin).map((change) => change.kind).sort();   // 見つけた直しの種類
   assert.deepEqual(kinds, ["add", "area", "remove", "time"]);
 });
 
 test("店長の直し方：2回同じなら「覚えた」になり、下書きで最初からその時間にする", () => {
-  const rows = [1, 2].map((i) => ({ id: `l${i}`, memberId: "a", weekday: 1, kind: "time", from: H(7), to: H(16) }));   // 同じ直しを2回
+  const rows = [1, 2].map((number) => ({ id: `l${number}`, memberId: "a", weekday: 1, kind: "time", from: hoursToMin(7), to: hoursToMin(16) }));   // 同じ直しを2回
   const learned = summarize(rows, members);   // まとめた学び
   assert.equal(learned.notes[0].strong, true);
-  assert.deepEqual(learned.prefer.get("a|1"), { from: H(7), to: H(16), count: 2, area: undefined });
+  assert.deepEqual(learned.prefer.get("a|1"), { from: hoursToMin(7), to: hoursToMin(16), count: 2, area: undefined });
   const draft = makeDraft({ ...ctx, learned });   // 学びを使った下書き
-  const monday = draft.find((x) => x.memberId === "a" && x.date === "2026-11-09");   // 月曜のスタッフAの勤務
-  assert.equal(monday.from, H(7));
-  assert.equal(monday.to, H(16));
+  const monday = draft.find((shift) => shift.memberId === "a" && shift.date === "2026-11-09");   // 月曜のスタッフAの勤務
+  assert.equal(monday.from, hoursToMin(7));
+  assert.equal(monday.to, hoursToMin(16));
 });
 
 // ---------- prompt ----------
@@ -140,26 +140,26 @@ test("AIで作成：Gemini の答えを確かめて使う", async () => {
     const answer = { shifts: [{ staff: "S2", date: "2026-11-09", start: "09:00", end: "15:00", area: "hall", reason: "希望どおり" }], summary: "作りました" };   // にせものの Gemini の答え
     return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(answer) }] } }] }) };
   };
-  const r = await runAiDraft(ctx, { fetchImpl: fakeFetch });   // 「AIで作成」の結果
-  assert.equal(r.source, "gemini");
-  assert.equal(r.summary, "作りました");
-  assert.equal(r.rows[0].reason, "希望どおり");
+  const result = await runAiDraft(ctx, { fetchImpl: fakeFetch });   // 「AIで作成」の結果
+  assert.equal(result.source, "gemini");
+  assert.equal(result.summary, "作りました");
+  assert.equal(result.rows[0].reason, "希望どおり");
 });
 
 test("AIで作成：Gemini がエラーでも止まらず、簡易版で作る", async () => {
   saveAiSettings({ mode: "gemini", apiKey: "bad", model: "gemini-3-flash-preview" });
   /** にせものの Gemini（429＝回数オーバーを返す） */
   const fakeFetch = async () => ({ ok: false, status: 429, text: async () => "quota" });
-  const r = await runAiDraft(ctx, { fetchImpl: fakeFetch });   // 「AIで作成」の結果
-  assert.equal(r.source, "local");
-  assert.match(r.error, /回数をこえました/);
-  assert.ok(r.rows.length > 0);
+  const result = await runAiDraft(ctx, { fetchImpl: fakeFetch });   // 「AIで作成」の結果
+  assert.equal(result.source, "local");
+  assert.match(result.error, /回数をこえました/);
+  assert.ok(result.rows.length > 0);
 });
 
 // ---------- candidates ----------
 
 test("入れそうな人：休み希望・時間がかぶる人は外し、希望が合う人を先にする", () => {
-  const need = { date: "2026-11-09", area: "hall", from: H(10), to: H(14) };   // 足りない時間
+  const need = { date: "2026-11-09", area: "hall", from: hoursToMin(10), to: hoursToMin(14) };   // 足りない時間
   const list = findCandidates({   // 入れそうな人
     need, storeId: "s1",
     members: [
@@ -168,11 +168,11 @@ test("入れそうな人：休み希望・時間がかぶる人は外し、希�
       { id: "z", name: "Z", active: true, storeId: "s2", stores: [{ storeId: "s2", rank: 1 }, { storeId: "s1", rank: 2 }], skills: { hall: 75 } },
       { id: "w", name: "W", active: true, storeId: "s1", skills: { hall: 100 } },
     ],
-    dayAssignments: [{ memberId: "w", from: H(9), to: H(12) }],                       // W はもう入っている
+    dayAssignments: [{ memberId: "w", from: hoursToMin(9), to: hoursToMin(12) }],                       // W はもう入っている
     availabilities: [
       { memberId: "y", date: "2026-11-09", kind: "off" },                              // Y は休み希望
-      { memberId: "z", date: "2026-11-09", kind: "time", from: H(10), to: H(15) },     // Z は希望が合う
+      { memberId: "z", date: "2026-11-09", kind: "time", from: hoursToMin(10), to: hoursToMin(15) },     // Z は希望が合う
     ],
   });
-  assert.deepEqual(list.map((x) => x.member.id), ["z", "x"]);
+  assert.deepEqual(list.map((candidate) => candidate.member.id), ["z", "x"]);
 });

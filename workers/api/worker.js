@@ -56,8 +56,8 @@ export default {
       if (path.endsWith("/ai")) return await ai(body, request, env, http, cors);
       if (path.endsWith("/push")) return json(await push(body, request, env, http), 200, cors);
       return json({ error: "この住所はありません" }, 404, cors);
-    } catch (e) {
-      return json({ error: e.message }, e.status || 500, cors);
+    } catch (error) {
+      return json({ error: error.message }, error.status || 500, cors);
     }
   },
 };
@@ -164,7 +164,7 @@ async function push({ memberIds, text }, request, env, http) {
   // 同じ会社の人だけに送る（ほかの会社の人には送れない）
   const people = await db.get(`members?id=in.(${encodeURIComponent(ids)})&company_id=eq.${from.company_id}&select=id`);
   if (!people.length) return { sent: 0, removed: 0 };
-  const subs = await db.get(`push_subs?member_id=in.(${encodeURIComponent(people.map((p) => `"${p.id}"`).join(","))})&select=*`);   // スマホの宛先
+  const subs = await db.get(`push_subs?member_id=in.(${encodeURIComponent(people.map((member) => `"${member.id}"`).join(","))})&select=*`);   // スマホの宛先
   const payload = JSON.stringify({ title: "シフト", body: String(text).slice(0, 200), url: "./#/home" });   // 通知の中身
   let sent = 0;                                                      // 送れた数
   let removed = 0;                                                   // 消した宛先の数
@@ -184,23 +184,23 @@ async function push({ memberIds, text }, request, env, http) {
 const enc = new TextEncoder();
 
 /** base64url の文字 → バイト */
-export function fromB64url(s) {
-  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);   // ふつうの base64 にもどす
-  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+export function fromB64url(base64url) {
+  const b64 = base64url.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((base64url.length + 3) % 4);   // ふつうの base64 にもどす
+  return Uint8Array.from(atob(b64), (char) => char.charCodeAt(0));
 }
 
 /** バイト → base64url の文字 */
 export function toB64url(bytes) {
-  let s = "";                                                        // 1バイトずつの文字
-  for (const b of new Uint8Array(bytes)) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  let text = "";                                                        // 1バイトずつの文字
+  for (const byte of new Uint8Array(bytes)) text += String.fromCharCode(byte);
+  return btoa(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 /** バイトの列をつなげる */
 function concat(...parts) {
-  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));   // つなげた結果
-  let i = 0;                                                         // 書く場所
-  for (const p of parts) { out.set(p, i); i += p.length; }
+  const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));   // つなげた結果
+  let offset = 0;                                                         // 書く場所
+  for (const part of parts) { out.set(part, offset); offset += part.length; }
   return out;
 }
 
@@ -295,18 +295,18 @@ function rest(env, http) {
     return res.status === 204 ? null : res.json();
   };
   return {
-    get: async (q) => read(await http(`${env.SUPABASE_URL}/rest/v1/${q}`, { headers }), "読み込み"),
-    patch: async (q, data) => read(await http(`${env.SUPABASE_URL}/rest/v1/${q}`, { method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify(data) }), "保存"),
-    auth: async (q, method, data) => read(await http(`${env.SUPABASE_URL}/auth/v1/${q}`, { method, headers, body: JSON.stringify(data) }), "アカウント作成"),
-    del: async (q) => read(await http(`${env.SUPABASE_URL}/rest/v1/${q}`, { method: "DELETE", headers: { ...headers, Prefer: "return=minimal" } }), "削除"),
+    get: async (path) => read(await http(`${env.SUPABASE_URL}/rest/v1/${path}`, { headers }), "読み込み"),
+    patch: async (path, data) => read(await http(`${env.SUPABASE_URL}/rest/v1/${path}`, { method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify(data) }), "保存"),
+    auth: async (path, method, data) => read(await http(`${env.SUPABASE_URL}/auth/v1/${path}`, { method, headers, body: JSON.stringify(data) }), "アカウント作成"),
+    del: async (path) => read(await http(`${env.SUPABASE_URL}/rest/v1/${path}`, { method: "DELETE", headers: { ...headers, Prefer: "return=minimal" } }), "削除"),
   };
 }
 
 /** 番号つきのエラーを作る */
 function fail(message, status) {
-  const e = new Error(message);   // エラー
-  e.status = status;
-  return e;
+  const event = new Error(message);   // エラー
+  event.status = status;
+  return event;
 }
 
 /** ブラウザに「このサイトから使ってよい」と知らせる印 */

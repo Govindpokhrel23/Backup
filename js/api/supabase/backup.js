@@ -6,7 +6,7 @@
 // ※初回コード・パスワードは入らない（アプリからは見えない決まり）
 // ============================================================
 
-import { sb, requireManager, readAll } from "./core.js";
+import { supabaseClient, requireManager, readAll } from "./core.js";
 
 /**
  * 書き出す表と、並べる列（1000行ずつ読む時に、順番がずれないように並べる）
@@ -24,10 +24,10 @@ export const backupApi = {
   /** 全部のデータ（店長が見られる分）を1つにまとめる */
   async exportAll() {
     await requireManager();
-    const c = await sb();   // Supabase の道具
+    const client = await supabaseClient();   // Supabase の道具
     const tables = {};      // 表の名前 → 行の一覧
     for (const [name, key] of TABLES) {
-      tables[name] = await readAll(() => c.from(name).select("*").order(key));
+      tables[name] = await readAll(() => client.from(name).select("*").order(key));
     }
     return { app: "shiftapp", kind: "supabase", exportedAt: new Date().toISOString(), tables };
   },

@@ -8,7 +8,7 @@
 // ・公開前の週は出さない（公開されてから見える）
 // ============================================================
 
-import { h, mount } from "../lib/dom.js";
+import { createElement, mount } from "../lib/dom.js";
 import { api } from "../api/index.js";
 import { state } from "../store.js";
 import { screenHeader } from "../components/header.js";
@@ -22,7 +22,7 @@ import { fmt, range } from "../lib/time.js";
 export async function renderCalendar(app) {
   const [mine, stores] = await Promise.all([api.listMyAssignments(), api.listStores()]);   // 自分の勤務 と 店舗の一覧
   /** 店舗のIDから店舗 */
-  const storeOf = (id) => stores.find((s) => s.id === id);
+  const storeOf = (id) => stores.find((store) => store.id === id);
 
   // 今の月から始める
   const now = new Date();
@@ -38,36 +38,36 @@ export async function renderCalendar(app) {
    */
   function monthTotal() {
     const key = `${year}-${String(month + 1).padStart(2, "0")}`;               // 見ている月（例 2026-11）
-    const list = mine.filter((a) => a.date.startsWith(key));                   // その月の勤務
-    const days = new Set(list.map((a) => a.date)).size;                         // 入る日数
-    const minutes = list.reduce((s, a) => s + workedMinutes(a), 0);             // 働く時間（分）
-    return h("div", { class: "month-total" },
-      h("span", { class: "home-muted" }, `${month + 1}月の合計（${days}日・休憩を引いた目安）`),
-      h("strong", { class: "num" }, hoursText(minutes)));
+    const list = mine.filter((shift) => shift.date.startsWith(key));                   // その月の勤務
+    const days = new Set(list.map((shift) => shift.date)).size;                         // 入る日数
+    const minutes = list.reduce((sum, shift) => sum + workedMinutes(shift), 0);             // 働く時間（分）
+    return createElement("div", { class: "month-total" },
+      createElement("span", { class: "home-muted" }, `${month + 1}月の合計（${days}日・休憩を引いた目安）`),
+      createElement("strong", { class: "num" }, hoursText(minutes)));
   }
 
   /** 画面を描く */
   function draw() {
     const byDate = new Map();   // 日付 → その日の自分の勤務
-    for (const a of mine) {
-      if (!byDate.has(a.date)) byDate.set(a.date, []);
-      byDate.get(a.date).push(a);
+    for (const shift of mine) {
+      if (!byDate.has(shift.date)) byDate.set(shift.date, []);
+      byDate.get(shift.date).push(shift);
     }
 
     mount(app,
       screenHeader({ title: isManager() ? "自分の勤務" : "マイカレンダー", sub: state.user.name }),
-      h("div", { class: "screen-body" },
-        h("section", { class: "card" },
-          h("div", { class: "cal__nav" },
-            h("button", { class: "btn btn--small", "aria-label": "前の月", onclick: () => moveMonth(-1) }, "‹"),
-            h("strong", null, `${year}年 ${month + 1}月`),
-            h("button", { class: "btn btn--small", "aria-label": "次の月", onclick: () => moveMonth(1) }, "›"),
+      createElement("div", { class: "screen-body" },
+        createElement("section", { class: "card" },
+          createElement("div", { class: "cal__nav" },
+            createElement("button", { class: "btn btn--small", "aria-label": "前の月", onclick: () => moveMonth(-1) }, "‹"),
+            createElement("strong", null, `${year}年 ${month + 1}月`),
+            createElement("button", { class: "btn btn--small", "aria-label": "次の月", onclick: () => moveMonth(1) }, "›"),
           ),
           monthGrid(byDate),
           monthTotal(),
-          h("div", { class: "cal__legend" },
-            h("span", null, h("i", { class: "cal__dot" }), "いつものお店"),
-            h("span", null, h("i", { class: "cal__dot cal__dot--help" }), "応援"),
+          createElement("div", { class: "cal__legend" },
+            createElement("span", null, createElement("i", { class: "cal__dot" }), "いつものお店"),
+            createElement("span", null, createElement("i", { class: "cal__dot cal__dot--help" }), "応援"),
           ),
         ),
         dayDetail(byDate.get(selected) || []),
@@ -83,56 +83,56 @@ export async function renderCalendar(app) {
     const blanks = (first.getDay() + 6) % 7;           // 月曜=0 にそろえる
     const daysInMonth = new Date(year, month + 1, 0).getDate();   // その月の日数
     const cells = [];   // カレンダーのマス
-    for (let i = 0; i < blanks; i++) cells.push(h("div"));
-    for (let d = 1; d <= daysInMonth; d++) {
-      const iso = toIso(new Date(year, month, d, 12));   // そのマスの日付
+    for (let index = 0; index < blanks; index++) cells.push(createElement("div"));
+    for (let days = 1; days <= daysInMonth; days++) {
+      const iso = toIso(new Date(year, month, days, 12));   // そのマスの日付
       const work = byDate.get(iso) || [];   // その日の勤務
-      const wd = (blanks + d - 1) % 7;                 // 0=月 … 6=日
-      cells.push(h("button", {
+      const wd = (blanks + days - 1) % 7;                 // 0=月 … 6=日
+      cells.push(createElement("button", {
         class: `cal__cell ${iso === selected ? "is-selected" : ""} ${iso === today() ? "is-today" : ""}`,
-        "aria-label": `${month + 1}月${d}日${work.length ? ` 勤務 ${work.map((a) => range(a.from, a.to)).join("、")}` : ""}`,
+        "aria-label": `${month + 1}月${days}日${work.length ? ` 勤務 ${work.map((shift) => range(shift.from, shift.to)).join("、")}` : ""}`,
         onclick: () => { selected = iso; draw(); },
       },
-        h("span", { class: `cal__num ${wd === 6 ? "is-sun" : wd === 5 ? "is-sat" : ""}` }, d),
+        createElement("span", { class: `cal__num ${wd === 6 ? "is-sun" : wd === 5 ? "is-sat" : ""}` }, days),
         // 入っている日は「7〜17」のように始まりと終わりを出す
-        work.map((a) => h("span", { class: `cal__chip num ${a.storeId !== state.user.storeId ? "is-help" : ""}` }, shortRange(a.from, a.to))),
+        work.map((shift) => createElement("span", { class: `cal__chip num ${shift.storeId !== state.user.storeId ? "is-help" : ""}` }, shortRange(shift.from, shift.to))),
       ));
     }
-    return h("div", { class: "cal" },
-      ["月", "火", "水", "木", "金", "土", "日"].map((w, i) => h("div", { class: `cal__wd ${i === 6 ? "is-sun" : i === 5 ? "is-sat" : ""}` }, w)),
+    return createElement("div", { class: "cal" },
+      ["月", "火", "水", "木", "金", "土", "日"].map((weekdayName, index) => createElement("div", { class: `cal__wd ${index === 6 ? "is-sun" : index === 5 ? "is-sat" : ""}` }, weekdayName)),
       cells,
     );
   }
 
   /** 選んだ日のくわしい内容 */
   function dayDetail(work) {
-    return h("section", { class: "card" },
-      h("h2", { class: "card__title" }, label(selected)),
+    return createElement("section", { class: "card" },
+      createElement("h2", { class: "card__title" }, label(selected)),
       work.length
-        ? work.map((a) => {
-            const store = storeOf(a.storeId);   // 勤務の店舗
-            const help = a.storeId !== state.user.storeId;   // ほかの店舗への応援か
-            return h("div", { class: "cal-detail" },
-              h("div", { class: "cal-detail__time num" }, `コメダ ${range(a.from, a.to)}`),
-              h("div", null, `${store?.name || ""} ・ ${a.area === "hall" ? "ホール" : "キッチン"}`),
-              h("div", null, `休憩の目安：${a.breakAt != null ? fmt(a.breakAt) : "なし"}`),
-              help ? h("span", { class: "badge badge--warn" }, "応援（いつもと違うお店です）") : null,
+        ? work.map((shift) => {
+            const store = storeOf(shift.storeId);   // 勤務の店舗
+            const help = shift.storeId !== state.user.storeId;   // ほかの店舗への応援か
+            return createElement("div", { class: "cal-detail" },
+              createElement("div", { class: "cal-detail__time num" }, `コメダ ${range(shift.from, shift.to)}`),
+              createElement("div", null, `${store?.name || ""} ・ ${shift.area === "hall" ? "ホール" : "キッチン"}`),
+              createElement("div", null, `休憩の目安：${shift.breakAt != null ? fmt(shift.breakAt) : "なし"}`),
+              help ? createElement("span", { class: "badge badge--warn" }, "応援（いつもと違うお店です）") : null,
             );
           })
-        : h("div", { class: "home-muted" }, "この日の勤務はありません（公開前の週はまだ出ません）"),
+        : createElement("div", { class: "home-muted" }, "この日の勤務はありません（公開前の週はまだ出ません）"),
     );
   }
 
   /** "7〜17" の短い形（ちょうどの時刻は分を省く。例 7:30〜17 ） */
   function shortRange(from, to) {
     /** マスに出す短い時刻（9:00 → 9、9:30 → 9:30） */
-    const t = (m) => (m % 60 === 0 ? String(m / 60 > 24 ? `翌${m / 60 - 24}` : m / 60) : fmt(m));
-    return `${t(from)}〜${t(to)}`;
+    const shortTime = (minutes) => (minutes % 60 === 0 ? String(minutes / 60 > 24 ? `翌${minutes / 60 - 24}` : minutes / 60) : fmt(minutes));
+    return `${shortTime(from)}〜${shortTime(to)}`;
   }
 
   /** 前の月・次の月へ */
-  function moveMonth(n) {
-    month += n;
+  function moveMonth(step) {
+    month += step;
     if (month < 0) { month = 11; year--; }
     if (month > 11) { month = 0; year++; }
     draw();

@@ -18,16 +18,16 @@ export const EDIT_MAX = 26 * 60;   // 一番おそい時刻（翌2:00）
 
 /** 分 → "9:00" の文字（24時をこえたら "翌1:00"） */
 export function fmt(minutes) {
-  const h = Math.floor(minutes / 60);   // 時
-  const m = minutes % 60;   // 分
-  const mm = String(m).padStart(2, "0");   // 分（2けた）
-  return h > 24 || (h === 24 && m > 0) ? `翌${h - 24}:${mm}` : `${h}:${mm}`;
+  const hours = Math.floor(minutes / 60);   // 時
+  const restMinutes = minutes % 60;   // 分
+  const mm = String(restMinutes).padStart(2, "0");   // 分（2けた）
+  return hours > 24 || (hours === 24 && restMinutes > 0) ? `翌${hours - 24}:${mm}` : `${hours}:${mm}`;
 }
 
 /** "9:00" の文字 → 分 */
 export function parse(text) {
-  const [h, m] = text.split(":").map(Number);   // 時と分
-  return h * 60 + m;
+  const [hours, minutes] = text.split(":").map(Number);   // 時と分
+  return hours * 60 + minutes;
 }
 
 /** 15分刻みにそろえる（ドラッグした時などに使う） */
@@ -56,6 +56,6 @@ export function overlaps(aFrom, aTo, bFrom, bTo) {
  */
 export function timeOptions(from = 420, to = 1320) {
   const list = [];   // 時刻の一覧
-  for (let m = from; m <= to; m += STEP) list.push({ value: m, label: fmt(m) });
+  for (let minutes = from; minutes <= to; minutes += STEP) list.push({ value: minutes, label: fmt(minutes) });
   return list;
 }

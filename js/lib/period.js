@@ -39,13 +39,13 @@ export function deadlineLabel(period) {
 
 /** 受付中の週（なければ null） */
 export function openPeriod(periods) {
-  return periods.find((p) => p.status === "open") || null;
+  return periods.find((period) => period.status === "open") || null;
 }
 
 /** 店長が次に作る週（締切 → 受付中 → いちばん新しい の順で探す） */
 export function workingPeriod(periods) {
-  return periods.find((p) => p.status === "closed")
-    || periods.find((p) => p.status === "open")
+  return periods.find((period) => period.status === "closed")
+    || periods.find((period) => period.status === "open")
     || periods[periods.length - 1]
     || null;
 }

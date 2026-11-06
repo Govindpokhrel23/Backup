@@ -21,8 +21,8 @@ export function load() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);   // 保存してある文字
     if (saved) return JSON.parse(saved);
-  } catch (e) {
-    console.warn("見本データを読めなかったので作り直します", e);
+  } catch (error) {
+    console.warn("見本データを読めなかったので作り直します", error);
   }
   const fresh = createMockData();   // 新しい見本データ
   save(fresh);
@@ -33,13 +33,13 @@ export function load() {
 export function save(data) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.warn("保存できませんでした（プライベートブラウズなど）", e);
+  } catch (error) {
+    console.warn("保存できませんでした（プライベートブラウズなど）", error);
   }
 }
 
 /** 中身のコピーを返す（画面側でいじっても元のデータが変わらないように） */
-export const copy = (x) => JSON.parse(JSON.stringify(x));
+export const copy = (value) => JSON.parse(JSON.stringify(value));
 
 /** 本物の通信のように「少し待ってから」答える */
 export const reply = (value) => new Promise((ok) => setTimeout(() => ok(copy(value)), 80));
@@ -54,7 +54,7 @@ export const fail = (message) => Promise.reject(new Error(message));
 /** ログイン中の店員（いなければ null） */
 export function me(data) {
   if (!data.session) return null;
-  return data.members.find((x) => x.id === data.session.memberId) || null;
+  return data.members.find((member) => member.id === data.session.memberId) || null;
 }
 
 /**
@@ -73,20 +73,20 @@ export function storeOf(data) {
  */
 export function companyStore(data, storeId) {
   if (!storeId) return storeOf(data);
-  const mine = data.stores.find((s) => s.id === storeOf(data));   // 自分の店舗
-  const target = data.stores.find((s) => s.id === storeId);   // 見たい店舗
+  const mine = data.stores.find((store) => store.id === storeOf(data));   // 自分の店舗
+  const target = data.stores.find((store) => store.id === storeId);   // 見たい店舗
   if (!target || target.companyId !== mine?.companyId) throw new Error("この店舗は見られません");
   return storeId;
 }
 
 /** その人がその店舗に行けるか（店長が決めた「行ける店舗」） */
 export function canWorkAt(member, storeId) {
-  return member.storeId === storeId || (member.stores || []).some((s) => s.storeId === storeId);
+  return member.storeId === storeId || (member.stores || []).some((store) => store.storeId === storeId);
 }
 
 /** その店舗での順番（1＝メイン、2＝2nd、3＝3rd。行けなければ null） */
 export function rankAt(member, storeId) {
-  if (member.stores?.length) return member.stores.find((s) => s.storeId === storeId)?.rank ?? null;
+  if (member.stores?.length) return member.stores.find((store) => store.storeId === storeId)?.rank ?? null;
   return member.storeId === storeId ? 1 : null;
 }
 

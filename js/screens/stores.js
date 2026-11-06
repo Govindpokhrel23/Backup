@@ -14,7 +14,7 @@
 //     休止した店舗は、切り替えのボタンや「行ける店舗」に出なくなる。再開もできる
 // ============================================================
 
-import { h, mount, toast, confirmDialog } from "../lib/dom.js";
+import { createElement, mount, toast, confirmDialog } from "../lib/dom.js";
 import { api } from "../api/index.js";
 import { state, loadStoreInfo, switchStore } from "../store.js";
 import { go } from "../router.js";
@@ -35,12 +35,12 @@ export async function renderStores(app) {
   function draw() {
     const stores = state.stores;                            // 全部の店舗（休止中も）
     mount(app,
-      screenHeader({ title: "店舗の管理", sub: `営業中 ${stores.filter((s) => s.active !== false).length}店舗` }),
-      h("div", { class: "screen-body" },
+      screenHeader({ title: "店舗の管理", sub: `営業中 ${stores.filter((store) => store.active !== false).length}店舗` }),
+      createElement("div", { class: "screen-body" },
         justAdded ? nextStepsCard(justAdded) : null,
         addCard(),
-        h("section", { class: "card" },
-          h("h2", { class: "card__title" }, "店舗の一覧"),
+        createElement("section", { class: "card" },
+          createElement("h2", { class: "card__title" }, "店舗の一覧"),
           stores.map((st) => storeRow(st)),
         ),
       ),
@@ -52,43 +52,43 @@ export async function renderStores(app) {
    * ① 名前 ② 設定を写す店舗 ③ 行ける人
    */
   function addCard() {
-    const name = h("input", { class: "input", placeholder: "例：コメダ珈琲店 刈谷店" });      // 店舗名
-    const short = h("input", { class: "input", placeholder: "例：刈谷", maxlength: "4" });     // 短い名前
+    const name = createElement("input", { class: "input", placeholder: "例：コメダ珈琲店 刈谷店" });      // 店舗名
+    const short = createElement("input", { class: "input", placeholder: "例：刈谷", maxlength: "4" });     // 短い名前
     // 店舗名を打つと、短い名前を自動で入れる（自分で直したら、それ以上は変えない）
     let shortTouched = false;                                                                  // 短い名前を自分で直したか
     name.addEventListener("input", () => { if (!shortTouched) short.value = shortNameOf(name.value); });
     short.addEventListener("input", () => { shortTouched = true; });
     // ② どの店舗の設定を写すか（最初は今見ている店舗）
-    const copyFrom = h("select", { class: "select", "aria-label": "設定を写す店舗" },
-      h("option", { value: "" }, "写さない（マップは空から作る）"),
-      state.stores.filter((s) => s.active !== false).map((s) => h("option", { value: s.id, selected: s.id === state.storeId }, `${s.name} から写す`)));
+    const copyFrom = createElement("select", { class: "select", "aria-label": "設定を写す店舗" },
+      createElement("option", { value: "" }, "写さない（マップは空から作る）"),
+      state.stores.filter((store) => store.active !== false).map((store) => createElement("option", { value: store.id, selected: store.id === state.storeId }, `${store.name} から写す`)));
     // ③ この店舗にも行ける人（チェックした人は、その人の順番のいちばん後ろに足す）
-    const people = company.filter((m) => m.role !== "manager");                               // 店長は自動で全部の店舗に入る
-    const checks = people.map((m) => ({ m, box: h("input", { type: "checkbox" }) }));          // 人ごとのチェック
-    return h("section", { class: "card" },
-      h("h2", { class: "card__title" }, "店舗を増やす"),
-      h("div", { class: "step" }, h("strong", { class: "step__no" }, "1"), "名前"),
-      h("div", { class: "store-row__fields" },
-        h("label", { class: "field" }, "店舗名", name),
-        h("label", { class: "field" }, "短い名前（4文字まで・ボタンに出る）", short),
+    const people = company.filter((member) => member.role !== "manager");                               // 店長は自動で全部の店舗に入る
+    const checks = people.map((member) => ({ m: member, box: createElement("input", { type: "checkbox" }) }));          // 人ごとのチェック
+    return createElement("section", { class: "card" },
+      createElement("h2", { class: "card__title" }, "店舗を増やす"),
+      createElement("div", { class: "step" }, createElement("strong", { class: "step__no" }, "1"), "名前"),
+      createElement("div", { class: "store-row__fields" },
+        createElement("label", { class: "field" }, "店舗名", name),
+        createElement("label", { class: "field" }, "短い名前（4文字まで・ボタンに出る）", short),
       ),
-      h("div", { class: "step" }, h("strong", { class: "step__no" }, "2"), "営業時間・マップ・必要人数"),
+      createElement("div", { class: "step" }, createElement("strong", { class: "step__no" }, "2"), "営業時間・マップ・必要人数"),
       copyFrom,
-      h("div", { class: "home-muted" }, "似ている店舗から写すと、あとで少し直すだけで使えます"),
-      h("div", { class: "step" }, h("strong", { class: "step__no" }, "3"), "この店舗にも行ける人（あとで店員管理でも変えられます）"),
-      h("div", { class: "pick-list" },
-        checks.map(({ m, box }) => h("label", { class: "pick-list__item" }, box, `${m.name}`, h("span", { class: "home-muted" }, `（${m.mainShort}）`)))),
-      h("button", { class: "btn btn--primary btn--block", onclick: async () => {
+      createElement("div", { class: "home-muted" }, "似ている店舗から写すと、あとで少し直すだけで使えます"),
+      createElement("div", { class: "step" }, createElement("strong", { class: "step__no" }, "3"), "この店舗にも行ける人（あとで店員管理でも変えられます）"),
+      createElement("div", { class: "pick-list" },
+        checks.map(({ m: member, box }) => createElement("label", { class: "pick-list__item" }, box, `${member.name}`, createElement("span", { class: "home-muted" }, `（${member.mainShort}）`)))),
+      createElement("button", { class: "btn btn--primary btn--block", onclick: async () => {
         try {
           const st = await api.createStore({ name: name.value, short: short.value, copyFrom: copyFrom.value || null });   // 増やした店舗
-          const ids = checks.filter((c) => c.box.checked).map((c) => c.m.id);                   // チェックした人
+          const ids = checks.filter((check) => check.box.checked).map((check) => check.m.id);                   // チェックした人
           if (ids.length) await api.addMembersToStore(st.id, ids);
           await loadStoreInfo();
           justAdded = { store: st, copied: !!copyFrom.value, people: ids.length };
           toast(`${st.name} を増やしました`);
           draw();
           window.scrollTo(0, 0);
-        } catch (e) { toast(e.message); }
+        } catch (error) { toast(error.message); }
       } }, "＋ 店舗を増やす"),
     );
   }
@@ -97,15 +97,15 @@ export async function renderStores(app) {
   function nextStepsCard({ store, copied, people }) {
     /** その店舗に切り替えてから、画面へ行く */
     const open = async (path) => { await switchStore(store.id); go(path); };
-    return h("section", { class: "card next-steps" },
-      h("h2", { class: "card__title" }, `${store.name} を増やしました。次にやること`),
-      h("ol", { class: "next-steps__list" },
-        h("li", null, copied ? "マップと営業時間を確認する（写したものが入っています）" : "マップに人のマークを置いて、営業時間を決める",
-          h("button", { class: "btn btn--small", onclick: () => open("/map") }, "マップへ")),
-        h("li", null, people ? `行ける人 ${people}人 の順番を確認する` : "この店舗で働く人を決める",
-          h("button", { class: "btn btn--small", onclick: () => open("/staff") }, "店員管理へ")),
-        h("li", null, "シフトを作る",
-          h("button", { class: "btn btn--small btn--primary", onclick: () => open("/shift") }, "シフト作成へ")),
+    return createElement("section", { class: "card next-steps" },
+      createElement("h2", { class: "card__title" }, `${store.name} を増やしました。次にやること`),
+      createElement("ol", { class: "next-steps__list" },
+        createElement("li", null, copied ? "マップと営業時間を確認する（写したものが入っています）" : "マップに人のマークを置いて、営業時間を決める",
+          createElement("button", { class: "btn btn--small", onclick: () => open("/map") }, "マップへ")),
+        createElement("li", null, people ? `行ける人 ${people}人 の順番を確認する` : "この店舗で働く人を決める",
+          createElement("button", { class: "btn btn--small", onclick: () => open("/staff") }, "店員管理へ")),
+        createElement("li", null, "シフトを作る",
+          createElement("button", { class: "btn btn--small btn--primary", onclick: () => open("/shift") }, "シフト作成へ")),
       ),
     );
   }
@@ -113,25 +113,25 @@ export async function renderStores(app) {
   /** 1店舗分：名前の変更と、休止／再開 */
   function storeRow(st) {
     const paused = st.active === false;   // 休止中か
-    const name = h("input", { class: "input", value: st.name, "aria-label": "店舗名" });   // 店舗名の欄
-    const short = h("input", { class: "input", value: st.short, maxlength: "4", "aria-label": "短い名前" });   // 短い名前の欄
-    return h("div", { class: `store-row ${paused ? "is-paused" : ""}` },
-      h("div", { class: "store-row__fields" }, name, short),
-      h("div", { class: "chip-row" },
-        paused ? h("span", { class: "badge", style: { alignSelf: "center" } }, "休止中") : null,
-        h("button", { class: "btn btn--small", onclick: async () => {
+    const name = createElement("input", { class: "input", value: st.name, "aria-label": "店舗名" });   // 店舗名の欄
+    const short = createElement("input", { class: "input", value: st.short, maxlength: "4", "aria-label": "短い名前" });   // 短い名前の欄
+    return createElement("div", { class: `store-row ${paused ? "is-paused" : ""}` },
+      createElement("div", { class: "store-row__fields" }, name, short),
+      createElement("div", { class: "chip-row" },
+        paused ? createElement("span", { class: "badge", style: { alignSelf: "center" } }, "休止中") : null,
+        createElement("button", { class: "btn btn--small", onclick: async () => {
           try {
             await api.updateStore(st.id, { name: name.value, short: short.value });
             await loadStoreInfo();
             toast("名前を変えました");
             draw();
-          } catch (e) { toast(e.message); }
+          } catch (error) { toast(error.message); }
         } }, "名前を保存"),
-        h("button", { class: `btn btn--small ${paused ? "" : "btn--danger"}`, onclick: async () => {
+        createElement("button", { class: `btn btn--small ${paused ? "" : "btn--danger"}`, onclick: async () => {
           if (!paused) {
             const ok = await confirmDialog({   // 本当に休止するか聞く
               title: `${st.name} を休止しますか？`,
-              body: h("p", { style: { margin: 0 } }, "店舗は消えません。過去のシフトは残り、あとで再開できます。休止中は切り替えのボタンや「行ける店舗」に出ません。"),
+              body: createElement("p", { style: { margin: 0 } }, "店舗は消えません。過去のシフトは残り、あとで再開できます。休止中は切り替えのボタンや「行ける店舗」に出ません。"),
               yes: "休止する", no: "やめる",
             });
             if (!ok) return;
@@ -141,7 +141,7 @@ export async function renderStores(app) {
             await loadStoreInfo();
             toast(paused ? "再開しました" : "休止しました");
             draw();
-          } catch (e) { toast(e.message); }
+          } catch (error) { toast(error.message); }
         } }, paused ? "再開する" : "休止する"),
       ),
     );

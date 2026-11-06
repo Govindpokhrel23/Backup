@@ -9,7 +9,7 @@
 // ============================================================
 
 import {
-  sb, must, newId, requireMe, requireManager, currentStore,
+  supabaseClient, must, newId, requireMe, requireManager, currentStore,
   periodMap, hopeMap, workMap, companyMembers, canWorkAt, notify, readAll,
 } from "./core.js";
 import { today, addDays, weekDates, label } from "../../lib/date.js";
@@ -21,18 +21,18 @@ export const periodsApi = {
   /** その店舗（なければ今の店舗）の週の一覧（古い順） */
   async listPeriods(storeId) {
     await requireMe();
-    const c = await sb();   // Supabase の道具
-    return must(await c.from("periods").select("*").eq("store_id", storeId || (await currentStore())).order("week_start")).map(periodMap.from);
+    const client = await supabaseClient();   // Supabase の道具
+    return must(await client.from("periods").select("*").eq("store_id", storeId || (await currentStore())).order("week_start")).map(periodMap.from);
   },
 
   /** その週の受付がなければ作る（店長） */
   async ensurePeriod(weekStart) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
+    const client = await supabaseClient();   // Supabase の道具
     const store = await currentStore();                                // 今の店舗
-    const found = must(await c.from("periods").select("*").eq("store_id", store).eq("week_start", weekStart).maybeSingle());   // もうある週
+    const found = must(await client.from("periods").select("*").eq("store_id", store).eq("week_start", weekStart).maybeSingle());   // もうある週
     if (found) return periodMap.from(found);
-    return periodMap.from(must(await c.from("periods").insert({
+    return periodMap.from(must(await client.from("periods").insert({
       id: newId(), store_id: store, week_start: weekStart, deadline: `${addDays(weekStart, -1)}T24:00`, status: "open", note: "",
     }).select().single()));
   },
@@ -40,38 +40,38 @@ export const periodsApi = {
   /** 受付の状態を変える（open／closed／published） */
   async setPeriodStatus(periodId, status) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
+    const client = await supabaseClient();   // Supabase の道具
     const patch = { status, ...(status === "published" ? { published_at: new Date().toISOString() } : {}) };   // 直す中身
-    return periodMap.from(must(await c.from("periods").update(patch).eq("id", periodId).select().single()));
+    return periodMap.from(must(await client.from("periods").update(patch).eq("id", periodId).select().single()));
   },
 
   /** 連絡事項を保存（店長） */
   async savePeriodNote(periodId, note) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    must(await c.from("periods").update({ note }).eq("id", periodId));
+    const client = await supabaseClient();   // Supabase の道具
+    must(await client.from("periods").update({ note }).eq("id", periodId));
     return true;
   },
 
   /** その週だけ、ほかの店舗の人を応援として足す（店長） */
   async addGuest(periodId, memberId) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    const p = must(await c.from("periods").select("guests").eq("id", periodId).single());   // その週
-    const guests = [...new Set([...(p.guests || []), memberId])];                           // 新しい応援の一覧
-    must(await c.from("periods").update({ guests }).eq("id", periodId));
+    const client = await supabaseClient();   // Supabase の道具
+    const period = must(await client.from("periods").select("guests").eq("id", periodId).single());   // その週
+    const guests = [...new Set([...(period.guests || []), memberId])];                           // 新しい応援の一覧
+    must(await client.from("periods").update({ guests }).eq("id", periodId));
     return guests;
   },
 
   /** 応援の人を外す（店長。勤務が入っていなければ） */
   async removeGuest(periodId, memberId) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    const used = must(await c.from("assignments").select("id").eq("period_id", periodId).eq("member_id", memberId));   // その人の勤務
+    const client = await supabaseClient();   // Supabase の道具
+    const used = must(await client.from("assignments").select("id").eq("period_id", periodId).eq("member_id", memberId));   // その人の勤務
     if (used.length) throw new Error("勤務が入っているので外せません。先に勤務を消してください");
-    const p = must(await c.from("periods").select("guests").eq("id", periodId).single());   // その週
-    const guests = (p.guests || []).filter((id) => id !== memberId);   // 新しい応援の一覧
-    must(await c.from("periods").update({ guests }).eq("id", periodId));
+    const period = must(await client.from("periods").select("guests").eq("id", periodId).single());   // その週
+    const guests = (period.guests || []).filter((id) => id !== memberId);   // 新しい応援の一覧
+    must(await client.from("periods").update({ guests }).eq("id", periodId));
     return guests;
   },
 
@@ -80,22 +80,22 @@ export const periodsApi = {
   /** ある週の希望（店長＝その店舗の人と応援の人全員分、店員＝自分の分） */
   async listAvailabilities(periodId) {
     const user = await requireMe();                                    // ログイン中の人
-    const c = await sb();   // Supabase の道具
-    const p = must(await c.from("periods").select("*").eq("id", periodId).maybeSingle());   // その週
-    if (!p) return [];
-    const dates = weekDates(p.week_start);                             // その週の日付
-    const rows = must(await c.from("availabilities").select("*").gte("date", dates[0]).lte("date", dates[6])).map(hopeMap.from);   // その週の希望（決まりで見えるものだけ）
-    if (user.role !== "manager") return rows.filter((a) => a.memberId === user.id);
+    const client = await supabaseClient();   // Supabase の道具
+    const period = must(await client.from("periods").select("*").eq("id", periodId).maybeSingle());   // その週
+    if (!period) return [];
+    const dates = weekDates(period.week_start);                             // その週の日付
+    const rows = must(await client.from("availabilities").select("*").gte("date", dates[0]).lte("date", dates[6])).map(hopeMap.from);   // その週の希望（決まりで見えるものだけ）
+    if (user.role !== "manager") return rows.filter((row) => row.memberId === user.id);
     const members = await companyMembers();   // 会社の店員
-    const here = new Set([...members.filter((m) => canWorkAt(m, p.store_id)).map((m) => m.id), ...(p.guests || [])]);   // その店舗の人
-    return rows.filter((a) => here.has(a.memberId));
+    const here = new Set([...members.filter((member) => canWorkAt(member, period.store_id)).map((member) => member.id), ...(period.guests || [])]);   // その店舗の人
+    return rows.filter((row) => here.has(row.memberId));
   },
 
   /** 自分の希望（from〜to） */
   async listMyAvailabilities(from, to) {
     const user = await requireMe();   // ログイン中の人
-    const c = await sb();   // Supabase の道具
-    return must(await c.from("availabilities").select("*").eq("member_id", user.id).gte("date", from).lte("date", to)).map(hopeMap.from);
+    const client = await supabaseClient();   // Supabase の道具
+    return must(await client.from("availabilities").select("*").eq("member_id", user.id).gte("date", from).lte("date", to)).map(hopeMap.from);
   },
 
   /** その週に希望を入れられるか（入れられなければ理由、入れられれば null） */
@@ -109,17 +109,17 @@ export const periodsApi = {
     const reason = await lockReason(weekStart);                        // 入れられない理由
     if (reason) throw new Error(reason);
     const dates = weekDates(weekStart);   // その週の日付
-    const c = await sb();   // Supabase の道具
-    must(await c.from("availabilities").delete().eq("member_id", user.id).gte("date", dates[0]).lte("date", dates[6]));
-    if (rows.length) must(await c.from("availabilities").insert(rows.map((r) => hopeMap.to({ ...r, memberId: user.id, note: r.note || "" }))));
+    const client = await supabaseClient();   // Supabase の道具
+    must(await client.from("availabilities").delete().eq("member_id", user.id).gte("date", dates[0]).lte("date", dates[6]));
+    if (rows.length) must(await client.from("availabilities").insert(rows.map((row) => hopeMap.to({ ...row, memberId: user.id, note: row.note || "" }))));
     return true;
   },
 
   /** 店長が「特別許可」を出す（社員の2日目の休み希望） */
   async approveSpecialOff(periodId, memberId, date) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    must(await c.from("availabilities").update({ kind: "off" }).eq("member_id", memberId).eq("date", date));
+    const client = await supabaseClient();   // Supabase の道具
+    must(await client.from("availabilities").update({ kind: "off" }).eq("member_id", memberId).eq("date", date));
     return true;
   },
 
@@ -128,8 +128,8 @@ export const periodsApi = {
   /** その週の勤務（店員は公開済みの週だけ見える。データベースの決まりで） */
   async listAssignments(periodId) {
     await requireMe();
-    const c = await sb();   // Supabase の道具
-    return must(await c.from("assignments").select("*").eq("period_id", periodId)).map(workMap.from);
+    const client = await supabaseClient();   // Supabase の道具
+    return must(await client.from("assignments").select("*").eq("period_id", periodId)).map(workMap.from);
   },
 
   /**
@@ -139,42 +139,42 @@ export const periodsApi = {
    */
   async listAssignmentsByDates(from, to, memberIds = null) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
+    const client = await supabaseClient();   // Supabase の道具
     return (await readAll(() => {
-      let q = c.from("assignments").select("*").gte("date", from).lte("date", to);   // 問い合わせ
-      if (memberIds) q = q.in("member_id", memberIds);
-      return q.order("id");
+      let query = client.from("assignments").select("*").gte("date", from).lte("date", to);   // 問い合わせ
+      if (memberIds) query = query.in("member_id", memberIds);
+      return query.order("id");
     })).map(workMap.from);
   },
 
   /** 自分の勤務（公開済みの週だけ。応援先も） */
   async listMyAssignments() {
     const user = await requireMe();   // ログイン中の人
-    const c = await sb();   // Supabase の道具
-    const rows = must(await c.from("assignments").select("*").eq("member_id", user.id)).map(workMap.from);   // 自分の勤務
-    const ids = [...new Set(rows.map((a) => a.periodId))];                                                  // その週のID
+    const client = await supabaseClient();   // Supabase の道具
+    const rows = must(await client.from("assignments").select("*").eq("member_id", user.id)).map(workMap.from);   // 自分の勤務
+    const ids = [...new Set(rows.map((row) => row.periodId))];                                                  // その週のID
     if (!ids.length) return [];
-    const published = new Set(must(await c.from("periods").select("id").in("id", ids).eq("status", "published")).map((p) => p.id));   // 公開済みの週のID
-    return rows.filter((a) => published.has(a.periodId));
+    const published = new Set(must(await client.from("periods").select("id").in("id", ids).eq("status", "published")).map((period) => period.id));   // 公開済みの週のID
+    return rows.filter((row) => published.has(row.periodId));
   },
 
   /** 1週間分の勤務を保存（店長）。公開後なら、変わった人に知らせる */
   async saveAssignments(periodId, rows) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    const p = must(await c.from("periods").select("*").eq("id", periodId).single());          // その週
-    const before = must(await c.from("assignments").select("*").eq("period_id", periodId)).map(workMap.from);   // 前の勤務
-    const next = rows.map((r) => ({ ...r, id: r.id || newId(), periodId, storeId: p.store_id }));               // 保存する勤務
-    const keep = new Set(next.map((r) => r.id));   // 残す勤務のID
-    const drop = before.filter((a) => !keep.has(a.id)).map((a) => a.id);                     // 消す勤務
-    if (drop.length) must(await c.from("assignments").delete().in("id", drop));
+    const client = await supabaseClient();   // Supabase の道具
+    const period = must(await client.from("periods").select("*").eq("id", periodId).single());          // その週
+    const before = must(await client.from("assignments").select("*").eq("period_id", periodId)).map(workMap.from);   // 前の勤務
+    const next = rows.map((row) => ({ ...row, id: row.id || newId(), periodId, storeId: period.store_id }));               // 保存する勤務
+    const keep = new Set(next.map((row) => row.id));   // 残す勤務のID
+    const drop = before.filter((shift) => !keep.has(shift.id)).map((shift) => shift.id);                     // 消す勤務
+    if (drop.length) must(await client.from("assignments").delete().in("id", drop));
     if (next.length) {
-      must(await c.from("assignments").upsert(next.map((r) => workMap.to({
-        ...r, breakAt: r.breakAt ?? null, fixed: !!r.fixed, createdBy: r.createdBy || "manager",
-        requested: !!r.requested, helper: !!r.helper, reason: r.reason || "",
+      must(await client.from("assignments").upsert(next.map((row) => workMap.to({
+        ...row, breakAt: row.breakAt ?? null, fixed: !!row.fixed, createdBy: row.createdBy || "manager",
+        requested: !!row.requested, helper: !!row.helper, reason: row.reason || "",
       })), { onConflict: "id" }));
     }
-    if (p.status === "published") await notifyChanges(before, next);
+    if (period.status === "published") await notifyChanges(before, next);
     return true;
   },
 };
@@ -185,24 +185,24 @@ export const periodsApi = {
  */
 async function lockReason(weekStart) {
   const user = await requireMe();   // ログイン中の人
-  const c = await sb();   // Supabase の道具
-  const p = must(await c.from("periods").select("status").eq("store_id", user.storeId).eq("week_start", weekStart).maybeSingle());   // その週の受付
-  if (p && p.status !== "open") return "この週は受付が終わっています";
+  const client = await supabaseClient();   // Supabase の道具
+  const period = must(await client.from("periods").select("status").eq("store_id", user.storeId).eq("week_start", weekStart).maybeSingle());   // その週の受付
+  if (period && period.status !== "open") return "この週は受付が終わっています";
   if (today() > addDays(weekStart, -1)) return "この週は締切をすぎています";
   return null;
 }
 
 /** 公開後に変わった勤務を本人に知らせる（人と日ごとに1回） */
 async function notifyChanges(before, after) {
-  const key = (a) => `${a.memberId}|${a.date}`;                        // 人と日
-  const old = new Map(before.map((a) => [key(a), a]));                 // 前
-  const now = new Map(after.map((a) => [key(a), a]));                  // 後
+  const key = (shift) => `${shift.memberId}|${shift.date}`;                        // 人と日
+  const old = new Map(before.map((shift) => [key(shift), shift]));                 // 前
+  const now = new Map(after.map((shift) => [key(shift), shift]));                  // 後
   const changed = new Set();                                           // 変わった人と日
-  for (const [k, a] of now) { const b = old.get(k); if (!b || b.from !== a.from || b.to !== a.to) changed.add(k); }
-  for (const k of old.keys()) if (!now.has(k)) changed.add(k);
+  for (const [key, newShift] of now) { const oldShift = old.get(key); if (!oldShift || oldShift.from !== newShift.from || oldShift.to !== newShift.to) changed.add(key); }
+  for (const key of old.keys()) if (!now.has(key)) changed.add(key);
   // 人ごとにまとめて送る
-  for (const k of changed) {
-    const [memberId, date] = k.split("|");                             // 人と日
+  for (const key of changed) {
+    const [memberId, date] = key.split("|");                             // 人と日
     await notify([memberId], `${label(date)} のシフトが変わりました`);
   }
 }

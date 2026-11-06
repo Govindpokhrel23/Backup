@@ -19,11 +19,11 @@ const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 /**
  * Gemini に送って、JSON の答えをもらう
- * @param {object} p
- * @param {object} p.settings      ai-settings.js の設定
- * @param {string} p.prompt        送る文
- * @param {object} p.schema        答えの形（Gemini の responseSchema）
- * @param {typeof fetch} [p.fetchImpl] テストの時に、にせものの fetch を入れる
+ * @param {object} options
+ * @param {object} options.settings      ai-settings.js の設定
+ * @param {string} options.prompt        送る文
+ * @param {object} options.schema        答えの形（Gemini の responseSchema）
+ * @param {typeof fetch} [options.fetchImpl] テストの時に、にせものの fetch を入れる
  * @returns {Promise<object>} 答え（JSON をオブジェクトにしたもの）
  */
 export async function askGemini({ settings, prompt, schema, fetchImpl = fetch }) {
@@ -61,8 +61,8 @@ export async function askGemini({ settings, prompt, schema, fetchImpl = fetch })
         signal: stop.signal,
       });
     }
-  } catch (e) {
-    throw new Error(e.name === "AbortError" ? "AIの返事が遅すぎたので止めました（もう一度押してください）" : "AIにつながりません（電波・URLを確認してください）");
+  } catch (error) {
+    throw new Error(error.name === "AbortError" ? "AIの返事が遅すぎたので止めました（もう一度押してください）" : "AIにつながりません（電波・URLを確認してください）");
   } finally {
     clearTimeout(timer);
   }
@@ -70,7 +70,7 @@ export async function askGemini({ settings, prompt, schema, fetchImpl = fetch })
   if (!res.ok) throw new Error(errorText(res.status, await res.text().catch(() => "")));
 
   const json = await res.json();                                      // Gemini の答え全体
-  const text = json?.candidates?.[0]?.content?.parts?.map((x) => x.text || "").join("") || "";   // 答えの文
+  const text = json?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";   // 答えの文
   if (!text) {
     const why = json?.promptFeedback?.blockReason || json?.candidates?.[0]?.finishReason || "空";   // 答えがなかった理由（安全のため止められた など）
     throw new Error(`AIから答えが返ってきませんでした（${why}）`);

@@ -7,7 +7,7 @@
 // ============================================================
 
 import {
-  sb, must, newId, requireMe, requireManager, currentStore,
+  supabaseClient, must, newId, requireMe, requireManager, currentStore,
   memberFrom, memberTo, companyMembers, companyStores, canWorkAt, rankAt,
 } from "./core.js";
 
@@ -21,18 +21,18 @@ export const membersApi = {
     await requireMe();
     const store = storeId || (await currentStore());                   // 見る店舗
     return (await companyMembers())
-      .filter((m) => canWorkAt(m, store))
-      .map((m) => ({ ...m, rankHere: rankAt(m, store) }));
+      .filter((member) => canWorkAt(member, store))
+      .map((member) => ({ ...member, rankHere: rankAt(member, store) }));
   },
 
   /** 会社の店員みんな（店長。「人を追加」で使う）。mainShort・canHere つき */
   async listCompanyMembers() {
     await requireManager();
     const [members, stores, store] = await Promise.all([companyMembers(), companyStores(), currentStore()]);   // 店員・店舗・今の店舗
-    return members.filter((m) => m.active).map((m) => ({
-      ...m,
-      mainShort: stores.find((s) => s.id === m.storeId)?.short || "",
-      canHere: canWorkAt(m, store),
+    return members.filter((member) => member.active).map((member) => ({
+      ...member,
+      mainShort: stores.find((store) => store.id === member.storeId)?.short || "",
+      canHere: canWorkAt(member, store),
     }));
   },
 
@@ -44,15 +44,15 @@ export const membersApi = {
     const boss = await requireManager();                               // 店長
     if (!name?.trim()) throw new Error("名前を入れてください");
     const list = stores?.length ? stores : [{ storeId: await currentStore(), rank: 1 }];   // 行ける店舗
-    const c = await sb();   // Supabase の道具
-    const row = must(await c.from("members").insert(memberTo({   // 作った店員
+    const client = await supabaseClient();   // Supabase の道具
+    const row = must(await client.from("members").insert(memberTo({   // 作った店員
       id: newId(), companyId: boss.companyId, name: name.trim(), role: "staff", kind, skills,
       everyday: !!everyday, active: true, account: "none",
-      storeId: list.find((s) => s.rank === 1)?.storeId || list[0].storeId, stores: list,
+      storeId: list.find((storeRank) => storeRank.rank === 1)?.storeId || list[0].storeId, stores: list,
     })).select().single());                                            // 作った店員
     let code = null;                                                   // 初回コード
-    if (account) code = must(await c.rpc("issue_login_code", { p_member_id: row.id })).code;
-    const member = memberFrom(must(await c.from("members").select("*").eq("id", row.id).single()));   // 読み直す（account が変わるため）
+    if (account) code = must(await client.rpc("issue_login_code", { p_member_id: row.id })).code;
+    const member = memberFrom(must(await client.from("members").select("*").eq("id", row.id).single()));   // 読み直す（account が変わるため）
     return { member, code };
   },
 
@@ -60,17 +60,17 @@ export const membersApi = {
   async saveMember(member) {
     await requireManager();
     const { rankHere, loginId, companyId, account, ...clean } = member;   // 画面用・変えないものは外す
-    const main = clean.stores?.find((s) => s.rank === 1);                 // メインの店舗
+    const main = clean.stores?.find((storeRank) => storeRank.rank === 1);                 // メインの店舗
     if (main) clean.storeId = main.storeId;
-    const c = await sb();   // Supabase の道具
-    return memberFrom(must(await c.from("members").update(memberTo(clean)).eq("id", member.id).select().single()));
+    const client = await supabaseClient();   // Supabase の道具
+    return memberFrom(must(await client.from("members").update(memberTo(clean)).eq("id", member.id).select().single()));
   },
 
   /** 初回コードを出す（店長）。アカウント作成・パスワードを忘れた時 */
   async resetPassword(memberId) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    return must(await c.rpc("issue_login_code", { p_member_id: memberId }));
+    const client = await supabaseClient();   // Supabase の道具
+    return must(await client.rpc("issue_login_code", { p_member_id: memberId }));
   },
 
   // ---------- 人ごとのルール（店長だけ） ----------
@@ -78,23 +78,23 @@ export const membersApi = {
   /** その人のルール */
   async getMemberRule(memberId) {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    return must(await c.from("member_rules").select("text").eq("member_id", memberId).maybeSingle())?.text || "";
+    const client = await supabaseClient();   // Supabase の道具
+    return must(await client.from("member_rules").select("text").eq("member_id", memberId).maybeSingle())?.text || "";
   },
 
   /** ルールの一覧 */
   async listMemberRules() {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    return must(await c.from("member_rules").select("*")).map((r) => ({ memberId: r.member_id, text: r.text }));
+    const client = await supabaseClient();   // Supabase の道具
+    return must(await client.from("member_rules").select("*")).map((rule) => ({ memberId: rule.member_id, text: rule.text }));
   },
 
   /** ルールを保存（空なら消す） */
   async saveMemberRule(memberId, text) {
     const boss = await requireManager();                               // 店長
-    const c = await sb();   // Supabase の道具
-    if (!text.trim()) must(await c.from("member_rules").delete().eq("member_id", memberId));
-    else must(await c.from("member_rules").upsert({ member_id: memberId, company_id: boss.companyId, text: text.trim() }, { onConflict: "member_id" }));
+    const client = await supabaseClient();   // Supabase の道具
+    if (!text.trim()) must(await client.from("member_rules").delete().eq("member_id", memberId));
+    else must(await client.from("member_rules").upsert({ member_id: memberId, company_id: boss.companyId, text: text.trim() }, { onConflict: "member_id" }));
     return true;
   },
 
@@ -103,18 +103,18 @@ export const membersApi = {
   /** 時給の一覧 */
   async listWages() {
     await requireManager();
-    const c = await sb();   // Supabase の道具
-    return must(await c.from("wages").select("*")).map((w) => ({
-      memberId: w.member_id, hourly: w.hourly, transport: w.transport,
-      minor: w.minor, monthHoursMax: w.month_hours_max, yearYenMax: w.year_yen_max,   // 働き方のルール
+    const client = await supabaseClient();   // Supabase の道具
+    return must(await client.from("wages").select("*")).map((wage) => ({
+      memberId: wage.member_id, hourly: wage.hourly, transport: wage.transport,
+      minor: wage.minor, monthHoursMax: wage.month_hours_max, yearYenMax: wage.year_yen_max,   // 働き方のルール
     }));
   },
 
   /** 時給・交通費と、働き方のルール（18歳未満・月の上限時間・年の上限金額）を保存 */
   async saveWage(memberId, hourly, transport, extra = {}) {
     const boss = await requireManager();                               // 店長
-    const c = await sb();   // Supabase の道具
-    must(await c.from("wages").upsert({
+    const client = await supabaseClient();   // Supabase の道具
+    must(await client.from("wages").upsert({
       member_id: memberId, company_id: boss.companyId, hourly: Number(hourly) || 0, transport: Number(transport) || 0,
       minor: !!extra.minor, month_hours_max: Number(extra.monthHoursMax) || null, year_yen_max: Number(extra.yearYenMax) || null,
     }, { onConflict: "member_id" }));

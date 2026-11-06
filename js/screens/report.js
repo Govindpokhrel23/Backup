@@ -10,7 +10,7 @@
 // 計算は lib/labor.js と同じ。※給料の計算そのものではなく「目安」。給与ソフトに入れる時の元になる。
 // ============================================================
 
-import { h, mount, toast } from "../lib/dom.js";
+import { createElement, mount, toast } from "../lib/dom.js";
 import { api } from "../api/index.js";
 import { state, activeStores } from "../store.js";
 import { screenHeader } from "../components/header.js";
@@ -33,15 +33,15 @@ export async function renderReport(app) {
   async function load() {
     const [all, ...periodLists] = await Promise.all([
       api.listAssignmentsByDates(month, monthEnd(month)),
-      ...activeStores().map((s) => api.listPeriods(s.id)),
+      ...activeStores().map((store) => api.listPeriods(store.id)),
     ]);
-    const published = new Set(periodLists.flat().filter((p) => p.status === "published").map((p) => p.id));   // 公開した週
-    rows = all.filter((a) => published.has(a.periodId));
+    const published = new Set(periodLists.flat().filter((period) => period.status === "published").map((period) => period.id));   // 公開した週
+    rows = all.filter((shift) => published.has(shift.periodId));
   }
 
   /** 今の選び方（この店舗／全部）で数える勤務 */
   function shown() {
-    return scope === "store" ? rows.filter((a) => a.storeId === state.storeId) : rows;
+    return scope === "store" ? rows.filter((row) => row.storeId === state.storeId) : rows;
   }
 
   /**
@@ -50,75 +50,75 @@ export async function renderReport(app) {
    */
   function summary() {
     const byMember = new Map();                                      // 店員ID → その人の勤務
-    for (const a of shown()) byMember.set(a.memberId, [...(byMember.get(a.memberId) || []), a]);
+    for (const shift of shown()) byMember.set(shift.memberId, [...(byMember.get(shift.memberId) || []), shift]);
     return [...byMember].map(([id, list]) => {
-      const w = wages.find((x) => x.memberId === id) || {};          // その人の時給・交通費
-      const days = new Set(list.map((a) => a.date)).size;             // 入った日数
+      const wage = wages.find((wage) => wage.memberId === id) || {};          // その人の時給・交通費
+      const days = new Set(list.map((shift) => shift.date)).size;             // 入った日数
       return {
-        member: members.find((m) => m.id === id) || { name: "？", kind: "" },
+        member: members.find((member) => member.id === id) || { name: "？", kind: "" },
         days,
-        minutes: list.reduce((s, a) => s + workedMinutes(a), 0),
-        night: list.reduce((s, a) => s + nightMinutes(a), 0),
-        transport: days * (w.transport || 0),
-        cost: laborCost(list, [{ memberId: id, hourly: w.hourly || 0, transport: w.transport || 0 }]),
+        minutes: list.reduce((sum, shift) => sum + workedMinutes(shift), 0),
+        night: list.reduce((sum, shift) => sum + nightMinutes(shift), 0),
+        transport: days * (wage.transport || 0),
+        cost: laborCost(list, [{ memberId: id, hourly: wage.hourly || 0, transport: wage.transport || 0 }]),
       };
-    }).sort((a, b) => b.minutes - a.minutes);
+    }).sort((personA, personB) => personB.minutes - personA.minutes);
   }
 
   /** 画面を描く */
   function draw() {
     const list = summary();                                          // 人ごとのまとめ
-    const total = list.reduce((t, x) => ({ minutes: t.minutes + x.minutes, cost: t.cost + x.cost }), { minutes: 0, cost: 0 });   // 合計
-    const [y, m] = month.split("-").map(Number);                     // 年と月
+    const total = list.reduce((sum, person) => ({ minutes: sum.minutes + person.minutes, cost: sum.cost + person.cost }), { minutes: 0, cost: 0 });   // 合計
+    const [year, member] = month.split("-").map(Number);                     // 年と月
     mount(app,
       screenHeader({ title: "勤務時間の集計", sub: "公開したシフトだけを数えます（給与計算の元に）" }),
-      h("div", { class: "screen-body" },
+      createElement("div", { class: "screen-body" },
         // ---- 月と店舗を選ぶ ----
-        h("section", { class: "card" },
-          h("div", { class: "week-nav" },
-            h("button", { class: "btn btn--small", onclick: () => moveMonth(-1), "aria-label": "前の月" }, "‹ 前の月"),
-            h("strong", { class: "week-nav__label" }, `${y}年${m}月`),
-            h("button", { class: "btn btn--small", onclick: () => moveMonth(1), "aria-label": "次の月" }, "次の月 ›")),
-          h("div", { class: "chip-row" },
-            [["store", `この店舗（${activeStores().find((s) => s.id === state.storeId)?.short || ""}）`], ["all", "全部の店舗"]].map(([key, text]) =>
-              h("button", { class: "chip", "aria-pressed": String(scope === key), onclick: () => { scope = key; draw(); } }, text))),
-          h("div", { class: "ai-result__stats" },
-            h("div", { class: "ai-stat" }, h("span", { class: "home-muted" }, "働いた時間の合計"), h("strong", { class: "num" }, hoursText(total.minutes))),
-            h("div", { class: "ai-stat" }, h("span", { class: "home-muted" }, "人件費の目安"), h("strong", { class: "num" }, yen(total.cost))),
-            h("div", { class: "ai-stat" }, h("span", { class: "home-muted" }, "人数"), h("strong", { class: "num" }, `${list.length}人`))),
+        createElement("section", { class: "card" },
+          createElement("div", { class: "week-nav" },
+            createElement("button", { class: "btn btn--small", onclick: () => moveMonth(-1), "aria-label": "前の月" }, "‹ 前の月"),
+            createElement("strong", { class: "week-nav__label" }, `${year}年${member}月`),
+            createElement("button", { class: "btn btn--small", onclick: () => moveMonth(1), "aria-label": "次の月" }, "次の月 ›")),
+          createElement("div", { class: "chip-row" },
+            [["store", `この店舗（${activeStores().find((store) => store.id === state.storeId)?.short || ""}）`], ["all", "全部の店舗"]].map(([key, text]) =>
+              createElement("button", { class: "chip", "aria-pressed": String(scope === key), onclick: () => { scope = key; draw(); } }, text))),
+          createElement("div", { class: "ai-result__stats" },
+            createElement("div", { class: "ai-stat" }, createElement("span", { class: "home-muted" }, "働いた時間の合計"), createElement("strong", { class: "num" }, hoursText(total.minutes))),
+            createElement("div", { class: "ai-stat" }, createElement("span", { class: "home-muted" }, "人件費の目安"), createElement("strong", { class: "num" }, yen(total.cost))),
+            createElement("div", { class: "ai-stat" }, createElement("span", { class: "home-muted" }, "人数"), createElement("strong", { class: "num" }, `${list.length}人`))),
         ),
         // ---- 人ごとの表 ----
-        h("section", { class: "card" },
+        createElement("section", { class: "card" },
           list.length
-            ? h("div", { class: "table-wrap" },
-                h("table", { class: "report-table" },
-                  h("thead", null, h("tr", null, ["名前", "立場", "日数", "時間", "うち深夜", "交通費", "人件費の目安"].map((t) => h("th", null, t)))),
-                  h("tbody", null, list.map((x) => h("tr", null,
-                    h("td", null, x.member.name),
-                    h("td", null, CONFIG.KIND_LABEL[x.member.kind] || ""),
-                    h("td", { class: "num" }, `${x.days}日`),
-                    h("td", { class: "num" }, hoursText(x.minutes)),
-                    h("td", { class: "num" }, x.night ? hoursText(x.night) : "—"),
-                    h("td", { class: "num" }, yen(x.transport)),
-                    h("td", { class: "num" }, x.member.kind === "shain" ? "（月給）" : yen(x.cost)))))))
-            : h("div", { class: "home-muted" }, "この月に公開したシフトはありません"),
+            ? createElement("div", { class: "table-wrap" },
+                createElement("table", { class: "report-table" },
+                  createElement("thead", null, createElement("tr", null, ["名前", "立場", "日数", "時間", "うち深夜", "交通費", "人件費の目安"].map((title) => createElement("th", null, title)))),
+                  createElement("tbody", null, list.map((wage) => createElement("tr", null,
+                    createElement("td", null, wage.member.name),
+                    createElement("td", null, CONFIG.KIND_LABEL[wage.member.kind] || ""),
+                    createElement("td", { class: "num" }, `${wage.days}日`),
+                    createElement("td", { class: "num" }, hoursText(wage.minutes)),
+                    createElement("td", { class: "num" }, wage.night ? hoursText(wage.night) : "—"),
+                    createElement("td", { class: "num" }, yen(wage.transport)),
+                    createElement("td", { class: "num" }, wage.member.kind === "shain" ? "（月給）" : yen(wage.cost)))))))
+            : createElement("div", { class: "home-muted" }, "この月に公開したシフトはありません"),
         ),
         // ---- 書き出し ----
-        h("section", { class: "card" },
-          h("h2", { class: "card__title" }, "CSV に書き出す（Excel・スプレッドシートで開けます）"),
-          h("div", { class: "chip-row" },
-            h("button", { class: "btn btn--primary", onclick: () => exportSummary(list) }, "人ごとの合計"),
-            h("button", { class: "btn", onclick: exportDetail }, "毎日の勤務（明細）")),
-          h("div", { class: "home-muted" }, "時間は「休憩を引いた時間」です。休憩は6時間をこえる勤務で45分、8時間をこえる勤務で60分として数えています"),
+        createElement("section", { class: "card" },
+          createElement("h2", { class: "card__title" }, "CSV に書き出す（Excel・スプレッドシートで開けます）"),
+          createElement("div", { class: "chip-row" },
+            createElement("button", { class: "btn btn--primary", onclick: () => exportSummary(list) }, "人ごとの合計"),
+            createElement("button", { class: "btn", onclick: exportDetail }, "毎日の勤務（明細）")),
+          createElement("div", { class: "home-muted" }, "時間は「休憩を引いた時間」です。休憩は6時間をこえる勤務で45分、8時間をこえる勤務で60分として数えています"),
         ),
       ),
     );
   }
 
   /** 前の月・次の月へ */
-  async function moveMonth(n) {
-    const d = n < 0 ? addDays(month, -1) : addDays(monthEnd(month), 1);   // 前の月の最後の日／次の月の1日
-    month = monthStart(d);
+  async function moveMonth(step) {
+    const date = step < 0 ? addDays(month, -1) : addDays(monthEnd(month), 1);   // 前の月の最後の日／次の月の1日
+    month = monthStart(date);
     await load();
     draw();
   }
@@ -131,9 +131,9 @@ export async function renderReport(app) {
   /** 「人ごとの合計」の CSV */
   function exportSummary(list) {
     const table = [["ログインID", "名前", "立場", "日数", "時間（時間）", "うち深夜（時間）", "交通費（円）", "人件費の目安（円）"]];   // 見出し
-    for (const x of list) {
-      table.push([x.member.loginId || "", x.member.name, CONFIG.KIND_LABEL[x.member.kind] || "", x.days,
-        (x.minutes / 60).toFixed(2), (x.night / 60).toFixed(2), x.transport, x.member.kind === "shain" ? "" : x.cost]);
+    for (const wage of list) {
+      table.push([wage.member.loginId || "", wage.member.name, CONFIG.KIND_LABEL[wage.member.kind] || "", wage.days,
+        (wage.minutes / 60).toFixed(2), (wage.night / 60).toFixed(2), wage.transport, wage.member.kind === "shain" ? "" : wage.cost]);
     }
     saveFile(`shift-summary_${fileTag()}.csv`, toCsv(table), "text/csv");
     toast("CSV を保存しました");
@@ -141,12 +141,12 @@ export async function renderReport(app) {
 
   /** 「毎日の勤務（明細）」の CSV */
   function exportDetail() {
-    const shortOf = (id) => activeStores().find((s) => s.id === id)?.short || "";   // 店舗の短い名前
+    const shortOf = (id) => activeStores().find((store) => store.id === id)?.short || "";   // 店舗の短い名前
     const table = [["日付", "店舗", "ログインID", "名前", "時間", "場所", "働いた時間（時間）", "うち深夜（時間）"]];   // 見出し
-    for (const a of [...shown()].sort((x, y) => x.date.localeCompare(y.date) || x.from - y.from)) {
-      const m = members.find((x) => x.id === a.memberId) || {};       // その店員
-      table.push([a.date, shortOf(a.storeId), m.loginId || "", m.name || "？", range(a.from, a.to), a.area === "hall" ? "ホール" : "キッチン",
-        (workedMinutes(a) / 60).toFixed(2), (nightMinutes(a) / 60).toFixed(2)]);
+    for (const shift of [...shown()].sort((shiftA, shiftB) => shiftA.date.localeCompare(shiftB.date) || shiftA.from - shiftB.from)) {
+      const member = members.find((member) => member.id === shift.memberId) || {};       // その店員
+      table.push([shift.date, shortOf(shift.storeId), member.loginId || "", member.name || "？", range(shift.from, shift.to), shift.area === "hall" ? "ホール" : "キッチン",
+        (workedMinutes(shift) / 60).toFixed(2), (nightMinutes(shift) / 60).toFixed(2)]);
     }
     saveFile(`shift-detail_${fileTag()}.csv`, toCsv(table), "text/csv");
     toast("CSV を保存しました");

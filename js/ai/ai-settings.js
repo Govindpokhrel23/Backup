@@ -45,11 +45,11 @@ export function saveAiSettings(patch) {
  * 今、本物のAIを使える設定になっているか
  * @returns {{ok:boolean, why?:string}} 使えなければ why に理由
  */
-export function aiReady(s = getAiSettings()) {
-  if (s.mode === "local") return { ok: false, why: "AIを使わない設定です" };
-  if (s.mode === "gemini" && !s.apiKey) return { ok: false, why: "Gemini の鍵が入っていません" };
-  if (s.mode === "worker" && !workerReady()) return { ok: false, why: "サーバー（Supabase と Worker）がまだつながっていません" };
-  if (!s.model) return { ok: false, why: "モデルの名前が入っていません" };
+export function aiReady(settings = getAiSettings()) {
+  if (settings.mode === "local") return { ok: false, why: "AIを使わない設定です" };
+  if (settings.mode === "gemini" && !settings.apiKey) return { ok: false, why: "Gemini の鍵が入っていません" };
+  if (settings.mode === "worker" && !workerReady()) return { ok: false, why: "サーバー（Supabase と Worker）がまだつながっていません" };
+  if (!settings.model) return { ok: false, why: "モデルの名前が入っていません" };
   return { ok: true };
 }
 
@@ -69,7 +69,7 @@ export function workerAiUrl() {
  */
 export async function authToken() {
   if (CONFIG.API_MODE !== "supabase") return "";
-  const { sb } = await import("../api/supabase/core.js");          // Supabase の道具
-  const { data } = await (await sb()).auth.getSession();            // ログインの情報
+  const { supabaseClient } = await import("../api/supabase/core.js");          // Supabase の道具
+  const { data } = await (await supabaseClient()).auth.getSession();            // ログインの情報
   return data?.session?.access_token || "";
 }

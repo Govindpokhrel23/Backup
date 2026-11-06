@@ -25,7 +25,7 @@ const ROOT = new URL("../../", import.meta.url);
  */
 export async function createFakeSupabase() {
   // 日付・日時は文字のまま受け取る（本物の Supabase と同じ）
-  const db = new PGlite({ parsers: { 1082: (v) => v, 1114: (v) => v, 1184: (v) => v, 20: (v) => Number(v) } });
+  const db = new PGlite({ parsers: { 1082: (value) => value, 1114: (value) => value, 1184: (value) => value, 20: (value) => Number(value) } });
   await db.exec(fs.readFileSync(new URL("tests/helpers/supabase-stub.sql", ROOT), "utf8"));
   await db.exec(fs.readFileSync(new URL("supabase/schema.sql", ROOT), "utf8"));
 
@@ -46,7 +46,7 @@ export async function createFakeSupabase() {
 
   /** 結果を supabase-js と同じ {data, error} にする */
   const wrap = async (fn) => {
-    try { return { data: await fn(), error: null }; } catch (e) { return { data: null, error: { message: e.message } }; }
+    try { return { data: await fn(), error: null }; } catch (error) { return { data: null, error: { message: error.message } }; }
   };
 
   /** from(表) で作る「問い合わせ」 */
@@ -68,29 +68,29 @@ export async function createFakeSupabase() {
     upsert(rows, opt = {}) { this.op = "upsert"; this.payload = [].concat(rows); this.conflict = opt.onConflict; return this; }
     update(obj) { this.op = "update"; this.payload = obj; return this; }
     delete() { this.op = "delete"; return this; }
-    eq(c, v) { this.filters.push([c, "=", v]); return this; }
-    neq(c, v) { this.filters.push([c, "<>", v]); return this; }
-    gt(c, v) { this.filters.push([c, ">", v]); return this; }
-    gte(c, v) { this.filters.push([c, ">=", v]); return this; }
-    lt(c, v) { this.filters.push([c, "<", v]); return this; }
-    lte(c, v) { this.filters.push([c, "<=", v]); return this; }
-    in(c, list) { this.filters.push([c, "in", list]); return this; }
-    order(c, opt = {}) { this.orders.push([c, opt.ascending !== false]); return this; }
-    limit(n) { this.limitN = n; return this; }
-    range(a, b) { this.offsetN = a; this.limitN = b - a + 1; return this; }   // a行目〜b行目（0から数える）
+    eq(column, value) { this.filters.push([column, "=", value]); return this; }
+    neq(column, value) { this.filters.push([column, "<>", value]); return this; }
+    gt(column, value) { this.filters.push([column, ">", value]); return this; }
+    gte(column, value) { this.filters.push([column, ">=", value]); return this; }
+    lt(column, value) { this.filters.push([column, "<", value]); return this; }
+    lte(column, value) { this.filters.push([column, "<=", value]); return this; }
+    in(column, list) { this.filters.push([column, "in", list]); return this; }
+    order(column, opt = {}) { this.orders.push([column, opt.ascending !== false]); return this; }
+    limit(count) { this.limitN = count; return this; }
+    range(start, end) { this.offsetN = start; this.limitN = end - start + 1; return this; }   // a行目〜b行目（0から数える）
     single() { this.mode = "single"; return this; }
     maybeSingle() { this.mode = "maybe"; return this; }
     then(ok, ng) { return this.exec().then(ok, ng); }
 
     /** 値を SQL に渡せる形にする（オブジェクト・配列の列は JSON） */
-    static val(v) { return v !== null && typeof v === "object" ? JSON.stringify(v) : v; }
+    static val(value) { return value !== null && typeof value === "object" ? JSON.stringify(value) : value; }
 
     /** where の部分を作る */
     where(params) {
       if (!this.filters.length) return "";
-      return " where " + this.filters.map(([c, op, v]) => {
-        if (op === "in") { params.push(v); return `${c}::text = any($${params.length}::text[])`; }
-        params.push(v); return `${c} ${op} $${params.length}`;
+      return " where " + this.filters.map(([column, op, value]) => {
+        if (op === "in") { params.push(value); return `${column}::text = any($${params.length}::text[])`; }
+        params.push(value); return `${column} ${op} $${params.length}`;
       }).join(" and ");
     }
 
@@ -99,27 +99,27 @@ export async function createFakeSupabase() {
       return wrap(async () => {
         const params = [];   // SQL に渡す値
         let sql = "";   // 作る SQL
-        const t = `public.${this.table}`;   // 表の名前（public.〇〇）
+        const tableName = `public.${this.table}`;   // 表の名前（public.〇〇）
         if (this.op === "select") {
-          sql = `select * from ${t}${this.where(params)}`;
-          if (this.orders.length) sql += " order by " + this.orders.map(([c, asc]) => `${c} ${asc ? "asc" : "desc"}`).join(", ");
+          sql = `select * from ${tableName}${this.where(params)}`;
+          if (this.orders.length) sql += " order by " + this.orders.map(([order, asc]) => `${order} ${asc ? "asc" : "desc"}`).join(", ");
           if (this.limitN) sql += ` limit ${this.limitN}`;
           if (this.offsetN) sql += ` offset ${this.offsetN}`;
         } else if (this.op === "insert" || this.op === "upsert") {
-          const cols = [...new Set(this.payload.flatMap((r) => Object.keys(r)))];   // 入れる列
-          const values = this.payload.map((r) => "(" + cols.map((c) => { params.push(Query.val(r[c] ?? null)); return `$${params.length}`; }).join(",") + ")");   // 入れる値の行
-          sql = `insert into ${t} (${cols.join(",")}) values ${values.join(",")}`;
+          const cols = [...new Set(this.payload.flatMap((row) => Object.keys(row)))];   // 入れる列
+          const values = this.payload.map((row) => "(" + cols.map((column) => { params.push(Query.val(row[column] ?? null)); return `$${params.length}`; }).join(",") + ")");   // 入れる値の行
+          sql = `insert into ${tableName} (${cols.join(",")}) values ${values.join(",")}`;
           if (this.op === "upsert") {
-            const keys = (this.conflict || "id").split(",").map((x) => x.trim());   // 同じとみなす列
-            const rest = cols.filter((c) => !keys.includes(c));   // 上書きする列
-            sql += ` on conflict (${keys.join(",")}) do ` + (rest.length ? `update set ${rest.map((c) => `${c} = excluded.${c}`).join(",")}` : "nothing");
+            const keys = (this.conflict || "id").split(",").map((part) => part.trim());   // 同じとみなす列
+            const rest = cols.filter((col) => !keys.includes(col));   // 上書きする列
+            sql += ` on conflict (${keys.join(",")}) do ` + (rest.length ? `update set ${rest.map((column) => `${column} = excluded.${column}`).join(",")}` : "nothing");
           }
           if (this.returning) sql += " returning *";
         } else if (this.op === "update") {
-          const sets = Object.entries(this.payload).map(([c, v]) => { params.push(Query.val(v)); return `${c} = $${params.length}`; });   // 直す列と値
-          sql = `update ${t} set ${sets.join(",")}${this.where(params)}${this.returning ? " returning *" : ""}`;
+          const sets = Object.entries(this.payload).map(([column, value]) => { params.push(Query.val(value)); return `${column} = $${params.length}`; });   // 直す列と値
+          sql = `update ${tableName} set ${sets.join(",")}${this.where(params)}${this.returning ? " returning *" : ""}`;
         } else if (this.op === "delete") {
-          sql = `delete from ${t}${this.where(params)}`;
+          sql = `delete from ${tableName}${this.where(params)}`;
         }
         const rows = (await run(sql, params)).rows;   // 結果の行
         if (this.op !== "select" && !this.returning) return null;
@@ -135,15 +135,15 @@ export async function createFakeSupabase() {
     /** データベースの関数を呼ぶ */
     rpc: (name, args = {}) => wrap(async () => {
       const keys = Object.keys(args);   // 関数に渡す名前
-      const sql = `select public.${name}(${keys.map((k, i) => `${k} => $${i + 1}`).join(", ")}) as r`;   // 関数を呼ぶ SQL
-      return (await run(sql, keys.map((k) => args[k]))).rows[0].r;
+      const sql = `select public.${name}(${keys.map((key, index) => `${key} => $${index + 1}`).join(", ")}) as r`;   // 関数を呼ぶ SQL
+      return (await run(sql, keys.map((key) => args[key]))).rows[0].r;
     }),
     auth: {
       /** ID（メール）とパスワードでログイン */
       async signInWithPassword({ email, password }) {
-        const r = await db.query("select id from auth.users where email = $1 and password = $2", [email, password]);   // IDとパスワードが合う人
-        if (!r.rows.length) return { data: null, error: { message: "Invalid login credentials" } };
-        session = { user: { id: r.rows[0].id, email } };
+        const found = await db.query("select id from auth.users where email = $1 and password = $2", [email, password]);   // IDとパスワードが合う人
+        if (!found.rows.length) return { data: null, error: { message: "Invalid login credentials" } };
+        session = { user: { id: found.rows[0].id, email } };
         return { data: { session, user: session.user }, error: null };
       },
       async signOut() { session = null; return { error: null }; },
@@ -157,8 +157,8 @@ export async function createFakeSupabase() {
       return (await db.query("insert into auth.users(email, password) values ($1, $2) returning id", [email, password])).rows[0].id;
     },
     /** 決まりを通らずに SQL を流す（テストの準備・確かめ用） */
-    sql: (q, p) => db.query(q, p),
-    exec: (q) => db.exec(q),
+    sql: (sql, params) => db.query(sql, params),
+    exec: (sql) => db.exec(sql),
   };
 
   return { client, admin };

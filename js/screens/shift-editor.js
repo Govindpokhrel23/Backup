@@ -22,7 +22,7 @@
 // 変えた内容はすぐ下書きとして保存する（閉じても消えない）。
 // ============================================================
 
-import { h, mount, toast, confirmDialog, busy } from "../lib/dom.js";
+import { createElement, mount, toast, confirmDialog, busy } from "../lib/dom.js";
 import { api } from "../api/index.js";
 import { CONFIG } from "../config.js";
 import { screenHeader } from "../components/header.js";
@@ -56,12 +56,12 @@ export async function renderShiftEditor(app) {
   ]);
   let company = null;           // 会社の店員みんな（「人を追加」と応援の人の情報。はじめて使う時に読む）
   let members = baseMembers;    // 表に出す人＝この店舗の人＋この週だけの応援（loadPeriod で作り直す）
-  let active = members.filter((m) => m.active);   // 表に出す人のうち、休止していない人
+  let active = members.filter((member) => member.active);   // 表に出す人のうち、休止していない人
   /** 人ごとのルール */
-  const ruleOf = (id) => rules.find((r) => r.memberId === id)?.text || "なし";
+  const ruleOf = (id) => rules.find((rule) => rule.memberId === id)?.text || "なし";
   /** 平日／土曜／日曜祝日 */
-  const dayTypeOf = (d) => dayType(d, holidays);
-  const hoursOf = (d) => storeHours[dayTypeOf(d)];          // その日の営業時間（マップ画面で店長が決める）
+  const dayTypeOf = (date) => dayType(date, holidays);
+  const hoursOf = (date) => storeHours[dayTypeOf(date)];          // その日の営業時間（マップ画面で店長が決める）
 
   // ---------- 画面の中で持つ状態 ----------
   let period = workingPeriod(periods);
@@ -80,8 +80,8 @@ export async function renderShiftEditor(app) {
 
   /** 何週先までシフトを作れるか（希望と同じ2か月先まで） */
   const lastWeek = (() => {
-    const d = new Date(); d.setMonth(d.getMonth() + CONFIG.MONTHS_AHEAD);   // 今日から2か月先
-    return mondayOf(toIso(d));
+    const limit = new Date(); limit.setMonth(limit.getMonth() + CONFIG.MONTHS_AHEAD);   // 今日から2か月先
+    return mondayOf(toIso(limit));
   })();
 
   // まだ週が1つもない店舗（増やしたばかりの店舗など）は、来週の受付を作って始める
@@ -97,13 +97,13 @@ export async function renderShiftEditor(app) {
    *   minor … 18歳未満（22時〜朝5時は入れない）
    *   leftMinutes … この週に入れてよい残りの時間（月の上限・年の上限から計算。なければ null）
    */
-  function withLimits(m) {
-    const lim = limitsMap().get(m.id) || {};                                      // その人のルール
-    const use = usageOf(m.id, period.weekStart, others, lim);                     // この週より前の今月・今年
+  function withLimits(member) {
+    const lim = limitsMap().get(member.id) || {};                                      // その人のルール
+    const use = usageOf(member.id, period.weekStart, others, lim);                     // この週より前の今月・今年
     const lefts = [];                                                             // 残りの時間の候補
     if (lim.monthHoursMax) lefts.push(lim.monthHoursMax * 60 - use.monthMinutes);
     if (lim.yearYenMax && lim.hourly) lefts.push(((lim.yearYenMax - use.yearYen) / lim.hourly) * 60);
-    return { ...m, minor: !!lim.minor, leftMinutes: lefts.length ? Math.max(0, Math.floor(Math.min(...lefts))) : null };
+    return { ...member, minor: !!lim.minor, leftMinutes: lefts.length ? Math.max(0, Math.floor(Math.min(...lefts))) : null };
   }
 
   // ============================================================
@@ -119,8 +119,8 @@ export async function renderShiftEditor(app) {
       api.listAssignmentsByDates(period.weekStart, end),
     ]);
     // ほかの店舗の勤務に、店舗の短い名前（福釜・安城・今村）をつける
-    const shortOf = (id) => state.stores.find((s) => s.id === id)?.short || "";
-    elsewhere = all.filter((a) => a.storeId !== period.storeId).map((a) => ({ ...a, storeShort: shortOf(a.storeId) }));
+    const shortOf = (id) => state.stores.find((store) => store.id === id)?.short || "";
+    elsewhere = all.filter((shift) => shift.storeId !== period.storeId).map((shift) => ({ ...shift, storeShort: shortOf(shift.storeId) }));
     await loadHistory(end);
     await loadGuests();
     if (!date || !datesOf(period).includes(date)) date = period.weekStart;
@@ -135,18 +135,18 @@ export async function renderShiftEditor(app) {
   async function loadHistory(end) {
     const from = [monthStart(period.weekStart), addDays(period.weekStart, -CONFIG.MAX_STREAK_DAYS)].sort()[0];   // 読み始める日
     const to = monthEnd(end);                                                                                    // 読み終わる日
-    const yearIds = wages.filter((w) => w.yearYenMax).map((w) => w.memberId);                                     // 年の上限がある人
+    const yearIds = wages.filter((wage) => wage.yearYenMax).map((wage) => wage.memberId);                                     // 年の上限がある人
     const yearStart = `${period.weekStart.slice(0, 4)}-01-01`;                                                    // その年の1月1日
     const [near, year] = await Promise.all([   // 近くの日の勤務（全員）と、年の上限がある人の今年の勤務
       api.listAssignmentsByDates(from, to),
       yearIds.length && yearStart < from ? api.listAssignmentsByDates(yearStart, addDays(from, -1), yearIds) : [],
     ]);
-    others = [...near, ...year].filter((a) => a.periodId !== period.id);
+    others = [...near, ...year].filter((shift) => shift.periodId !== period.id);
   }
 
   /** 店員ID → 働き方のルール（18歳未満・月の上限時間・年の上限金額・時給） */
   function limitsMap() {
-    return new Map(wages.map((w) => [w.memberId, w]));
+    return new Map(wages.map((wage) => [wage.memberId, wage]));
   }
 
   /**
@@ -154,11 +154,11 @@ export async function renderShiftEditor(app) {
    * 応援の人は「応援（ほかの店舗から）」の所に出る（rankHere を 9 にする）
    */
   async function loadGuests() {
-    const ids = (period.guests || []).filter((id) => !baseMembers.some((m) => m.id === id));   // まだ表にいない応援の人
+    const ids = (period.guests || []).filter((id) => !baseMembers.some((baseMember) => baseMember.id === id));   // まだ表にいない応援の人
     if (ids.length && !company) company = await api.listCompanyMembers();
-    const guests = ids.map((id) => company.find((m) => m.id === id)).filter(Boolean).map((m) => ({ ...m, rankHere: 9, guest: true }));   // 応援の人（rankHere 9）
+    const guests = ids.map((id) => company.find((member) => member.id === id)).filter(Boolean).map((id) => ({ ...id, rankHere: 9, guest: true }));   // 応援の人（rankHere 9）
     members = [...baseMembers, ...guests];
-    active = members.filter((m) => m.active);
+    active = members.filter((member) => member.active);
   }
 
   /** 今の勤務を下書きとして保存して、描き直す */
@@ -179,19 +179,19 @@ export async function renderShiftEditor(app) {
   }
 
   /** 元に戻す／やり直す */
-  function undo() { const w = history.undo(work); if (w) { work = w; persist(); } }
+  function undo() { const snapshot = history.undo(work); if (snapshot) { work = snapshot; persist(); } }
   /** やり直す */
-  function redo() { const w = history.redo(work); if (w) { work = w; persist(); } }
+  function redo() { const snapshot = history.redo(work); if (snapshot) { work = snapshot; persist(); } }
 
   /**
    * その日の表の左端と右端
    * 営業時間をもとに、それより外の勤務があれば広げる（1時間単位）
    */
-  function dayRange(d) {
-    const hrs = hoursOf(d);   // その日の営業時間
-    const day = work.filter((a) => a.date === d);   // その日の勤務
-    const start = Math.min(hrs.open, ...day.map((a) => a.from));   // 左端（分）
-    const end = Math.max(hrs.close, ...day.map((a) => a.to));   // 右端（分）
+  function dayRange(date) {
+    const hrs = hoursOf(date);   // その日の営業時間
+    const day = work.filter((shift) => shift.date === date);   // その日の勤務
+    const start = Math.min(hrs.open, ...day.map((shift) => shift.from));   // 左端（分）
+    const end = Math.max(hrs.close, ...day.map((shift) => shift.to));   // 右端（分）
     return { start: Math.floor(start / 60) * 60, end: Math.ceil(end / 60) * 60 };
   }
 
@@ -201,19 +201,19 @@ export async function renderShiftEditor(app) {
 
   /**
    * ある日のチェック結果
-   * @param {string} d       日付
+   * @param {string} date       日付
    * @param {object[]} rows  調べる勤務の一覧（ふつうは今の勤務 work。AIの案を比べる時はその案）
    */
-  function dayChecks(d, rows = work) {
+  function dayChecks(date, rows = work) {
     return checkDay({
-      date: d,
-      dayType: dayTypeOf(d),
-      hours: hoursOf(d),
-      assignments: rows.filter((a) => a.date === d),
+      date: date,
+      dayType: dayTypeOf(date),
+      hours: hoursOf(date),
+      assignments: rows.filter((row) => row.date === date),
       // ほかの店舗の勤務も入れて、同じ時間に2つ入っていないか確かめる
-      allStoreAssignments: [...rows.filter((a) => a.date === d), ...elsewhere.filter((a) => a.date === d)],
+      allStoreAssignments: [...rows.filter((row) => row.date === date), ...elsewhere.filter((shift) => shift.date === date)],
       members, requirements, positions,
-      availabilities: hopes.filter((x) => x.date === d),
+      availabilities: hopes.filter((hope) => hope.date === date),
     });
   }
 
@@ -221,7 +221,7 @@ export async function renderShiftEditor(app) {
   function weekChecks(rows = work) {
     // 週1休み・社員の休みは、ほかの店舗に入った日も「入った日」として数える
     // （応援で来ている人は、その人のメインの店舗の画面で数える）
-    const mains = active.filter((m) => (m.rankHere ?? 1) === 1);
+    const mains = active.filter((member) => (member.rankHere ?? 1) === 1);
     return [
       ...checkWeek({ dates: datesOf(period), assignments: [...rows, ...elsewhere], members: mains, availabilities: hopes }),
       // 働き方のルール（18歳未満・連勤・月と年の上限）。応援の人も、この店舗の勤務の分は数える
@@ -232,22 +232,22 @@ export async function renderShiftEditor(app) {
   /** 守れていないもの全部（公開の確認・AIの結果で使う。rows：調べる勤務の一覧） */
   function allProblems(rows = work) {
     const list = [];                                     // {day, text}
-    for (const d of datesOf(period)) onlyProblems(dayChecks(d, rows)).forEach((x) => list.push({ day: label(d), text: x.text }));
-    onlyProblems(weekChecks(rows)).forEach((x) => list.push({ day: "週全体", text: x.text }));
+    for (const date of datesOf(period)) onlyProblems(dayChecks(date, rows)).forEach((onlyProblem) => list.push({ day: label(date), text: onlyProblem.text }));
+    onlyProblems(weekChecks(rows)).forEach((onlyProblem) => list.push({ day: "週全体", text: onlyProblem.text }));
     return list;
   }
 
   /** この週の人が足りない時間（自動連絡に使う）{date, area, from, to, short} */
   function weekShortages(rows = work) {
-    return datesOf(period).flatMap((d) =>
-      findShortages(rows.filter((a) => a.date === d), requirements, positions, dayTypeOf(d), hoursOf(d)).map((x) => ({ ...x, date: d })));
+    return datesOf(period).flatMap((date) =>
+      findShortages(rows.filter((row) => row.date === date), requirements, positions, dayTypeOf(date), hoursOf(date)).map((need) => ({ ...need, date: date })));
   }
 
   /** AIに渡す情報（ai/draft-service.js の ctx） */
   function aiContext(past = []) {
     return {
       dates: datesOf(period), members: active.map(withLimits), availabilities: hopes, requirements, positions,
-      fixed: work.filter((a) => a.fixed), past, dayTypeOf, hoursOf, elsewhere, rules, learnings,
+      fixed: work.filter((shift) => shift.fixed), past, dayTypeOf, hoursOf, elsewhere, rules, learnings,
       problemsOf: (rows) => allProblems(rows),
     };
   }
@@ -257,7 +257,7 @@ export async function renderShiftEditor(app) {
   // ============================================================
 
   function draw() {
-    const today = work.filter((a) => a.date === date);   // 今見ている日の勤務
+    const today = work.filter((shift) => shift.date === date);   // 今見ている日の勤務
     const checks = [...dayChecks(date), ...weekChecks()];   // その日と週のチェック
 
     mount(app,
@@ -266,67 +266,67 @@ export async function renderShiftEditor(app) {
         sub: `${STATUS_LABEL[period.status]} ・ この日の営業 ${range(hoursOf(date).open, hoursOf(date).close)}`,
         extra: [
         // 週の移動：前の週／次の週（2か月先まで作れる）
-        h("div", { class: "week-nav" },
-          h("button", { class: "btn btn--small", onclick: () => moveWeek(-1), "aria-label": "前の週" }, "‹ 前の週"),
-          h("strong", { class: "week-nav__label" }, weekLabel(period)),
-          h("button", { class: "btn btn--small", onclick: () => moveWeek(1), disabled: period.weekStart >= lastWeek, "aria-label": "次の週" }, "次の週 ›"),
+        createElement("div", { class: "week-nav" },
+          createElement("button", { class: "btn btn--small", onclick: () => moveWeek(-1), "aria-label": "前の週" }, "‹ 前の週"),
+          createElement("strong", { class: "week-nav__label" }, weekLabel(period)),
+          createElement("button", { class: "btn btn--small", onclick: () => moveWeek(1), disabled: period.weekStart >= lastWeek, "aria-label": "次の週" }, "次の週 ›"),
           // 紙に印刷（お店に貼る用。PDFにも保存できる）
-          h("button", { class: "btn btn--small", onclick: () => printWeek({
-            title: `${state.stores.find((s) => s.id === period.storeId)?.name || ""} ${weekLabel(period)}${period.status === "published" ? "" : "（下書き）"}`,
+          createElement("button", { class: "btn btn--small", onclick: () => printWeek({
+            title: `${state.stores.find((store) => store.id === period.storeId)?.name || ""} ${weekLabel(period)}${period.status === "published" ? "" : "（下書き）"}`,
             dates: datesOf(period), members: active, assignments: work, note: period.note,
           }) }, "印刷"),
         ),
         locked()
           // 公開済み：「編集する」を押すまで直せない
-          ? h("div", { class: "chip-row" },
-              h("span", { class: "badge badge--hall", style: { alignSelf: "center" } }, "公開済み（見るだけ）"),
-              h("button", { class: "btn btn--small btn--primary", onclick: () => { unlocked = true; toast("編集できます。直したら「変更を公開」を押してください"); draw(); } }, "✏️ 編集する"),
+          ? createElement("div", { class: "chip-row" },
+              createElement("span", { class: "badge badge--hall", style: { alignSelf: "center" } }, "公開済み（見るだけ）"),
+              createElement("button", { class: "btn btn--small btn--primary", onclick: () => { unlocked = true; toast("編集できます。直したら「変更を公開」を押してください"); draw(); } }, "✏️ 編集する"),
             )
-          : h("div", { class: "chip-row" },
+          : createElement("div", { class: "chip-row" },
           // 受付の切り替え：まちがえて締め切っても、もう一度押せば受付中に戻る
           period.status !== "published"
-            ? h("button", { class: "btn btn--small", onclick: toggleIntake }, period.status === "open" ? "受付を締め切る" : "受付を再開する")
+            ? createElement("button", { class: "btn btn--small", onclick: toggleIntake }, period.status === "open" ? "受付を締め切る" : "受付を再開する")
             : null,
-          h("button", { class: "btn btn--small", onclick: undo, disabled: !history.canUndo(), "aria-label": "元に戻す" }, "↶ 元に戻す"),
-          h("button", { class: "btn btn--small", onclick: redo, disabled: !history.canRedo(), "aria-label": "やり直す" }, "↷ やり直す"),
-          h("button", { class: "btn btn--small btn--blue", onclick: runDraft }, "✨ AIで作成"),
-          h("button", { class: "btn btn--small", onclick: addPerson }, "＋ 人を追加"),
-          h("button", { class: "btn btn--small", onclick: copyLastWeek }, "前週コピー"),
-          h("button", { class: "btn btn--small btn--primary", onclick: publish }, period.status === "published" ? "変更を公開" : "公開する"),
+          createElement("button", { class: "btn btn--small", onclick: undo, disabled: !history.canUndo(), "aria-label": "元に戻す" }, "↶ 元に戻す"),
+          createElement("button", { class: "btn btn--small", onclick: redo, disabled: !history.canRedo(), "aria-label": "やり直す" }, "↷ やり直す"),
+          createElement("button", { class: "btn btn--small btn--blue", onclick: runDraft }, "✨ AIで作成"),
+          createElement("button", { class: "btn btn--small", onclick: addPerson }, "＋ 人を追加"),
+          createElement("button", { class: "btn btn--small", onclick: copyLastWeek }, "前週コピー"),
+          createElement("button", { class: "btn btn--small btn--primary", onclick: publish }, period.status === "published" ? "変更を公開" : "公開する"),
         ),
         ],
       }),
-      h("div", { class: "screen-body" },
+      createElement("div", { class: "screen-body" },
         aiResult ? resultCard() : null,
         dayTabs(),
-        h("div", { class: "editor" },
-          h("section", { class: "card editor__table" },
+        createElement("div", { class: "editor" },
+          createElement("section", { class: "card editor__table" },
             timeline({
               ...dayRange(date),
               hours: hoursOf(date),
               members: active,
               assignments: today,
-              elsewhere: elsewhere.filter((a) => a.date === date),
-              availabilities: hopes.filter((x) => x.date === date),   // 希望は店長だけに見せる
+              elsewhere: elsewhere.filter((shift) => shift.date === date),
+              availabilities: hopes.filter((hope) => hope.date === date),   // 希望は店長だけに見せる
               needs: needRows(today),
               selectedId,
               editable: !locked(),
               onSelect: (id) => { selectedId = id; draw(); },
-              onChange: (a, change) => { selectedId = a.memberId; edit(() => Object.assign(a, change)); },
+              onChange: (shift, change) => { selectedId = shift.memberId; edit(() => Object.assign(shift, change)); },
             }),
             legend(),
           ),
-          h("div", { class: "editor__table" }, dayList({ assignments: today, members, hours: hoursOf(date) })),
-          h("div", { class: "editor__side" },
-            selectedId ? memberPanel(selectedId) : h("section", { class: "card home-muted" }, "名前か線を押すと、ここで細かく直せます"),
+          createElement("div", { class: "editor__table" }, dayList({ assignments: today, members, hours: hoursOf(date) })),
+          createElement("div", { class: "editor__side" },
+            selectedId ? memberPanel(selectedId) : createElement("section", { class: "card home-muted" }, "名前か線を押すと、ここで細かく直せます"),
             locked() ? null : dayTools(),
-            h("section", { class: "card" },
-              h("h2", { class: "card__title" }, `ルールのチェック（${label(date)}）`),
-              h("ul", { class: "check-list" },
-                checks.map((c) => h("li", { class: c.ok ? "is-ok" : "is-ng" }, h("strong", null, c.ok ? "✓" : "!"), c.text))),
+            createElement("section", { class: "card" },
+              createElement("h2", { class: "card__title" }, `ルールのチェック（${label(date)}）`),
+              createElement("ul", { class: "check-list" },
+                checks.map((check) => createElement("li", { class: check.ok ? "is-ok" : "is-ng" }, createElement("strong", null, check.ok ? "✓" : "!"), check.text))),
               // 守れていないルールがあれば、AIに直してもらえる（週全体を見て直す）
               !locked() && onlyProblems(checks).length
-                ? h("button", { class: "btn btn--small btn--blue", onclick: fixByAi }, "✨ AIに直してもらう（この週）")
+                ? createElement("button", { class: "btn btn--small btn--blue", onclick: fixByAi }, "✨ AIに直してもらう（この週）")
                 : null,
             ),
             shortageCard(),
@@ -340,11 +340,11 @@ export async function renderShiftEditor(app) {
 
   /** 日のタブ（守れていない日は赤い点） */
   function dayTabs() {
-    return h("div", { class: "day-tabs" },
-      datesOf(period).map((d) => {
-        const bad = onlyProblems(dayChecks(d)).length > 0;   // 守れていないルールがある日か
-        return h("button", { class: "chip day-tab", "aria-pressed": String(d === date), onclick: () => { date = d; draw(); } },
-          label(d), bad ? h("span", { class: "day-tab__dot", "aria-label": "守れていないルールあり" }) : null);
+    return createElement("div", { class: "day-tabs" },
+      datesOf(period).map((eachDate) => {
+        const bad = onlyProblems(dayChecks(eachDate)).length > 0;   // 守れていないルールがある日か
+        return createElement("button", { class: "chip day-tab", "aria-pressed": String(eachDate === date), onclick: () => { date = eachDate; draw(); } },
+          label(eachDate), bad ? createElement("span", { class: "day-tab__dot", "aria-label": "守れていないルールあり" }) : null);
       }));
   }
 
@@ -355,13 +355,13 @@ export async function renderShiftEditor(app) {
     const make = (area, labelText, color) => {
       const slots = [];   // 1時間ごとの数
       const { start, end } = dayRange(date);   // 表の左端と右端
-      for (let m = start; m < end; m += 60) {
+      for (let minutes = start; minutes < end; minutes += 60) {
         // その1時間でいちばん足りない時を出す（15分ごとに見る）
         let need = 0, have = 0, worst = -Infinity;
-        for (let q = m; q < m + 60; q += 15) {
-          const n = requiredAt(requirements, positions, type, area, q);   // 必要な人数
-          const hv = assignedAt(dayAssignments, area, q);   // 入っている人数
-          if (n - hv > worst) { worst = n - hv; need = n; have = hv; }
+        for (let slot = minutes; slot < minutes + 60; slot += 15) {
+          const count = requiredAt(requirements, positions, type, area, slot);   // 必要な人数
+          const hv = assignedAt(dayAssignments, area, slot);   // 入っている人数
+          if (count - hv > worst) { worst = count - hv; need = count; have = hv; }
         }
         slots.push({ need, have });
       }
@@ -372,32 +372,32 @@ export async function renderShiftEditor(app) {
 
   /** 色の見方 */
   function legend() {
-    return h("div", { class: "legend" },
-      h("span", null, h("i", { class: "legend__bar legend__bar--hall" }), "ホール"),
-      h("span", null, h("i", { class: "legend__bar legend__bar--kitchen" }), "キッチン"),
-      h("span", null, h("i", { class: "legend__bar legend__bar--hope" }), "希望"),
-      h("span", null, h("i", { class: "legend__circle" }), "休憩の目安"),
-      h("span", null, h("i", { class: "legend__bar legend__bar--fixed" }), "固定"),
-      h("span", { class: "home-muted" }, "線をドラッグで移動、端をドラッグで時間を変える"),
+    return createElement("div", { class: "legend" },
+      createElement("span", null, createElement("i", { class: "legend__bar legend__bar--hall" }), "ホール"),
+      createElement("span", null, createElement("i", { class: "legend__bar legend__bar--kitchen" }), "キッチン"),
+      createElement("span", null, createElement("i", { class: "legend__bar legend__bar--hope" }), "希望"),
+      createElement("span", null, createElement("i", { class: "legend__circle" }), "休憩の目安"),
+      createElement("span", null, createElement("i", { class: "legend__bar legend__bar--fixed" }), "固定"),
+      createElement("span", { class: "home-muted" }, "線をドラッグで移動、端をドラッグで時間を変える"),
     );
   }
 
   /** 右の欄：選んだ店員のくわしい内容と直す道具（components/assignment-panel.js） */
   function memberPanel(id) {
-    const m = members.find((x) => x.id === id);   // 選んだ店員
-    const hope = hopes.find((x) => x.memberId === id && x.date === date);   // その日の希望
+    const member = members.find((member) => member.id === id);   // 選んだ店員
+    const hope = hopes.find((hope) => hope.memberId === id && hope.date === date);   // その日の希望
     return assignmentPanel({
-      member: m,
+      member: member,
       date,
-      assignments: work.filter((x) => x.memberId === id && x.date === date).sort((a, b) => a.from - b.from),
+      assignments: work.filter((shift) => shift.memberId === id && shift.date === date).sort((shiftA, shiftB) => shiftA.from - shiftB.from),
       hope,
       rule: ruleOf(id),
-      others: active.filter((x) => x.id !== id),
+      others: active.filter((member) => member.id !== id),
       locked: locked(),
       // この週の働く時間（ほかの店舗の分も入れる。週の上限を超えないように見るため）
       weekText: (() => {
-        const mine = [...work, ...elsewhere].filter((a) => a.memberId === id);   // その人のこの週の勤務（ほかの店舗も）
-        const days = new Set(mine.map((a) => a.date)).size;   // 入っている日数
+        const mine = [...work, ...elsewhere].filter((shift) => shift.memberId === id);   // その人のこの週の勤務（ほかの店舗も）
+        const days = new Set(mine.map((shift) => shift.date)).size;   // 入っている日数
         const lim = limitsMap().get(id) || {};                                     // 働き方のルール
         const use = usageOf(id, date, [...work, ...others], lim);                 // 今月・今年
         return [
@@ -407,21 +407,21 @@ export async function renderShiftEditor(app) {
           lim.minor ? "18歳未満（22時〜朝5時は入れない）" : "",
         ].filter(Boolean).join("　");
       })(),
-      elsewhere: elsewhere.filter((a) => a.memberId === id && a.date === date),
+      elsewhere: elsewhere.filter((shift) => shift.memberId === id && shift.date === date),
       onEdit: (fn) => edit(fn),
-      onRemove: (a) => edit(() => { work = work.filter((x) => x !== a); }),
+      onRemove: (shift) => edit(() => { work = work.filter((other) => other !== shift); }),
       onAdd: () => edit(() => {
         // 希望があればその時間、もう勤務があればその後ろ、なければ 9:00〜15:00
-        const mine = work.filter((x) => x.memberId === id && x.date === date);
+        const mine = work.filter((shift) => shift.memberId === id && shift.date === date);
         let from = 9 * 60, to = 15 * 60;   // 足す勤務の時間（最初は 9:00〜15:00）
         if (mine.length) {
           // 今の勤務の1時間後から3時間。翌2:00をこえるなら、今の勤務の前に入れる
-          from = Math.max(...mine.map((x) => x.to)) + 60; to = from + 3 * 60;
-          if (to > EDIT_MAX) { to = Math.min(...mine.map((x) => x.from)) - 60; from = Math.max(EDIT_MIN, to - 3 * 60); }
+          from = Math.max(...mine.map((shift) => shift.to)) + 60; to = from + 3 * 60;
+          if (to > EDIT_MAX) { to = Math.min(...mine.map((shift) => shift.from)) - 60; from = Math.max(EDIT_MIN, to - 3 * 60); }
           if (to <= from) { toast("この日はもう勤務を足す時間がありません"); return; }
         }
         else if (hope?.kind === "time") { from = hope.from; to = hope.to; }
-        work.push({ memberId: id, date, from, to, area: m.skills.kitchen > m.skills.hall ? "kitchen" : "hall", breakAt: null, fixed: false, createdBy: "manager", requested: false });
+        work.push({ memberId: id, date, from, to, area: member.skills.kitchen > member.skills.hall ? "kitchen" : "hall", breakAt: null, fixed: false, createdBy: "manager", requested: false });
       }),
       onApproveSpecial: async () => {
         await api.approveSpecialOff(period.id, id, date);
@@ -434,15 +434,15 @@ export async function renderShiftEditor(app) {
 
   /** この日の道具：ほかの日にコピー・全部消す */
   function dayTools() {
-    const target = h("select", { class: "select", "aria-label": "コピー先の日" },   // コピー先の日を選ぶ欄
-      datesOf(period).filter((d) => d !== date).map((d) => h("option", { value: d }, label(d))));
-    return h("section", { class: "card" },
-      h("h2", { class: "card__title" }, `${label(date)} の道具`),
-      h("div", { class: "time-range" },
+    const target = createElement("select", { class: "select", "aria-label": "コピー先の日" },   // コピー先の日を選ぶ欄
+      datesOf(period).filter((eachDate) => eachDate !== date).map((date) => createElement("option", { value: date }, label(date))));
+    return createElement("section", { class: "card" },
+      createElement("h2", { class: "card__title" }, `${label(date)} の道具`),
+      createElement("div", { class: "time-range" },
         target,
-        h("button", { class: "btn btn--small", onclick: () => copyDay(target.value) }, "へコピー"),
+        createElement("button", { class: "btn btn--small", onclick: () => copyDay(target.value) }, "へコピー"),
       ),
-      h("button", { class: "btn btn--small btn--danger", onclick: clearDay }, "この日の勤務を全部消す（固定は残す）"),
+      createElement("button", { class: "btn btn--small btn--danger", onclick: clearDay }, "この日の勤務を全部消す（固定は残す）"),
     );
   }
 
@@ -451,27 +451,27 @@ export async function renderShiftEditor(app) {
    * 時給×働いた時間（休憩を引く）、深夜は1.25倍、交通費。社員は入れない（lib/labor.js）
    */
   function laborCard() {
-    const day = laborCost(work.filter((a) => a.date === date), wages);   // その日の人件費
+    const day = laborCost(work.filter((shift) => shift.date === date), wages);   // その日の人件費
     const week = laborCost(work, wages);   // この週の人件費
-    return h("section", { class: "card" },
-      h("h2", { class: "card__title" }, "人件費の目安（バイト・フル）"),
-      h("div", { class: "labor" },
-        h("div", null, h("span", { class: "home-muted" }, label(date)), h("strong", { class: "num" }, yen(day))),
-        h("div", null, h("span", { class: "home-muted" }, "この週"), h("strong", { class: "num" }, yen(week))),
+    return createElement("section", { class: "card" },
+      createElement("h2", { class: "card__title" }, "人件費の目安（バイト・フル）"),
+      createElement("div", { class: "labor" },
+        createElement("div", null, createElement("span", { class: "home-muted" }, label(date)), createElement("strong", { class: "num" }, yen(day))),
+        createElement("div", null, createElement("span", { class: "home-muted" }, "この週"), createElement("strong", { class: "num" }, yen(week))),
       ),
-      h("div", { class: "home-muted" }, "時給と交通費は「店員管理」で入れます。休憩（6時間をこえたら45分・8時間をこえたら60分）を引いて計算"),
+      createElement("div", { class: "home-muted" }, "時給と交通費は「店員管理」で入れます。休憩（6時間をこえたら45分・8時間をこえたら60分）を引いて計算"),
     );
   }
 
   /** 連絡事項（紙の右下の欄と同じ。公開シフトでみんなが見られる） */
   function noteCard() {
-    return h("section", { class: "card" },
-      h("h2", { class: "card__title" }, "連絡事項（この週）"),
-      h("textarea", {
+    return createElement("section", { class: "card" },
+      createElement("h2", { class: "card__title" }, "連絡事項（この週）"),
+      createElement("textarea", {
         class: "textarea",
         disabled: locked(),
         placeholder: "例：11/12 研修あり、11/14 お祭りで混みます",
-        onchange: async (e) => { period.note = e.target.value; await api.savePeriodNote(period.id, period.note); toast("連絡事項を保存しました"); },
+        onchange: async (event) => { period.note = event.target.value; await api.savePeriodNote(period.id, period.note); toast("連絡事項を保存しました"); },
       }, period.note || ""),
     );
   }
@@ -479,11 +479,11 @@ export async function renderShiftEditor(app) {
   /** この日をほかの日にコピー（コピー先の固定した勤務は残す） */
   function copyDay(to) {
     edit(() => {
-      const keep = work.filter((a) => a.date !== to || a.fixed);   // 残す勤務（コピー先の固定と、ほかの日）
-      const fixedThere = new Set(keep.filter((a) => a.date === to).map((a) => a.memberId));   // コピー先で固定されている人
+      const keep = work.filter((shift) => shift.date !== to || shift.fixed);   // 残す勤務（コピー先の固定と、ほかの日）
+      const fixedThere = new Set(keep.filter((shift) => shift.date === to).map((shift) => shift.memberId));   // コピー先で固定されている人
       const copied = work   // コピーした勤務
-        .filter((a) => a.date === date && !fixedThere.has(a.memberId))
-        .map((a) => ({ ...a, id: undefined, date: to, fixed: false, createdBy: "copy" }));
+        .filter((shift) => shift.date === date && !fixedThere.has(shift.memberId))
+        .map((shift) => ({ ...shift, id: undefined, date: to, fixed: false, createdBy: "copy" }));
       work = [...keep, ...copied];
     });
     toast(`${label(to)} にコピーしました`);
@@ -491,9 +491,9 @@ export async function renderShiftEditor(app) {
 
   /** この日の勤務を全部消す（固定は残す） */
   async function clearDay() {
-    const ok = await confirmDialog({ title: `${label(date)} の勤務を全部消しますか？`, body: h("p", { style: { margin: 0 } }, "固定した勤務は残ります。「元に戻す」で戻せます。"), yes: "消す", no: "やめる" });   // 本当に消すか聞く
+    const ok = await confirmDialog({ title: `${label(date)} の勤務を全部消しますか？`, body: createElement("p", { style: { margin: 0 } }, "固定した勤務は残ります。「元に戻す」で戻せます。"), yes: "消す", no: "やめる" });   // 本当に消すか聞く
     if (!ok) return;
-    edit(() => { work = work.filter((a) => a.date !== date || a.fixed); });
+    edit(() => { work = work.filter((shift) => shift.date !== date || shift.fixed); });
   }
 
   // ============================================================
@@ -501,14 +501,14 @@ export async function renderShiftEditor(app) {
   // ============================================================
 
   /** 前の週／次の週へ（その週がまだなければ作る） */
-  async function moveWeek(n) {
-    const weekStart = addDays(period.weekStart, 7 * n);   // 行く週の月曜
+  async function moveWeek(step) {
+    const weekStart = addDays(period.weekStart, 7 * step);   // 行く週の月曜
     if (weekStart > lastWeek) return;
-    let next = periods.find((p) => p.weekStart === weekStart);   // その週の受付
+    let next = periods.find((period) => period.weekStart === weekStart);   // その週の受付
     if (!next) {
       next = await api.ensurePeriod(weekStart);
       periods.push(next);
-      periods.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+      periods.sort((periodA, periodB) => periodA.weekStart.localeCompare(periodB.weekStart));
     }
     period = next;
     date = null;
@@ -534,11 +534,11 @@ export async function renderShiftEditor(app) {
    * AIがつながらない時は簡易版で作る。結果は一番上の「AIの結果」に出る
    */
   async function runDraft() {
-    const hasWork = work.some((a) => !a.fixed);                        // もう勤務が入っているか
+    const hasWork = work.some((shift) => !shift.fixed);                        // もう勤務が入っているか
     if (hasWork) {
       const ok = await confirmDialog({   // 作り直すか聞く
         title: "下書きを作り直しますか？",
-        body: h("p", { style: { margin: 0 } }, "今の勤務（固定したもの以外）は消えて、新しい下書きになります。「AIの前に戻す」で戻せます。"),
+        body: createElement("p", { style: { margin: 0 } }, "今の勤務（固定したもの以外）は消えて、新しい下書きになります。「AIの前に戻す」で戻せます。"),
         yes: "作り直す", no: "やめる",
       });
       if (!ok) return;
@@ -546,9 +546,9 @@ export async function renderShiftEditor(app) {
     const wait = busy("準備しています");                                // 待っている間の画面
     try {
       // 過去の勤務：前の週の分を「よく入っている人」の参考にする
-      const prev = periods.find((p) => p.weekStart === addDays(period.weekStart, -7));
+      const prev = periods.find((eachPeriod) => eachPeriod.weekStart === addDays(period.weekStart, -7));
       const past = prev ? await api.listAssignments(prev.id) : [];   // 前の週の勤務
-      const before = work.map((a) => ({ ...a }));                       // AIの前（「変わった所」を出すため）
+      const before = work.map((shift) => ({ ...shift }));                       // AIの前（「変わった所」を出すため）
       const result = await runAiDraft(aiContext(past), { onStep: wait.update });   // AIの結果
       history.push(work);
       work = result.rows;
@@ -567,30 +567,30 @@ export async function renderShiftEditor(app) {
     const problems = allProblems();                                   // 今の守れていないルール
     if (!problems.length) { toast("守れていないルールはありません"); return; }
     if (!aiReady().ok) {
-      const ok = await confirmDialog({ title: "AIの設定がまだです", body: h("p", { style: { margin: 0 } }, `${aiReady().why}。AIの設定を開きますか？`), yes: "開く", no: "やめる" });   // 設定を開くか聞く
+      const ok = await confirmDialog({ title: "AIの設定がまだです", body: createElement("p", { style: { margin: 0 } }, `${aiReady().why}。AIの設定を開きますか？`), yes: "開く", no: "やめる" });   // 設定を開くか聞く
       if (ok) go("/ai");
       return;
     }
     const wait = busy("AIが直しています（30秒〜1分くらい）");   // 待っている間の画面
     try {
-      const prev = periods.find((p) => p.weekStart === addDays(period.weekStart, -7));   // 前の週
+      const prev = periods.find((eachPeriod) => eachPeriod.weekStart === addDays(period.weekStart, -7));   // 前の週
       const past = prev ? await api.listAssignments(prev.id) : [];   // 前の週の勤務
-      const before = work.map((a) => ({ ...a }));   // AIの前の勤務
-      const r = await fixWithAi(aiContext(past), work, problems, { onStep: wait.update });   // AIが直した結果
-      if (!r.applied) {
-        toast(r.error ? `AIで直せませんでした：${r.error}` : `AIの案は問題が減らなかったので使いませんでした（${r.before}件 → ${r.after}件）`);
+      const before = work.map((shift) => ({ ...shift }));   // AIの前の勤務
+      const result = await fixWithAi(aiContext(past), work, problems, { onStep: wait.update });   // AIが直した結果
+      if (!result.applied) {
+        toast(result.error ? `AIで直せませんでした：${result.error}` : `AIの案は問題が減らなかったので使いませんでした（${result.before}件 → ${result.after}件）`);
         return;
       }
       history.push(work);
-      work = r.rows;
+      work = result.rows;
       await api.saveAiDraft(period.id, work);
       aiResult = {
         kind: "fix", before,
-        result: { rows: work, source: "gemini", model: r.model, summary: r.summary, concerns: r.concerns, dropped: r.dropped, learnedCount: 0 },
+        result: { rows: work, source: "gemini", model: result.model, summary: result.summary, concerns: result.concerns, dropped: result.dropped, learnedCount: 0 },
       };
       await persist();
       window.scrollTo(0, 0);
-      toast(`AIが直しました（守れていないルール ${r.before}件 → ${r.after}件）`);
+      toast(`AIが直しました（守れていないルール ${result.before}件 → ${result.after}件）`);
     } finally {
       wait.done();
     }
@@ -608,7 +608,7 @@ export async function renderShiftEditor(app) {
       onUndo: () => { undo(); aiResult = null; draw(); toast("AIの前に戻しました"); },
       onClose: () => { aiResult = null; draw(); },
       onSettings: () => go("/ai"),
-      onJump: (d, id) => { date = d; selectedId = id; draw(); document.querySelector(".editor")?.scrollIntoView({ behavior: "smooth" }); },
+      onJump: (eachDate, id) => { date = eachDate; selectedId = id; draw(); document.querySelector(".editor")?.scrollIntoView({ behavior: "smooth" }); },
     });
   }
 
@@ -620,16 +620,16 @@ export async function renderShiftEditor(app) {
     const list = mergeNeeds(weekShortages());                          // この週の足りない時間（近いものはまとめる）
     if (!list.length || locked()) return null;
     /** 場所の名前 */
-    const area = (x) => (x.area === "hall" ? "ホール" : "キッチン");
-    return h("section", { class: "card" },
-      h("h2", { class: "card__title" }, `人が足りない時間（この週 ${list.length}件）`),
-      h("ul", { class: "check-list" }, list.slice(0, 8).map((x) => h("li", { class: "is-ng" }, h("strong", null, label(x.date)), `${area(x)} ${range(x.from, x.to)} ${x.short}人`))),
-      list.length > 8 ? h("div", { class: "home-muted" }, `ほか ${list.length - 8}件`) : null,
-      h("button", { class: "btn btn--small", onclick: async () => {
-        const r = await api.sendCalls(period.id, list);   // 連絡した結果
-        toast(r.sent ? `${r.people}人に連絡しました（${r.sent}件）${r.none ? `。入れそうな人がいない所 ${r.none}件` : ""}` : r.none ? "入れそうな人がいませんでした" : "もう連絡してあります");
+    const area = (need) => (need.area === "hall" ? "ホール" : "キッチン");
+    return createElement("section", { class: "card" },
+      createElement("h2", { class: "card__title" }, `人が足りない時間（この週 ${list.length}件）`),
+      createElement("ul", { class: "check-list" }, list.slice(0, 8).map((need) => createElement("li", { class: "is-ng" }, createElement("strong", null, label(need.date)), `${area(need)} ${range(need.from, need.to)} ${need.short}人`))),
+      list.length > 8 ? createElement("div", { class: "home-muted" }, `ほか ${list.length - 8}件`) : null,
+      createElement("button", { class: "btn btn--small", onclick: async () => {
+        const result = await api.sendCalls(period.id, list);   // 連絡した結果
+        toast(result.sent ? `${result.people}人に連絡しました（${result.sent}件）${result.none ? `。入れそうな人がいない所 ${result.none}件` : ""}` : result.none ? "入れそうな人がいませんでした" : "もう連絡してあります");
       } }, "入れそうな人に連絡する"),
-      h("div", { class: "home-muted" }, "公開した時に足りない時間が残っていれば、自動で連絡します。返事はホームに出ます"),
+      createElement("div", { class: "home-muted" }, "公開した時に足りない時間が残っていれば、自動で連絡します。返事はホームに出ます"),
     );
   }
 
@@ -639,7 +639,7 @@ export async function renderShiftEditor(app) {
     company = await api.listCompanyMembers();
     await openAddPerson({
       company,
-      shown: new Set(members.map((m) => m.id)),
+      shown: new Set(members.map((member) => member.id)),
       // ほかの店舗の人：この週だけ応援 or この店舗にも行けるようにする
       onPickOther: async (memberId, how) => {
         if (how === "week") {
@@ -667,22 +667,22 @@ export async function renderShiftEditor(app) {
 
   /** 前週コピー */
   async function copyLastWeek() {
-    const prev = periods.find((p) => p.weekStart === addDays(period.weekStart, -7));   // 前の週
+    const prev = periods.find((eachPeriod) => eachPeriod.weekStart === addDays(period.weekStart, -7));   // 前の週
     if (!prev) { toast("前の週がありません"); return; }
     const ok = await confirmDialog({   // コピーするか聞く
       title: "先週と同じにしますか？",
-      body: h("p", { style: { margin: 0 } }, "今の勤務（固定したもの以外）は消えて、先週と同じ形になります。"),
+      body: createElement("p", { style: { margin: 0 } }, "今の勤務（固定したもの以外）は消えて、先週と同じ形になります。"),
       yes: "コピーする", no: "やめる",
     });
     if (!ok) return;
     const last = await api.listAssignments(prev.id);   // 先週の勤務
-    const activeIds = new Set(active.map((m) => m.id));   // 働いている人のID
-    const fixed = work.filter((a) => a.fixed);   // 固定した勤務
-    const fixedKey = new Set(fixed.map((a) => `${a.memberId}|${a.date}`));   // 固定がある人と日
+    const activeIds = new Set(active.map((member) => member.id));   // 働いている人のID
+    const fixed = work.filter((shift) => shift.fixed);   // 固定した勤務
+    const fixedKey = new Set(fixed.map((shift) => `${shift.memberId}|${shift.date}`));   // 固定がある人と日
     const copied = last   // 1週間後にずらした勤務
-      .filter((a) => activeIds.has(a.memberId) && a.storeId === period.storeId)
-      .map((a) => ({ ...a, id: undefined, date: addDays(a.date, 7), fixed: false, createdBy: "copy" }))
-      .filter((a) => !fixedKey.has(`${a.memberId}|${a.date}`));
+      .filter((shift) => activeIds.has(shift.memberId) && shift.storeId === period.storeId)
+      .map((shift) => ({ ...shift, id: undefined, date: addDays(shift.date, 7), fixed: false, createdBy: "copy" }))
+      .filter((shift) => !fixedKey.has(`${shift.memberId}|${shift.date}`));
     history.push(work);
     work = [...fixed, ...copied];
     await persist();
@@ -696,9 +696,9 @@ export async function renderShiftEditor(app) {
       const yes = await confirmDialog({   // そのまま公開するか聞く
         title: "守れていないルールがあります",
         warn: true,
-        body: h("div", { class: "publish-problems" },
-          h("ul", { class: "check-list" }, problems.map((p) => h("li", { class: "is-ng" }, h("strong", null, p.day), p.text))),
-          h("p", { style: { margin: "8px 0 0", fontWeight: 700 } }, "このまま公開しますか？"),
+        body: createElement("div", { class: "publish-problems" },
+          createElement("ul", { class: "check-list" }, problems.map((problem) => createElement("li", { class: "is-ng" }, createElement("strong", null, problem.day), problem.text))),
+          createElement("p", { style: { margin: "8px 0 0", fontWeight: 700 } }, "このまま公開しますか？"),
         ),
         yes: "はい（公開する）",
         no: "いいえ（直す）",

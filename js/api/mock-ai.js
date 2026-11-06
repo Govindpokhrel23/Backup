@@ -24,7 +24,7 @@ export const aiApi = {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
     data.aiDrafts = data.aiDrafts || {};
-    data.aiDrafts[periodId] = rows.map((a) => ({ memberId: a.memberId, date: a.date, from: a.from, to: a.to, area: a.area, fixed: !!a.fixed }));
+    data.aiDrafts[periodId] = rows.map((row) => ({ memberId: row.memberId, date: row.date, from: row.from, to: row.to, area: row.area, fixed: !!row.fixed }));
     save(data);
     return reply(true);
   },
@@ -39,15 +39,15 @@ export const aiApi = {
     requireManager(data);
     const draft = data.aiDrafts?.[periodId];                         // AIの下書き
     if (!draft) return reply(0);
-    const store = data.periods.find((p) => p.id === periodId)?.storeId;   // その週の店舗
-    const final = data.assignments.filter((a) => a.periodId === periodId);   // 公開したもの
-    const rows = diffDraft(draft, final).map((r, i) => ({ ...r, id: `l${Date.now()}-${i}`, storeId: store, at: new Date().toISOString() }));   // 新しい学び（IDと店舗と時刻をつける）
+    const store = data.periods.find((period) => period.id === periodId)?.storeId;   // その週の店舗
+    const final = data.assignments.filter((shift) => shift.periodId === periodId);   // 公開したもの
+    const rows = diffDraft(draft, final).map((learning, index) => ({ ...learning, id: `l${Date.now()}-${index}`, storeId: store, at: new Date().toISOString() }));   // 新しい学び（IDと店舗と時刻をつける）
     data.learnings = [...(data.learnings || []), ...rows];
     // 古いものから消す（店舗ごとに LEARN_KEEP 個まで）
-    const mine = data.learnings.filter((l) => l.storeId === store);
+    const mine = data.learnings.filter((learning) => learning.storeId === store);
     if (mine.length > LEARN_KEEP) {
-      const drop = new Set(mine.slice(0, mine.length - LEARN_KEEP).map((l) => l.id));   // 消す古い学びのID
-      data.learnings = data.learnings.filter((l) => !drop.has(l.id));
+      const drop = new Set(mine.slice(0, mine.length - LEARN_KEEP).map((learning) => learning.id));   // 消す古い学びのID
+      data.learnings = data.learnings.filter((learning) => !drop.has(learning.id));
     }
     delete data.aiDrafts[periodId];
     save(data);
@@ -60,7 +60,7 @@ export const aiApi = {
   async listLearnings() {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
-    return reply((data.learnings || []).filter((l) => l.storeId === storeOf(data)));
+    return reply((data.learnings || []).filter((learning) => learning.storeId === storeOf(data)));
   },
 
   /** 学びを消す（店長。「これは覚えなくていい」） */
@@ -68,7 +68,7 @@ export const aiApi = {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
     const drop = new Set(ids);                                       // 消す学びのID
-    data.learnings = (data.learnings || []).filter((l) => !drop.has(l.id));
+    data.learnings = (data.learnings || []).filter((learning) => !drop.has(learning.id));
     save(data);
     return reply(true);
   },
@@ -83,14 +83,14 @@ export const aiApi = {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
     const store = storeOf(data);   // 今見ている店舗
-    const company = data.stores.find((s) => s.id === store)?.companyId;   // その店舗の会社
-    const inCompany = new Set(data.stores.filter((s) => s.companyId === company).map((s) => s.id));   // 同じ会社の店舗
+    const company = data.stores.find((eachStore) => eachStore.id === store)?.companyId;   // その店舗の会社
+    const inCompany = new Set(data.stores.filter((store) => store.companyId === company).map((store) => store.id));   // 同じ会社の店舗
     return reply(data.members
-      .filter((m) => m.active && inCompany.has(m.storeId))
-      .map((m) => ({
-        ...m,
-        mainShort: data.stores.find((s) => s.id === m.storeId)?.short || "",
-        canHere: canWorkAt(m, store),
+      .filter((member) => member.active && inCompany.has(member.storeId))
+      .map((member) => ({
+        ...member,
+        mainShort: data.stores.find((store) => store.id === member.storeId)?.short || "",
+        canHere: canWorkAt(member, store),
       })));
   },
 
@@ -98,21 +98,21 @@ export const aiApi = {
   async addGuest(periodId, memberId) {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
-    const p = data.periods.find((x) => x.id === periodId);   // その週
-    if (!p) return fail("週が見つかりません");
-    p.guests = [...new Set([...(p.guests || []), memberId])];
+    const period = data.periods.find((period) => period.id === periodId);   // その週
+    if (!period) return fail("週が見つかりません");
+    period.guests = [...new Set([...(period.guests || []), memberId])];
     save(data);
-    return reply(p.guests);
+    return reply(period.guests);
   },
 
   /** 応援の人を外す（店長。その週に勤務が入っていなければ） */
   async removeGuest(periodId, memberId) {
     const data = load();   // 保存してあるデータを読む
     requireManager(data);
-    const p = data.periods.find((x) => x.id === periodId);   // その週
-    if (data.assignments.some((a) => a.periodId === periodId && a.memberId === memberId)) return fail("勤務が入っているので外せません。先に勤務を消してください");
-    p.guests = (p.guests || []).filter((id) => id !== memberId);
+    const period = data.periods.find((period) => period.id === periodId);   // その週
+    if (data.assignments.some((shift) => shift.periodId === periodId && shift.memberId === memberId)) return fail("勤務が入っているので外せません。先に勤務を消してください");
+    period.guests = (period.guests || []).filter((id) => id !== memberId);
     save(data);
-    return reply(p.guests);
+    return reply(period.guests);
   },
 };

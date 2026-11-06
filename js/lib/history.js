@@ -17,7 +17,7 @@ export function createHistory(limit = 50) {
   const past = [];     // 前の状態（新しいものが最後）
   const future = [];   // 「元に戻す」で取り消した状態
 
-  const snap = (x) => JSON.stringify(x);   // 文字にして保存（あとで変えられても影響しない）
+  const snap = (value) => JSON.stringify(value);   // 文字にして保存（あとで変えられても影響しない）
 
   return {
     /** 変える前の状態を覚える */

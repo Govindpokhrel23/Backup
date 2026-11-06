@@ -10,23 +10,23 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 /** "2026-11-09" → Date（日本の正午） */
 export function toDate(iso) {
-  const [y, m, d] = iso.split("-").map(Number);   // 年・月・日
-  return new Date(y, m - 1, d, 12);
+  const [year, minutes, date] = iso.split("-").map(Number);   // 年・月・日
+  return new Date(year, minutes - 1, date, 12);
 }
 
 /** Date → "2026-11-09" */
 export function toIso(date) {
-  const y = date.getFullYear();   // 年
-  const m = String(date.getMonth() + 1).padStart(2, "0");   // 月（2けた）
-  const d = String(date.getDate()).padStart(2, "0");   // 日（2けた）
-  return `${y}-${m}-${d}`;
+  const year = date.getFullYear();   // 年
+  const month = String(date.getMonth() + 1).padStart(2, "0");   // 月（2けた）
+  const day = String(date.getDate()).padStart(2, "0");   // 日（2けた）
+  return `${year}-${month}-${day}`;
 }
 
 /** 日付に n 日足す */
-export function addDays(iso, n) {
-  const d = toDate(iso);   // Date にしたもの
-  d.setDate(d.getDate() + n);
-  return toIso(d);
+export function addDays(iso, count) {
+  const date = toDate(iso);   // Date にしたもの
+  date.setDate(date.getDate() + count);
+  return toIso(date);
 }
 
 /** 今日（日本時間） */
@@ -36,14 +36,14 @@ export function today() {
 
 /** その日を含む週の月曜日 */
 export function mondayOf(iso) {
-  const d = toDate(iso);   // Date にしたもの
-  const diff = (d.getDay() + 6) % 7;     // 月曜=0, 日曜=6
+  const date = toDate(iso);   // Date にしたもの
+  const diff = (date.getDay() + 6) % 7;     // 月曜=0, 日曜=6
   return addDays(iso, -diff);
 }
 
 /** 月曜日から7日分の日付 */
 export function weekDates(monday) {
-  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  return Array.from({ length: 7 }, (_, index) => addDays(monday, index));
 }
 
 /** 曜日の漢字1文字（"月" など） */
@@ -63,22 +63,22 @@ export function weekdayNum(iso) {
  */
 export function dayType(iso, holidays = []) {
   if (holidays.includes(iso)) return "sun";
-  const n = weekdayNum(iso);   // 曜日の番号
-  if (n === 6) return "sat";
-  if (n === 0) return "sun";
+  const count = weekdayNum(iso);   // 曜日の番号
+  if (count === 6) return "sat";
+  if (count === 0) return "sun";
   return "weekday";
 }
 
 /** "11/9（月）" の形 */
 export function label(iso) {
-  const d = toDate(iso);   // Date にしたもの
-  return `${d.getMonth() + 1}/${d.getDate()}（${weekdayName(iso)}）`;
+  const date = toDate(iso);   // Date にしたもの
+  return `${date.getMonth() + 1}/${date.getDate()}（${weekdayName(iso)}）`;
 }
 
 /** "11/9" の形 */
 export function shortLabel(iso) {
-  const d = toDate(iso);   // Date にしたもの
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  const date = toDate(iso);   // Date にしたもの
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 /** その月の1日（"2026-11-09" → "2026-11-01"） */
@@ -88,6 +88,6 @@ export function monthStart(iso) {
 
 /** その月の最後の日（"2026-11-09" → "2026-11-30"） */
 export function monthEnd(iso) {
-  const [y, m] = iso.split("-").map(Number);   // 年と月
-  return toIso(new Date(y, m, 0, 12));          // 次の月の0日＝その月の最後の日
+  const [year, member] = iso.split("-").map(Number);   // 年と月
+  return toIso(new Date(year, member, 0, 12));          // 次の月の0日＝その月の最後の日
 }
