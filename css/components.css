@@ -7,125 +7,125 @@
    ============================================================ */
 
 /* ---------- カード（白い箱） ---------- */
-.card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 14px;
-  box-shadow: 0 1px 2px rgba(58, 46, 38, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.card {   /* 白いカード */
+  background: var(--surface);   /* 背景 */
+  border-radius: var(--radius);   /* 角を丸く */
+  padding: 14px;   /* 中の余白 */
+  box-shadow: 0 1px 2px rgba(58, 46, 38, 0.1);   /* うすい影 */
+  display: flex;   /* 中を並べる */
+  flex-direction: column;   /* 縦に */
+  gap: 10px;   /* すき間 */
 }
-.card__title { margin: 0; font-size: 16px; font-weight: 700; }
+.card__title { margin: 0; font-size: 16px; font-weight: 700; }   /* カードの見出し */
 
 /* ---------- ボタン ---------- */
-.btn {
-  min-height: var(--tap);
-  padding: 0 16px;
-  border-radius: 10px;
-  border: 2px solid var(--line);
-  background: var(--surface);
-  font-size: 15px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+.btn {   /* ボタン */
+  min-height: var(--tap);   /* 指で押しやすい高さ */
+  padding: 0 16px;   /* 左右の余白 */
+  border-radius: 10px;   /* 角を丸く */
+  border: 2px solid var(--line);   /* 枠の線 */
+  background: var(--surface);   /* 背景 */
+  font-size: 15px;   /* 文字の大きさ */
+  font-weight: 700;   /* 太字 */
+  display: inline-flex;   /* 中を並べる */
+  align-items: center;   /* 縦の真ん中 */
+  justify-content: center;   /* 横の真ん中 */
+  gap: 6px;   /* 絵と文字のすき間 */
 }
-.btn--primary { background: var(--ink); border-color: var(--ink); color: #fff; }
-.btn--blue    { border-color: var(--hall); color: var(--hall); }
-.btn--danger  { border-color: var(--danger); color: var(--danger); }
-.btn--dashed  { border-style: dashed; border-color: #B89B7A; background: #FBF8F3; }
-.btn--small   { min-height: 36px; font-size: 13px; padding: 0 12px; }
-.btn--block   { width: 100%; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--primary { background: var(--ink); border-color: var(--ink); color: #fff; }   /* 一番大事なボタン（こい色） */
+.btn--blue    { border-color: var(--hall); color: var(--hall); }   /* 青いボタン */
+.btn--danger  { border-color: var(--danger); color: var(--danger); }   /* 赤いボタン（消すなど） */
+.btn--dashed  { border-style: dashed; border-color: #B89B7A; background: #FBF8F3; }   /* 点線のボタン（足す） */
+.btn--small   { min-height: 36px; font-size: 13px; padding: 0 12px; }   /* 小さいボタン */
+.btn--block   { width: 100%; }   /* 横いっぱいのボタン */
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }   /* 押せないボタンはうすく */
 
 /* ---------- 選ぶボタン（チップ）：押すと色がつく ---------- */
-.chip {
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 2px solid var(--line);
-  background: var(--surface);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink-2);
+.chip {   /* 丸い選ぶボタン */
+  min-height: 40px;   /* 高さ */
+  padding: 0 14px;   /* 左右の余白 */
+  border-radius: 999px;   /* 丸い形 */
+  border: 2px solid var(--line);   /* 枠の線 */
+  background: var(--surface);   /* 背景 */
+  font-size: 14px;   /* 文字の大きさ */
+  font-weight: 700;   /* 太字 */
+  color: var(--ink-2);   /* 文字の色 */
 }
-.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
-.chip--hall[aria-pressed="true"]    { background: var(--hall); border-color: var(--hall); }
-.chip--kitchen[aria-pressed="true"] { background: var(--kitchen); border-color: var(--kitchen); }
-.chip--ok[aria-pressed="true"]      { background: var(--ok); border-color: var(--ok); }
-.chip--danger[aria-pressed="true"]  { background: var(--danger); border-color: var(--danger); }
-.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
-.chip-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }   /* 選んでいる時はこい色 */
+.chip--hall[aria-pressed="true"]    { background: var(--hall); border-color: var(--hall); }   /* ホールを選んだ時は青 */
+.chip--kitchen[aria-pressed="true"] { background: var(--kitchen); border-color: var(--kitchen); }   /* キッチンを選んだ時はオレンジ */
+.chip--ok[aria-pressed="true"]      { background: var(--ok); border-color: var(--ok); }   /* OK を選んだ時は緑 */
+.chip--danger[aria-pressed="true"]  { background: var(--danger); border-color: var(--danger); }   /* だめを選んだ時は赤 */
+.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }   /* 選ぶボタンを横に並べる */
+.chip-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }   /* 選ぶボタンを3列に並べる */
 
 /* ---------- 入力欄 ---------- */
-.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-3); }
-.input, .select, .textarea {
-  min-height: var(--tap);
-  border-radius: 8px;
-  border: 1px solid #CDB79E;
-  background: var(--surface);
-  padding: 0 10px;
-  font-size: 16px;
-  color: var(--ink);
-  width: 100%;
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-3); }   /* 入力欄と名前のまとまり */
+.input, .select, .textarea {   /* 入力欄・選ぶ欄・文の欄 */
+  min-height: var(--tap);   /* 押しやすい高さ */
+  border-radius: 8px;   /* 角を丸く */
+  border: 1px solid #CDB79E;   /* 枠の線 */
+  background: var(--surface);   /* 背景 */
+  padding: 0 10px;   /* 左右の余白 */
+  font-size: 16px;   /* 16px（iPhone で勝手に拡大しない大きさ） */
+  color: var(--ink);   /* 文字の色 */
+  width: 100%;   /* 横いっぱい */
 }
-.textarea { padding: 10px; min-height: 90px; resize: vertical; }
-.time-range { display: flex; align-items: center; gap: 8px; }
-.time-range .select { flex: 1; }
+.textarea { padding: 10px; min-height: 90px; resize: vertical; }   /* 文の欄は高く・縦にのばせる */
+.time-range { display: flex; align-items: center; gap: 8px; }   /* 「〜」でつなぐ時間の行 */
+.time-range .select { flex: 1; }   /* 時間の欄は同じ幅 */
 
 /* ---------- お知らせの帯 ---------- */
-.notice { padding: 10px 12px; border-radius: 10px; font-size: 14px; font-weight: 700; }
-.notice--ok     { background: var(--ok-bg); color: var(--ok); }
-.notice--warn   { background: var(--warn-bg); color: var(--warn); }
-.notice--danger { background: var(--danger-bg); color: var(--danger); }
-.notice--info   { background: #E7F1FB; color: #1C4680; }
+.notice { padding: 10px 12px; border-radius: 10px; font-size: 14px; font-weight: 700; }   /* お知らせの帯 */
+.notice--ok     { background: var(--ok-bg); color: var(--ok); }   /* OK（緑） */
+.notice--warn   { background: var(--warn-bg); color: var(--warn); }   /* 注意（黄） */
+.notice--danger { background: var(--danger-bg); color: var(--danger); }   /* だめ（赤） */
+.notice--info   { background: #E7F1FB; color: #1C4680; }   /* 説明（青） */
 
 /* ---------- 小さいラベル ---------- */
-.badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--ink-3);
-  color: #fff;
+.badge {   /* 小さい印 */
+  display: inline-block;   /* 文字と同じ行に置く */
+  font-size: 11px;   /* 文字の大きさ */
+  font-weight: 700;   /* 太字 */
+  padding: 2px 8px;   /* 中の余白 */
+  border-radius: 999px;   /* 丸い形 */
+  background: var(--ink-3);   /* 背景（灰色） */
+  color: #fff;   /* 文字は白 */
 }
-.badge--hall { background: var(--hall); }
-.badge--kitchen { background: var(--kitchen); }
-.badge--warn { background: #C27A00; }
+.badge--hall { background: var(--hall); }   /* ホールの印（青） */
+.badge--kitchen { background: var(--kitchen); }   /* キッチンの印（オレンジ） */
+.badge--warn { background: #C27A00; }   /* 注意の印（黄土色） */
 
 /* ---------- 確認ダイアログ（画面の上に出る箱） ---------- */
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: rgba(43, 33, 26, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
+.dialog-backdrop {   /* 小さい画面の後ろの暗い所 */
+  position: fixed;   /* 画面に固定 */
+  inset: 0;   /* 画面いっぱい */
+  z-index: 40;   /* 一番上に重ねる */
+  background: rgba(43, 33, 26, 0.45);   /* うすく暗く */
+  display: flex;   /* 中を並べる */
+  align-items: center;   /* 縦の真ん中 */
+  justify-content: center;   /* 横の真ん中 */
+  padding: 16px;   /* まわりの余白 */
 }
-.dialog {
-  width: 100%;
-  max-width: 460px;
-  background: var(--surface);
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-height: 90vh;
-  overflow-y: auto;
+.dialog {   /* 小さい画面 */
+  width: 100%;   /* 横いっぱい */
+  max-width: 460px;   /* PCでは広がりすぎない */
+  background: var(--surface);   /* 背景 */
+  border-radius: 16px;   /* 角を丸く */
+  padding: 20px;   /* 中の余白 */
+  display: flex;   /* 中を並べる */
+  flex-direction: column;   /* 縦に */
+  gap: 12px;   /* すき間 */
+  max-height: 90vh;   /* 画面より高くならないように */
+  overflow-y: auto;   /* 長い時はスクロール */
 }
-.dialog__title { margin: 0; font-size: 19px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-.dialog__title svg { width: 26px; height: 26px; }
-.dialog__actions { display: flex; gap: 10px; }
-.dialog__actions .btn { flex: 1; }
+.dialog__title { margin: 0; font-size: 19px; font-weight: 700; display: flex; align-items: center; gap: 8px; }   /* 小さい画面のタイトル */
+.dialog__title svg { width: 26px; height: 26px; }   /* タイトルの絵の大きさ */
+.dialog__actions { display: flex; gap: 10px; }   /* ボタンの行 */
+.dialog__actions .btn { flex: 1; }   /* ボタンは同じ幅 */
 
 /* ---------- 一覧（チェック結果など） ---------- */
-.check-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.check-list li { padding: 7px 10px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; }
-.check-list .is-ok { background: var(--ok-bg); color: var(--ok); }
-.check-list .is-ng { background: var(--danger-bg); color: var(--danger); }
+.check-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }   /* チェックの一覧 */
+.check-list li { padding: 7px 10px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; }   /* チェックの1行 */
+.check-list .is-ok { background: var(--ok-bg); color: var(--ok); }   /* OKの行（緑） */
+.check-list .is-ng { background: var(--danger-bg); color: var(--danger); }   /* だめの行（赤） */
