@@ -23,5 +23,5 @@ start();   // アプリを始める
 
 // 電波がない時もアプリを開けるように、サービスワーカーを登録する（sw.js）
 if ("serviceWorker" in navigator) {   // このブラウザがサービスワーカーを使えるなら
-  navigator.serviceWorker.register("./sw.js").catch((event) => console.warn("サービスワーカーを登録できませんでした", event));   // sw.js を登録する（オフラインと通知のため）。失敗しても止まらない
+  navigator.serviceWorker.register("./sw.js").catch((error) => console.warn("サービスワーカーを登録できませんでした", error));   // sw.js を登録する（オフラインと通知のため）。失敗しても止まらない
 }
