@@ -60,12 +60,12 @@ export function checkLabor(props) {   // 働き方のルールを調べる関数
   const people = new Set(props.week.map((shift) => shift.memberId));             // この週に入っている人
 
   for (const id of people) {   // この週に入っている人ごとに
-    const lim = props.limits.get(id) || {};                               // その人のルール
+    const personLimit = props.limits.get(id) || {};                               // その人のルール
     const mine = all.filter((shift) => shift.memberId === id);                // その人の勤務（全部）
     const myWeek = props.week.filter((shift) => shift.memberId === id);           // その人のこの週の勤務
 
     // ① 18歳未満の深夜
-    if (lim.minor) {   // 18歳未満の人なら
+    if (personLimit.minor) {   // 18歳未満の人なら
       const bad = myWeek.filter(minorNightNG);                        // だめな時間の勤務
       if (bad.length) out.push({ ok: false, code: "minor-night", text: `18歳未満は22時〜朝5時に入れない：${nameOf(id)}（${bad.map((shift) => label(shift.date)).join("、")}）` });   // だめな勤務があれば問題に足す
     }
@@ -76,18 +76,18 @@ export function checkLabor(props) {   // 働き方のルールを調べる関数
     if (streak > CONFIG.MAX_STREAK_DAYS) out.push({ ok: false, code: "streak", text: `${CONFIG.MAX_STREAK_DAYS + 1}日以上続けて入っている：${nameOf(id)}（${streak}連勤）` });   // 6日をこえる連勤なら問題に足す
 
     // ③ 月の上限時間（この週にかかる月ごと）
-    if (lim.monthHoursMax) {   // 月の上限が決まっている人なら
+    if (personLimit.monthHoursMax) {   // 月の上限が決まっている人なら
       for (const month of new Set(props.dates.map(monthOf))) {   // この週にかかる月ごと
         const minutes = mine.filter((shift) => monthOf(shift.date) === month).reduce((sum, shift) => sum + workedMinutes(shift), 0);   // その月の働いた分
-        if (minutes > lim.monthHoursMax * 60) out.push({ ok: false, code: "month-hours", text: `月の上限時間をこえる：${nameOf(id)}（${Number(month.slice(5))}月 ${hoursText(minutes)} / 上限 ${lim.monthHoursMax}時間）` });   // こえていれば問題に足す
+        if (minutes > personLimit.monthHoursMax * 60) out.push({ ok: false, code: "month-hours", text: `月の上限時間をこえる：${nameOf(id)}（${Number(month.slice(5))}月 ${hoursText(minutes)} / 上限 ${personLimit.monthHoursMax}時間）` });   // こえていれば問題に足す
       }
     }
 
     // ④ 年の上限金額（1月〜12月）
-    if (lim.yearYenMax && lim.hourly) {   // 年の上限と時給が決まっている人なら
+    if (personLimit.yearYenMax && personLimit.hourly) {   // 年の上限と時給が決まっている人なら
       for (const year of new Set(props.dates.map(yearOf))) {   // この週にかかる年ごと
-        const yenNow = yearYen(mine, year, lim);                      // その年の目安の金額
-        if (yenNow > lim.yearYenMax) out.push({ ok: false, code: "year-yen", text: `年の上限金額をこえる見込み：${nameOf(id)}（${year}年 約${yen(yenNow)} / 上限 ${yen(lim.yearYenMax)}）` });   // こえていれば問題に足す
+        const yenNow = yearYen(mine, year, personLimit);                      // その年の目安の金額
+        if (yenNow > personLimit.yearYenMax) out.push({ ok: false, code: "year-yen", text: `年の上限金額をこえる見込み：${nameOf(id)}（${year}年 約${yen(yenNow)} / 上限 ${yen(personLimit.yearYenMax)}）` });   // こえていれば問題に足す
       }
     }
   }
@@ -99,17 +99,17 @@ export function checkLabor(props) {   // 働き方のルールを調べる関数
  * その人の「今月・今年」の数字（右の欄に出す）
  * @returns {{monthMinutes:number, yearYen:number}}
  */
-export function usageOf(memberId, date, all, lim = {}) {   // 今月の時間・今年の金額を出す関数
+export function usageOf(memberId, date, all, personLimit = {}) {   // 今月の時間・今年の金額を出す関数
   const mine = all.filter((shift) => shift.memberId === memberId);           // その人の勤務
   return {   // まとめて返す
     monthMinutes: mine.filter((shift) => monthOf(shift.date) === monthOf(date)).reduce((sum, shift) => sum + workedMinutes(shift), 0),   // 今月の働いた分
-    yearYen: lim.hourly ? yearYen(mine, yearOf(date), lim) : 0,   // 今年の金額（時給がなければ0）
+    yearYen: personLimit.hourly ? yearYen(mine, yearOf(date), personLimit) : 0,   // 今年の金額（時給がなければ0）
   };
 }
 
 /** その年の目安の金額（時給×時間＋交通費） */
-function yearYen(rows, year, lim) {   // その年の金額を出す関数
-  return laborCost(rows.filter((row) => yearOf(row.date) === year), [{ memberId: rows[0]?.memberId, hourly: lim.hourly, transport: lim.transport || 0 }]);   // その年の勤務の人件費
+function yearYen(rows, year, personLimit) {   // その年の金額を出す関数
+  return laborCost(rows.filter((row) => yearOf(row.date) === year), [{ memberId: rows[0]?.memberId, hourly: personLimit.hourly, transport: personLimit.transport || 0 }]);   // その年の勤務の人件費
 }
 
 /**

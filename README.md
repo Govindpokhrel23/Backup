@@ -168,6 +168,7 @@ shift-app/
 ├─ tools/make-vapid.html  プッシュ通知の鍵を作るページ
 ├─ icons/                 ホーム画面・通知のアイコン
 ├─ docs/はじめに読む.md    初めてコードを読む人へ（どこに何があるか）
+├─ docs/設定ファイルの説明.md  コメントを書けない JSON（manifest・package.json）の説明
 └─ tests/
    ├─ rules.test.mjs       ルールチェックの自動テスト
    ├─ breaks.test.mjs      休憩の決まりのテスト

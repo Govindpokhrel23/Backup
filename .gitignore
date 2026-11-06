@@ -1,3 +1,7 @@
+# このファイルは、GitHub に上げないファイルを決めるファイルです
+# Mac が勝手に作るファイル
 .DS_Store
+# 公開用に作るフォルダ（tools/make-site.sh で毎回作る）
 dist/
+# npm install で入る道具（大きいので上げない）
 node_modules/
