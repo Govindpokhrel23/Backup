@@ -9,16 +9,16 @@
 // ・店長も仕事に入るので、店長のホームでも同じものを使う
 // ============================================================
 
-import { createElement } from "../lib/dom.js";
-import { today, addDays, label } from "../lib/date.js";
-import { range, fmt } from "../lib/time.js";
+import { createElement } from "../lib/dom.js";   // 画面の部品の道具を読む
+import { today, addDays, label } from "../lib/date.js";   // 日付の道具を読む
+import { range, fmt } from "../lib/time.js";   // 時間の表示の道具を読む
 
 /** 交代：お願い中なら状態、まだならボタン */
-function swapPart(props, shift) {
+function swapPart(props, shift) {   // 交代のお願いの部分を作る関数
   const sw = (props.swaps || []).find((swap) => swap.assignmentId === shift.id && ["open", "taken"].includes(swap.status));   // この勤務の交代のお願い（募集中・承認待ち）
-  if (sw) return createElement("span", { class: "badge badge--warn" }, sw.status === "open" ? "交代をさがし中" : `${sw.takerName}さんが代わる予定（店長の承認待ち）`);
-  if (!props.onSwap || !shift.id) return null;
-  return createElement("button", { class: "btn btn--small my-shifts__swap", onclick: () => props.onSwap(shift) }, "交代をお願いする");
+  if (sw) return createElement("span", { class: "badge badge--warn" }, sw.status === "open" ? "交代をさがし中" : `${sw.takerName}さんが代わる予定（店長の承認待ち）`);   // もう交代を出していれば、その状態を出す
+  if (!props.onSwap || !shift.id) return null;   // 交代を出せない時は何も出さない
+  return createElement("button", { class: "btn btn--small my-shifts__swap", onclick: () => props.onSwap(shift) }, "交代をお願いする");   // 「交代をお願いする」ボタン
 }
 
 /**
@@ -30,39 +30,39 @@ function swapPart(props, shift) {
  * @param {object[]} [props.swaps]      自分が出した交代のお願い（募集中・承認待ちを出す）
  * @param {(a:object)=>void} [props.onSwap]  「交代をお願いする」を押した時（ないとボタンを出さない）
  */
-export function myShifts(props) {
+export function myShifts(props) {   // 自分のシフトのカードを作る関数
   const now = today();   // 今日の日付
   const upcoming = props.assignments   // これからの勤務（今日から、早い順）
     .filter((shift) => shift.date >= now)                                   // 昨日より前は出さない
-    .sort((shiftA, shiftB) => shiftA.date.localeCompare(shiftB.date) || shiftA.from - shiftB.from)
-    .slice(0, props.limit ?? 10);
+    .sort((shiftA, shiftB) => shiftA.date.localeCompare(shiftB.date) || shiftA.from - shiftB.from)   // 日付と時間の順に並べる
+    .slice(0, props.limit ?? 10);   // はじめの10件まで
 
   // 「今日」「明日」「明後日」の呼び方
-  const dayWord = (date) => (date === now ? "今日" : date === addDays(now, 1) ? "明日" : date === addDays(now, 2) ? "明後日" : null);
+  const dayWord = (date) => (date === now ? "今日" : date === addDays(now, 1) ? "明日" : date === addDays(now, 2) ? "明後日" : null);   // 今日・明日・明後日の言葉を出す
   /** 店舗のIDから店名 */
-  const storeName = (id) => props.stores.find((store) => store.id === id)?.name || "";
+  const storeName = (id) => props.stores.find((store) => store.id === id)?.name || "";   // 店舗IDから店舗の名前を出す
 
-  return createElement("section", { class: "card" },
-    createElement("h2", { class: "card__title" }, "自分のシフト"),
-    upcoming.length
-      ? createElement("ul", { class: "my-shifts" },
-          upcoming.map((shift) => {
+  return createElement("section", { class: "card" },   // カード
+    createElement("h2", { class: "card__title" }, "自分のシフト"),   // カードの見出し
+    upcoming.length   // 予定があれば一覧、なければ文
+      ? createElement("ul", { class: "my-shifts" },   // 一覧
+          upcoming.map((shift) => {   // 勤務ごとに
             const word = dayWord(shift.date);   // 「今日」「明日」「明後日」（それ以外は null）
             const help = shift.storeId !== props.myStoreId;   // ほかの店舗への応援か
-            return createElement("li", { class: `my-shifts__item ${word === "今日" ? "is-today" : ""}` },
+            return createElement("li", { class: `my-shifts__item ${word === "今日" ? "is-today" : ""}` },   // 1件（今日なら色を変える）
               // 1行目：「明後日11/6（金）」
-              createElement("div", { class: "my-shifts__day" }, `${word || ""}${label(shift.date)}`),
+              createElement("div", { class: "my-shifts__day" }, `${word || ""}${label(shift.date)}`),   // 1行目：「明後日11/6（金）」
               // 2行目：「コメダ 安城福釜店」
-              createElement("div", { class: "my-shifts__store" }, `コメダ ${storeName(shift.storeId)}`),
+              createElement("div", { class: "my-shifts__store" }, `コメダ ${storeName(shift.storeId)}`),   // 2行目：「コメダ 安城福釜店」
               // 3行目：「9:00〜15:00」（大きく）
-              createElement("div", { class: "my-shifts__time num" }, range(shift.from, shift.to)),
+              createElement("div", { class: "my-shifts__time num" }, range(shift.from, shift.to)),   // 3行目：「9:00〜15:00」
               // 4行目（小さく）：場所と休憩
-              createElement("div", { class: "home-muted" },
-                `${shift.area === "hall" ? "ホール" : "キッチン"}${shift.breakAt != null ? ` ・ 休憩 ${fmt(shift.breakAt)}` : ""}`),
-              help ? createElement("span", { class: "badge badge--warn" }, "応援") : null,
-              swapPart(props, shift),
+              createElement("div", { class: "home-muted" },   // 小さい説明
+                `${shift.area === "hall" ? "ホール" : "キッチン"}${shift.breakAt != null ? ` ・ 休憩 ${fmt(shift.breakAt)}` : ""}`),   // 場所と休憩の時間
+              help ? createElement("span", { class: "badge badge--warn" }, "応援") : null,   // ほかの店舗なら「応援」の印
+              swapPart(props, shift),   // 交代のお願いの部分
             );
           }))
-      : createElement("div", { class: "home-muted" }, "これからの予定はまだありません（公開されると出ます）"),
+      : createElement("div", { class: "home-muted" }, "これからの予定はまだありません（公開されると出ます）"),   // 予定がない時の文
   );
 }

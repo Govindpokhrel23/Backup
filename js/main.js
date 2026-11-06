@@ -7,21 +7,21 @@
 //   2. 画面の切り替え（router）を動かし始める
 // ============================================================
 
-import { api } from "./api/index.js";
-import { state, loadStoreInfo } from "./store.js";
-import { startRouter } from "./router.js";
+import { api } from "./api/index.js";   // データのやりとりの窓口を読む
+import { state, loadStoreInfo } from "./store.js";   // アプリ全体の状態と、店舗を読む関数
+import { startRouter } from "./router.js";   // 画面の切り替えの始まりを読む
 
 /** アプリを始める（ログインが残っているか確かめて、最初の画面を出す） */
-async function start() {
+async function start() {   // アプリを始める関数
   // 前にログインしていれば、その人の情報を読む
-  state.user = await api.currentUser();
-  await loadStoreInfo();
-  startRouter();
+  state.user = await api.currentUser();   // ログイン中の人を調べる（いなければ null）
+  await loadStoreInfo();   // 店舗の情報を読む
+  startRouter();   // 今の URL の画面を出す
 }
 
-start();
+start();   // アプリを始める
 
 // 電波がない時もアプリを開けるように、サービスワーカーを登録する（sw.js）
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").catch((event) => console.warn("サービスワーカーを登録できませんでした", event));
+if ("serviceWorker" in navigator) {   // このブラウザがサービスワーカーを使えるなら
+  navigator.serviceWorker.register("./sw.js").catch((event) => console.warn("サービスワーカーを登録できませんでした", event));   // sw.js を登録する（オフラインと通知のため）。失敗しても止まらない
 }

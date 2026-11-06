@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html>   <!-- これは HTML のファイルという印 -->
 <!--
   ============================================================
   index.html — アプリの入口（このファイルを開くとアプリが始まる）
@@ -11,19 +11,19 @@
       #toast    … 「保存しました」などの小さいお知らせ
   ============================================================
 -->
-<html lang="ja">
-<head>
-  <meta charset="utf-8">
+<html lang="ja">   <!-- ページの始まり（日本語） -->
+<head>   <!-- ページの情報の始まり -->
+  <meta charset="utf-8">   <!-- 文字コード（日本語が化けないように） -->
   <!-- スマホで文字が小さくならないようにする -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>AIシフト</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- スマホの画面の幅に合わせる・iPhone の端まで使う -->
+  <title>AIシフト</title>   <!-- タブに出る名前 -->
 
   <!-- ホーム画面に追加したときの設定 -->
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">  <!-- iPhone のホーム画面のアイコン -->
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#2B211A">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="AIシフト">
+  <link rel="manifest" href="manifest.webmanifest">   <!-- アプリの情報のファイル（名前・アイコン・色） -->
+  <meta name="theme-color" content="#2B211A">   <!-- 上のバーの色（こげ茶） -->
+  <meta name="apple-mobile-web-app-capable" content="yes">   <!-- ホーム画面から開いたら全画面にする -->
+  <meta name="apple-mobile-web-app-title" content="AIシフト">   <!-- ホーム画面のアイコンの下の名前 -->
 
   <!--
     CSS は役割ごとに分けている（会社でもよくある分け方）
@@ -33,26 +33,26 @@
       screens.css    … 画面ごとの見た目
       ai.css         … AIの結果・AIの設定・「待っています」の見た目
   -->
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/layout.css">
-  <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/screens.css">
-  <link rel="stylesheet" href="css/ai.css">
-</head>
-<body>
+  <link rel="stylesheet" href="css/base.css">   <!-- 色・文字の基本 -->
+  <link rel="stylesheet" href="css/layout.css">   <!-- 画面の大きな配置 -->
+  <link rel="stylesheet" href="css/components.css">   <!-- ボタン・カードなどの部品 -->
+  <link rel="stylesheet" href="css/screens.css">   <!-- 画面ごとの見た目 -->
+  <link rel="stylesheet" href="css/ai.css">   <!-- AIの画面の見た目 -->
+</head>   <!-- ページの情報の終わり -->
+<body>   <!-- 見える部分の始まり -->
   <!-- 今の画面がここに入る（router.js が入れ替える） -->
-  <main id="app" class="app"></main>
+  <main id="app" class="app"></main>   <!-- ここに画面が入る（router.js が入れる） -->
 
   <!-- 下のタブバー（ログイン後だけ表示） -->
-  <nav id="tabbar" class="tabbar" hidden></nav>
+  <nav id="tabbar" class="tabbar" hidden></nav>   <!-- 下のタブ（ログインしたら出る） -->
 
   <!-- 小さいお知らせ（数秒で消える） -->
-  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>   <!-- 「保存しました」などの小さいお知らせ -->
 
   <!--
     type="module" にすると、JSファイル同士で import / export が使える
     main.js が最初に動き、ほかのファイルを読み込む
   -->
-  <script type="module" src="js/main.js"></script>
-</body>
-</html>
+  <script type="module" src="js/main.js"></script>   // アプリのプログラムを読む（最初は main.js）
+</body>   <!-- 見える部分の終わり -->
+</html>   <!-- ページの終わり -->

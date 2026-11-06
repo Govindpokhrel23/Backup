@@ -16,17 +16,17 @@ import { aiApi } from "./supabase/ai.js";             // AIの下書き・学び
 import { backupApi } from "./supabase/backup.js";     // データの書き出し
 
 /** 画面が使う関数（mock-api.js と同じ名前） */
-export const supabaseApi = {
-  ...authApi,
-  ...storesApi,
-  ...membersApi,
-  ...periodsApi,
-  ...noticesApi,
-  ...callsApi,
-  ...aiApi,
-  ...backupApi,
+export const supabaseApi = {   // 本物（Supabase）版の窓口。下の部品を1つにまとめる
+  ...authApi,   // ログイン・パスワード
+  ...storesApi,   // 店舗
+  ...membersApi,   // 店員
+  ...periodsApi,   // シフト（週・希望・勤務）
+  ...noticesApi,   // お知らせ・確認・交代
+  ...callsApi,   // 人が足りない時の連絡
+  ...aiApi,   // AIの下書きと覚えたこと
+  ...backupApi,   // バックアップ
   /** 見本データを戻す（本物では使えない） */
-  async resetMock() {
-    throw new Error("本物のデータは戻せません");
+  async resetMock() {   // テスト版にだけある「最初にもどす」
+    throw new Error("本物のデータは戻せません");   // 本物ではできないのでエラーにする
   },
 };

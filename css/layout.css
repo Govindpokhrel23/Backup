@@ -4,77 +4,77 @@
    ============================================================ */
 
 /* 本文：タブバーに隠れないよう、下に余白をとる */
-.app {
-  min-height: 100vh;
-  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 16px);
+.app {   /* 画面全体 */
+  min-height: 100vh;   /* 画面の高さいっぱい */
+  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 16px);   /* 下のタブにかくれないように下をあける */
 }
 
 /* 画面上部のヘッダー */
-.screen-header {
+.screen-header {   /* 画面の上の見出し */
   position: sticky;              /* スクロールしても上に残る */
-  top: 0;
-  z-index: 5;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  padding: calc(14px + env(safe-area-inset-top)) 16px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  top: 0;   /* 一番上にくっつく */
+  z-index: 5;   /* ほかのものより上に重ねる */
+  background: var(--surface);   /* 背景 */
+  border-bottom: 1px solid var(--line);   /* 下の線 */
+  padding: calc(14px + env(safe-area-inset-top)) 16px 12px;   /* iPhone の上のすき間もあける */
+  display: flex;   /* 中を並べる */
+  flex-direction: column;   /* 縦に */
+  gap: 6px;   /* すき間 */
 }
 /* 右に置くもの（週を選ぶ欄など）が長い時は、下の行に回す（スマホで見出しが縦に割れないように） */
-.screen-header__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.screen-header__row > .select { max-width: 100%; }
-.screen-header__title { margin: 0; font-size: 22px; font-weight: 700; white-space: nowrap; }
-.screen-header__sub { font-size: 13px; color: var(--ink-3); }
+.screen-header__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }   /* 見出しの1行目 */
+.screen-header__row > .select { max-width: 100%; }   /* 選ぶ欄がはみ出さないように */
+.screen-header__title { margin: 0; font-size: 22px; font-weight: 700; white-space: nowrap; }   /* 大きいタイトル */
+.screen-header__sub { font-size: 13px; color: var(--ink-3); }   /* 小さい説明 */
 
 /* 本文の中身 */
-.screen-body {
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 1200px;
-  margin: 0 auto;
+.screen-body {   /* 本文 */
+  padding: 14px;   /* まわりの余白 */
+  display: flex;   /* 中を並べる */
+  flex-direction: column;   /* 縦に */
+  gap: 12px;   /* すき間 */
+  max-width: 1200px;   /* PCでも広がりすぎないように */
+  margin: 0 auto;   /* 真ん中に */
 }
 
 /* 下のタブバー */
-.tabbar {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  z-index: 10;
-  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+.tabbar {   /* 下のタブ */
+  position: fixed;   /* 画面に固定 */
+  left: 0; right: 0; bottom: 0;   /* 左右いっぱい・一番下 */
+  z-index: 10;   /* ほかのものより上 */
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));   /* 高さ（iPhone の下のすき間も足す） */
+  padding-bottom: env(safe-area-inset-bottom);   /* iPhone の下のすき間 */
+  background: var(--surface);   /* 背景 */
+  border-top: 1px solid var(--line);   /* 上の線 */
+  display: grid;   /* 中を並べる */
+  grid-auto-flow: column;   /* 横に並べる */
+  grid-auto-columns: 1fr;   /* 同じ幅 */
 }
-.tabbar__btn {
-  border: none;
-  background: transparent;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  font-size: 11px;
-  color: var(--ink-3);
+.tabbar__btn {   /* タブのボタン */
+  border: none;   /* 枠なし */
+  background: transparent;   /* 背景なし */
+  display: flex;   /* 中を並べる */
+  flex-direction: column;   /* 縦に（絵の下に文字） */
+  align-items: center;   /* 横の真ん中 */
+  justify-content: center;   /* 縦の真ん中 */
+  gap: 2px;   /* すき間 */
+  font-size: 11px;   /* 文字の大きさ */
+  color: var(--ink-3);   /* 文字の色（うすい） */
 }
-.tabbar__btn svg { width: 24px; height: 24px; }
-.tabbar__btn[aria-current="page"] { color: var(--ink); font-weight: 700; }
+.tabbar__btn svg { width: 24px; height: 24px; }   /* 絵の大きさ */
+.tabbar__btn[aria-current="page"] { color: var(--ink); font-weight: 700; }   /* 今の画面のタブはこく太く */
 
 /* 小さいお知らせ（トースト） */
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(var(--tabbar-h) + 20px);
-  transform: translateX(-50%);
-  z-index: 30;
-  background: var(--ink);
-  color: #fff;
-  padding: 10px 16px;
-  border-radius: 999px;
-  font-size: 14px;
-  max-width: calc(100% - 32px);
+.toast {   /* 「保存しました」のお知らせ */
+  position: fixed;   /* 画面に固定 */
+  left: 50%;   /* 横の真ん中 */
+  bottom: calc(var(--tabbar-h) + 20px);   /* タブの少し上 */
+  transform: translateX(-50%);   /* 真ん中にそろえる */
+  z-index: 30;   /* 一番上に重ねる */
+  background: var(--ink);   /* 背景（こい色） */
+  color: #fff;   /* 文字は白 */
+  padding: 10px 16px;   /* 中の余白 */
+  border-radius: 999px;   /* 丸い形 */
+  font-size: 14px;   /* 文字の大きさ */
+  max-width: calc(100% - 32px);   /* はみ出さないように */
 }

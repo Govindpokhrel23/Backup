@@ -7,23 +7,23 @@
 // ・役割（店長／店員）で、使えるタブと画面が変わる（設計書3章）
 // ============================================================
 
-import { state, isManager } from "./store.js";
-import { createElement, mount, icon } from "./lib/dom.js";
+import { state, isManager } from "./store.js";   // ログイン中の人・店長か調べる道具を読む
+import { createElement, mount, icon } from "./lib/dom.js";   // 画面の部品の道具を読む
 
 // 画面のファイル（1画面＝1ファイル）
-import { renderLogin } from "./screens/login.js";
-import { renderHome } from "./screens/home.js";
-import { renderKibou } from "./screens/kibou.js";
-import { renderCalendar } from "./screens/calendar.js";
-import { renderPublished } from "./screens/published.js";
-import { renderShiftEditor } from "./screens/shift-editor.js";
-import { renderStoreMenu } from "./screens/store-menu.js";
-import { renderStaff } from "./screens/staff.js";
-import { renderMap } from "./screens/map.js";
-import { renderSettings } from "./screens/settings.js";
-import { renderStores } from "./screens/stores.js";
-import { renderAi } from "./screens/ai.js";
-import { renderReport } from "./screens/report.js";
+import { renderLogin } from "./screens/login.js";   // ログイン画面
+import { renderHome } from "./screens/home.js";   // ホーム
+import { renderKibou } from "./screens/kibou.js";   // 希望入力
+import { renderCalendar } from "./screens/calendar.js";   // カレンダー
+import { renderPublished } from "./screens/published.js";   // 公開シフト
+import { renderShiftEditor } from "./screens/shift-editor.js";   // シフト作成
+import { renderStoreMenu } from "./screens/store-menu.js";   // 店舗メニュー
+import { renderStaff } from "./screens/staff.js";   // 店員管理
+import { renderMap } from "./screens/map.js";   // マップ
+import { renderSettings } from "./screens/settings.js";   // 設定
+import { renderStores } from "./screens/stores.js";   // 店舗の管理
+import { renderAi } from "./screens/ai.js";   // AIの設定
+import { renderReport } from "./screens/report.js";   // 勤務時間の集計
 
 /**
  * 画面の一覧
@@ -31,7 +31,7 @@ import { renderReport } from "./screens/report.js";
  *   render … 画面を作る関数
  *   who    … "all"=全員 / "manager"=店長だけ / "guest"=ログイン前
  */
-const ROUTES = [
+const ROUTES = [   // 画面の表
   { path: "/login", render: renderLogin, who: "guest" },   // ログイン画面（ログイン前の人だけ）
   { path: "/home", render: renderHome, who: "all" },   // ホーム（店長と店員で中身が変わる）
   { path: "/kibou", render: renderKibou, who: "all" },   // 希望入力（入れる日・休み希望）
@@ -48,7 +48,7 @@ const ROUTES = [
 ];
 
 /** 下のタブバー（役割で中身が変わる） */
-const TABS = {
+const TABS = {   // 下のタブ
   manager: [                                                          // 店長のタブ（4つ）
     { path: "/home", label: "ホーム", icon: "home" },                  // 今日の様子・お知らせ・やること
     { path: "/shift", label: "シフト作成", icon: "edit" },             // 週のシフトを作る・AIに下書きを頼む・公開する
@@ -64,60 +64,60 @@ const TABS = {
 };
 
 /** 別の画面へ移動する */
-export function go(path) {
+export function go(path) {   // 別の画面へ移動する関数
   if (location.hash === `#${path}`) render();   // 同じ画面でも描き直す
-  else location.hash = path;
+  else location.hash = path;   // URL の # を変える（hashchange で描きなおす）
 }
 
 /** 今の URL に合わせて画面を描く */
-export async function render() {
+export async function render() {   // 今の URL の画面を描く関数
   const app = document.getElementById("app");   // 画面を入れる場所
   const path = location.hash.replace(/^#/, "") || "/home";   // 今の画面の住所（#のあと）
 
   // ログインしていなければ、必ずログイン画面へ
-  if (!state.user && path !== "/login") return go("/login");
-  if (state.user && path === "/login") return go("/home");
+  if (!state.user && path !== "/login") return go("/login");   // ログインしていなければログイン画面へ
+  if (state.user && path === "/login") return go("/home");   // ログイン済みならホームへ
 
   const route = ROUTES.find((route) => route.path === path);   // その住所の画面
-  if (!route) return go("/home");
-  if (route.who === "manager" && !isManager()) return go("/home");
+  if (!route) return go("/home");   // 表にない住所ならホームへ
+  if (route.who === "manager" && !isManager()) return go("/home");   // 店長だけの画面に店員が来たらホームへ
 
-  renderTabbar(path);
-  window.scrollTo(0, 0);
+  renderTabbar(path);   // 下のタブを描く
+  window.scrollTo(0, 0);   // 一番上までスクロール
 
   // 画面ごとに新しい入れ物（view）を作って、その中に描く（2026年11月5日）
   // → 前の画面の読み込みがおそく終わっても、もう外した入れ物に描くだけなので、
   //   新しい画面が古い画面で上書きされない
   const view = createElement("div", { class: "view" });   // この画面の入れ物
-  app.replaceChildren(view);
+  app.replaceChildren(view);   // 前の画面を外して入れ物を置く
 
-  try {
-    await route.render(view);
-  } catch (error) {
-    console.error(error);
-    mount(view, createElement("div", { class: "screen-body" },
-      createElement("div", { class: "notice notice--danger" }, `画面を開けませんでした：${error.message}`)));
+  try {   // 画面でエラーが出ても止まらないように
+    await route.render(view);   // 画面を描く
+  } catch (error) {   // エラーの時
+    console.error(error);   // 開発者用に残す
+    mount(view, createElement("div", { class: "screen-body" },   // エラーの文を画面に出す
+      createElement("div", { class: "notice notice--danger" }, `画面を開けませんでした：${error.message}`)));   // 赤いお知らせ
   }
 }
 
 /** 下のタブバーを描く */
-function renderTabbar(path) {
+function renderTabbar(path) {   // 下のタブを描く関数
   const bar = document.getElementById("tabbar");   // 下のタブバー
-  if (!state.user) { bar.hidden = true; return; }
+  if (!state.user) { bar.hidden = true; return; }   // ログインしていなければ隠す
   const tabs = TABS[isManager() ? "manager" : "staff"];   // 店長か店員かで変わるタブ
   // 店舗メニューの中の画面（店員管理・マップ）も「店舗」タブを光らせる
-  const current = ["/staff", "/map", "/stores", "/ai", "/report"].includes(path) ? "/store" : path;
-  mount(bar, tabs.map((tab) =>
-    createElement("button", {
-      class: "tabbar__btn",
-      "aria-current": tab.path === current ? "page" : null,
-      onclick: () => go(tab.path),
-    }, icon(tab.icon), tab.label)));
-  bar.hidden = false;
+  const current = ["/staff", "/map", "/stores", "/ai", "/report"].includes(path) ? "/store" : path;   // 店舗メニューの中の画面なら「店舗」タブを光らせる
+  mount(bar, tabs.map((tab) =>   // タブを入れる
+    createElement("button", {   // タブのボタン
+      class: "tabbar__btn",   // 見た目
+      "aria-current": tab.path === current ? "page" : null,   // 今の画面のタブに印
+      onclick: () => go(tab.path),   // 押したらその画面へ
+    }, icon(tab.icon), tab.label)));   // 絵と文字
+  bar.hidden = false;   // タブを出す
 }
 
 /** URL の # が変わったら描き直す */
-export function startRouter() {
-  window.addEventListener("hashchange", render);
-  render();
+export function startRouter() {   // 画面の切り替えを始める関数
+  window.addEventListener("hashchange", render);   // URL の # が変わったら描きなおす
+  render();   // はじめの画面を描く
 }

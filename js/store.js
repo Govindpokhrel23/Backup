@@ -6,40 +6,40 @@
 // ・画面ごとの細かい状態は、それぞれの画面ファイルの中に持つ
 // ============================================================
 
-import { api } from "./api/index.js";
+import { api } from "./api/index.js";   // データのやりとりの窓口を読む
 
 export const state = {   // アプリ全体で使う「今の状態」
   /** ログイン中の店員（店長も含む）。ログインしていなければ null */
-  user: null,
+  user: null,   // ログイン中の人（いなければ null）
   /** 会社の店舗の一覧 */
-  stores: [],
+  stores: [],   // 店舗の一覧
   /** 今見ている店舗のID（店長はホームで切り替えられる。店員はメインの店舗） */
-  storeId: null,
+  storeId: null,   // 今選んでいる店舗のID
 };
 
 /** 店長かどうか */
-export function isManager() {
-  return state.user?.role === "manager";
+export function isManager() {   // 店長か調べる関数
+  return state.user?.role === "manager";   // 役割が manager なら店長
 }
 
 /** 営業している店舗（休止した店舗は、切り替えのボタンなどに出さない） */
-export function activeStores() {
-  return state.stores.filter((store) => store.active !== false);
+export function activeStores() {   // 休止していない店舗だけを出す関数
+  return state.stores.filter((store) => store.active !== false);   // active が false のものを外す
 }
 
 /** 今見ている店舗 */
-export function currentStore() {
-  return state.stores.find((store) => store.id === state.storeId) || null;
+export function currentStore() {   // 今の店舗を出す関数
+  return state.stores.find((store) => store.id === state.storeId) || null;   // IDが合う店舗。なければ null
 }
 
 /** ログインした時・開き直した時に、店舗の情報を読み直す */
-export async function loadStoreInfo() {
-  if (!state.user) { state.stores = []; state.storeId = null; return; }
-  [state.stores, state.storeId] = await Promise.all([api.listStores(), api.currentStoreId()]);
+export async function loadStoreInfo() {   // 店舗の情報を読む関数
+  if (!state.user) { state.stores = []; state.storeId = null; return; }   // ログインしていなければ空にして終わり
+  [state.stores, state.storeId] = await Promise.all([api.listStores(), api.currentStoreId()]);   // 店舗の一覧と今の店舗を同時に読む
 }
 
 /** 店舗を切り替える（店長） */
-export async function switchStore(storeId) {
-  await api.setCurrentStore(storeId);
-  state.storeId = storeId;
+export async function switchStore(storeId) {   // 店舗を切りかえる関数
+  await api.setCurrentStore(storeId);   // サーバー（またはスマホ）に今の店舗を保存
+  state.storeId = storeId;   // アプリの中の今の店舗も変える
 }

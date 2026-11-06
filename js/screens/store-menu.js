@@ -5,27 +5,27 @@
 // 店舗の設定画面への入口をまとめた画面
 // ============================================================
 
-import { createElement, mount } from "../lib/dom.js";
-import { go } from "../router.js";
-import { screenHeader } from "../components/header.js";
+import { createElement, mount } from "../lib/dom.js";   // 画面の部品を作る・画面に入れる道具を読む
+import { go } from "../router.js";   // 画面を移動する道具を読む
+import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
 
 /** 店舗メニューの画面を描く（店長） */
-export async function renderStoreMenu(app) {
+export async function renderStoreMenu(app) {   // 店舗メニューの画面を描く関数
   /** メニューの1つ（押すとその画面へ） */
-  const item = (title, text, path) =>
-    createElement("button", { class: "card menu-item", onclick: () => go(path) },
-      createElement("strong", null, title),
-      createElement("span", { class: "home-muted" }, text));
+  const item = (title, text, path) =>   // メニューの1つ（ボタン）を作る
+    createElement("button", { class: "card menu-item", onclick: () => go(path) },   // 押すとその画面へ移動
+      createElement("strong", null, title),   // 大きい文字の名前
+      createElement("span", { class: "home-muted" }, text));   // 小さい説明
 
-  mount(app,
-    screenHeader({ title: "店舗" }),
-    createElement("div", { class: "screen-body" },
-      item("店員管理", "アカウント作成・立場（社員／バイト）・できること％・人ごとのルール", "/staff"),
-      item("マップ・必要人数", "人のマークを置いて、場所ごとに何時〜何時・何人必要か決める", "/map"),
-      item("店舗の管理", "店舗を増やす・名前を変える・休止する", "/stores"),
-      item("勤務時間の集計", "月ごとの時間・人件費の目安。CSV（給与計算用）に書き出す", "/report"),
-      item("AIの設定", "Gemini のつなぎ方・AIが覚えた店長の直し方", "/ai"),
-      item("設定", "名前・ログアウト", "/settings"),
+  mount(app,   // 画面に入れる
+    screenHeader({ title: "店舗" }),   // 見出し
+    createElement("div", { class: "screen-body" },   // 本文
+      item("店員管理", "アカウント作成・立場（社員／バイト）・できること％・人ごとのルール", "/staff"),   // 店員管理へ
+      item("マップ・必要人数", "人のマークを置いて、場所ごとに何時〜何時・何人必要か決める", "/map"),   // マップへ
+      item("店舗の管理", "店舗を増やす・名前を変える・休止する", "/stores"),   // 店舗の管理へ
+      item("勤務時間の集計", "月ごとの時間・人件費の目安。CSV（給与計算用）に書き出す", "/report"),   // 集計へ
+      item("AIの設定", "Gemini のつなぎ方・AIが覚えた店長の直し方", "/ai"),   // AIの設定へ
+      item("設定", "名前・ログアウト", "/settings"),   // 設定へ
     ),
   );
 }

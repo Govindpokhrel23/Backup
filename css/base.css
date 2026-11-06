@@ -7,7 +7,7 @@
    ・色を変えたいときは、ここだけ直せば全部の画面が変わる
    ============================================================ */
 
-:root {
+:root {   /* アプリ全体で使う色・大きさの決まり */
   /* --- 基本の色 --- */
   --bg: #F4EEE6;          /* 画面の背景（コメダっぽいベージュ） */
   --surface: #FFFFFF;     /* カードの白 */
@@ -21,11 +21,11 @@
   --hall: #2A62A8;        /* ホール＝青 */
   --kitchen: #B5541A;     /* キッチン＝オレンジ */
   --ok: #2E6B3A;          /* できている＝緑 */
-  --ok-bg: #E5F4E4;
+  --ok-bg: #E5F4E4;   /* OK の時の背景（うすい緑） */
   --warn: #7A4D00;        /* 注意＝こげた黄色 */
-  --warn-bg: #F9EEDA;
+  --warn-bg: #F9EEDA;   /* 注意の時の背景（うすい黄） */
   --danger: #A33A2A;      /* だめ・不足＝赤 */
-  --danger-bg: #FBE3DE;
+  --danger-bg: #FBE3DE;   /* だめな時の背景（うすい赤） */
   --hope: #DDE9D3;        /* 希望の時間＝薄い緑 */
 
   /* --- 大きさ --- */
@@ -34,30 +34,30 @@
   --tabbar-h: 64px;       /* 下のタブバーの高さ */
 
   /* --- 文字 --- */
-  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;   /* 文字の形（iPhone→ヒラギノ） */
 }
 
 /* すべての要素で「幅に枠線と余白を含める」 → 幅の計算がかんたんになる */
-*, *::before, *::after { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }   /* 幅に線や余白も入れて数える */
 
-html, body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font);
+html, body {   /* ページ全体 */
+  margin: 0;   /* 外の余白なし */
+  background: var(--bg);   /* 背景の色 */
+  color: var(--ink);   /* 文字の色 */
+  font-family: var(--font);   /* 文字の形 */
   font-size: 16px;            /* iPhoneで入力時に拡大されないよう16px以上 */
-  line-height: 1.5;
-  -webkit-text-size-adjust: 100%;
+  line-height: 1.5;   /* 行の高さ */
+  -webkit-text-size-adjust: 100%;   /* iPhone が勝手に文字を大きくしないように */
 }
 
 /* hidden 属性がついたものは必ず消す（家計簿アプリで学んだ対策） */
-[hidden] { display: none !important; }
+[hidden] { display: none !important; }   /* hidden を付けたものは必ず隠す */
 
-button, input, select, textarea { font: inherit; color: inherit; }
-button { cursor: pointer; }
+button, input, select, textarea { font: inherit; color: inherit; }   /* 入力欄の文字をまわりと同じにする */
+button { cursor: pointer; }   /* ボタンの上では指の形のカーソル */
 
 /* キーボードで操作したときだけ、分かりやすい枠を出す */
-:focus-visible { outline: 3px solid var(--hall); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--hall); outline-offset: 2px; }   /* キーボードで選んだ所に枠を出す */
 
 /* 数字の幅をそろえる（時刻が並んだときにガタガタしない） */
-.num { font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: tabular-nums; }   /* 数字の幅をそろえる（表が見やすい） */

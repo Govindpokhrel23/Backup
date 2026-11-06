@@ -11,11 +11,11 @@
 // ・うまくいかない時は、日本語の分かりやすいエラーにして返す
 // ============================================================
 
-import { CONFIG } from "../config.js";
-import { authToken, workerAiUrl } from "./ai-settings.js";
+import { CONFIG } from "../config.js";   // 設定を読む
+import { authToken, workerAiUrl } from "./ai-settings.js";   // ログインの証明・Worker の住所の関数を読む
 
 /** Google の Gemini API の住所（モデル名の所はあとで入れる） */
-const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models";   // Google の Gemini の住所
 
 /**
  * Gemini に送って、JSON の答えをもらう
@@ -26,11 +26,11 @@ const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
  * @param {typeof fetch} [options.fetchImpl] テストの時に、にせものの fetch を入れる
  * @returns {Promise<object>} 答え（JSON をオブジェクトにしたもの）
  */
-export async function askGemini({ settings, prompt, schema, fetchImpl = fetch }) {
+export async function askGemini({ settings, prompt, schema, fetchImpl = fetch }) {   // Gemini にお願いして答え（JSON）をもらう関数
   // Gemini に送る中身（Google の決まった形）
-  const body = {
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: {
+  const body = {   // 送る中身
+    contents: [{ role: "user", parts: [{ text: prompt }] }],   // お願いの文
+    generationConfig: {   // 答えの形の決まり
       responseMimeType: "application/json",   // JSON で答えてもらう
       responseSchema: schema,                 // 答えの形
       temperature: 0.2,                       // 低いほど毎回同じような答え（シフトはぶれない方がよい）
@@ -42,59 +42,59 @@ export async function askGemini({ settings, prompt, schema, fetchImpl = fetch })
   const timer = setTimeout(() => stop.abort(), CONFIG.AI_TIMEOUT_MS); // 時間切れのタイマー
 
   let res;                                                            // サーバーからの返事
-  try {
-    if (settings.mode === "worker") {
+  try {   // 通信が失敗しても止まらないように
+    if (settings.mode === "worker") {   // Worker 経由なら
       // Worker へ：鍵は送らない（Worker の中にある）。ログインの印だけ送る（店長か Worker が確かめる）
       const token = settings.token ?? (await authToken());          // ログインの印
-      res = await fetchImpl(settings.workerUrl || workerAiUrl(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ model: settings.model, body }),
-        signal: stop.signal,
+      res = await fetchImpl(settings.workerUrl || workerAiUrl(), {   // Worker の /ai に送る
+        method: "POST",   // 送る方法
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },   // 中身は JSON・ログインの証明つき
+        body: JSON.stringify({ model: settings.model, body }),   // モデルと中身
+        signal: stop.signal,   // 時間切れで止められるように
       });
-    } else {
+    } else {   // 直接 Gemini に送るなら
       // Google へ直接：鍵はヘッダーで送る（URL に鍵を入れない＝履歴に残らない）
-      res = await fetchImpl(`${GOOGLE_URL}/${encodeURIComponent(settings.model)}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": settings.apiKey },
-        body: JSON.stringify(body),
-        signal: stop.signal,
+      res = await fetchImpl(`${GOOGLE_URL}/${encodeURIComponent(settings.model)}:generateContent`, {   // Google に直接送る
+        method: "POST",   // 送る方法
+        headers: { "Content-Type": "application/json", "x-goog-api-key": settings.apiKey },   // 中身は JSON・Gemini の鍵つき
+        body: JSON.stringify(body),   // 中身
+        signal: stop.signal,   // 時間切れで止められるように
       });
     }
-  } catch (error) {
-    throw new Error(error.name === "AbortError" ? "AIの返事が遅すぎたので止めました（もう一度押してください）" : "AIにつながりません（電波・URLを確認してください）");
-  } finally {
-    clearTimeout(timer);
+  } catch (error) {   // 通信が失敗した時
+    throw new Error(error.name === "AbortError" ? "AIの返事が遅すぎたので止めました（もう一度押してください）" : "AIにつながりません（電波・URLを確認してください）");   // 時間切れか、つながらないかで文を変える
+  } finally {   // 成功でも失敗でも
+    clearTimeout(timer);   // 時間切れのタイマーを止める
   }
 
-  if (!res.ok) throw new Error(errorText(res.status, await res.text().catch(() => "")));
+  if (!res.ok) throw new Error(errorText(res.status, await res.text().catch(() => "")));   // エラーの返事なら、わかりやすい文にする
 
   const json = await res.json();                                      // Gemini の答え全体
   const text = json?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";   // 答えの文
-  if (!text) {
+  if (!text) {   // 答えの文がなければ
     const why = json?.promptFeedback?.blockReason || json?.candidates?.[0]?.finishReason || "空";   // 答えがなかった理由（安全のため止められた など）
-    throw new Error(`AIから答えが返ってきませんでした（${why}）`);
+    throw new Error(`AIから答えが返ってきませんでした（${why}）`);   // エラー
   }
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error("AIの答えの形がおかしかったので使えませんでした（もう一度押してください）");
+  try {   // 答えの形がこわれている時に止まらないように
+    return JSON.parse(text);   // 答えを読んで返す
+  } catch {   // 読めなかった時
+    throw new Error("AIの答えの形がおかしかったので使えませんでした（もう一度押してください）");   // エラー
   }
 }
 
 /** エラーの番号を、分かりやすい日本語にする */
-function errorText(status, detail) {
-  if (status === 400 && /API key/i.test(detail)) return "Gemini の鍵がまちがっています（AIの設定で入れ直してください）";
-  if (status === 400) return "AIへの送り方がまちがっています（モデルの名前を確認してください）";
-  if (status === 401 || status === 403) return "AIに入れませんでした（鍵・合言葉を確認してください）";
-  if (status === 404) return "このモデルは使えません（AIの設定でモデルの名前を変えてください）";
-  if (status === 429) return "無料で使える回数をこえました。少し待ってから、もう一度押してください";
-  if (status >= 500) return "AIのサーバーが混んでいます。少し待ってから、もう一度押してください";
-  return `AIでエラーがありました（${status}）`;
+function errorText(status, detail) {   // エラーの番号をわかりやすい文にする関数
+  if (status === 400 && /API key/i.test(detail)) return "Gemini の鍵がまちがっています（AIの設定で入れ直してください）";   // 鍵がまちがい
+  if (status === 400) return "AIへの送り方がまちがっています（モデルの名前を確認してください）";   // 送り方がまちがい
+  if (status === 401 || status === 403) return "AIに入れませんでした（鍵・合言葉を確認してください）";   // 入れない
+  if (status === 404) return "このモデルは使えません（AIの設定でモデルの名前を変えてください）";   // モデルがない
+  if (status === 429) return "無料で使える回数をこえました。少し待ってから、もう一度押してください";   // 使える回数をこえた
+  if (status >= 500) return "AIのサーバーが混んでいます。少し待ってから、もう一度押してください";   // サーバーが混んでいる
+  return `AIでエラーがありました（${status}）`;   // それ以外
 }
 
 /** つながるか試す（AIの設定画面の「試す」ボタン） */
-export async function testGemini(settings, fetchImpl = fetch) {
+export async function testGemini(settings, fetchImpl = fetch) {   // つながるか試す関数
   const schema = { type: "OBJECT", properties: { ok: { type: "BOOLEAN" }, message: { type: "STRING" } }, required: ["ok", "message"] };   // 答えの形：ok と message だけ
-  return askGemini({ settings, prompt: "接続テストです。ok を true、message を「つながりました」にして返してください。", schema, fetchImpl });
+  return askGemini({ settings, prompt: "接続テストです。ok を true、message を「つながりました」にして返してください。", schema, fetchImpl });   // 短いお願いを送る
 }
