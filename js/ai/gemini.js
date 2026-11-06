@@ -6,12 +6,13 @@
 //
 // ・つなぎ方は ai-settings.js の mode で決まる
 //     "gemini" → この機械から直接 Google へ送る
-//     "worker" → Cloudflare Worker（workers/ai-proxy/worker.js）へ送る。鍵は Worker の中
+//     "worker" → Cloudflare Worker（workers/api/worker.js の /ai）へ送る。鍵は Worker の中。ログインの印をつける
 // ・答えの形（JSONの形）を schema で決めて送るので、決まった形で返ってくる
 // ・うまくいかない時は、日本語の分かりやすいエラーにして返す
 // ============================================================
 
 import { CONFIG } from "../config.js";
+import { authToken, workerAiUrl } from "./ai-settings.js";
 
 /** Google の Gemini API の住所（モデル名の所はあとで入れる） */
 const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -43,10 +44,11 @@ export async function askGemini({ settings, prompt, schema, fetchImpl = fetch })
   let res;                                                            // サーバーからの返事
   try {
     if (settings.mode === "worker") {
-      // Worker へ：鍵は送らない（Worker の中にある）。合言葉だけ送る
-      res = await fetchImpl(settings.workerUrl, {
+      // Worker へ：鍵は送らない（Worker の中にある）。ログインの印だけ送る（店長か Worker が確かめる）
+      const token = settings.token ?? (await authToken());          // ログインの印
+      res = await fetchImpl(settings.workerUrl || workerAiUrl(), {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-App-Token": settings.appToken || "" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ model: settings.model, body }),
         signal: stop.signal,
       });

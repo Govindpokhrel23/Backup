@@ -15,6 +15,7 @@ import {
 } from "./mock-store.js";
 import { today, addDays, weekDates, label } from "../lib/date.js";
 import { range } from "../lib/time.js";
+import { CONFIG } from "../config.js";
 import { callsApi } from "./mock-calls.js";   // 人が足りない時の自動連絡
 import { aiApi } from "./mock-ai.js";         // AIの下書き・学び・人の追加
 
@@ -63,7 +64,7 @@ export const mockApi = {
     const codes = data.loginCodes || [];   // 出した初回コードの一覧
     const hit = codes.find((c) => c.loginId === loginId && c.code === code && !c.used);   // 合っていて、まだ使っていないコード
     if (!user || !hit) return fail("IDか初回コードが違います");
-    if (!password || password.length < 4) return fail("パスワードは4文字以上にしてください");
+    if (!password || password.length < CONFIG.PASSWORD_MIN) return fail(`パスワードは${CONFIG.PASSWORD_MIN}文字以上にしてください`);
     hit.used = true;
     data.passwords[loginId] = password;
     data.session = { memberId: user.id, storeId: user.storeId };

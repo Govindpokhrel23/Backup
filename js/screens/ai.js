@@ -14,7 +14,7 @@
 import { h, mount, toast, confirmDialog } from "../lib/dom.js";
 import { api } from "../api/index.js";
 import { screenHeader } from "../components/header.js";
-import { getAiSettings, saveAiSettings, aiReady } from "../ai/ai-settings.js";
+import { getAiSettings, saveAiSettings, aiReady, workerReady } from "../ai/ai-settings.js";
 import { testGemini } from "../ai/gemini.js";
 import { summarize, LEARN_MIN_COUNT } from "../ai/learning.js";
 import { CONFIG } from "../config.js";
@@ -69,8 +69,6 @@ export async function renderAi(app) {
     }, h("strong", null, title), h("span", { class: "home-muted" }, text));
 
     const key = h("input", { class: "input", type: "password", value: settings.apiKey, placeholder: "AIza… で始まる鍵", autocomplete: "off", "aria-label": "Gemini の鍵" });   // 鍵の欄
-    const url = h("input", { class: "input", value: settings.workerUrl, placeholder: "https://shiftapp-ai-proxy.〇〇.workers.dev", "aria-label": "Worker のURL" });  // Worker のURL
-    const token = h("input", { class: "input", type: "password", value: settings.appToken, placeholder: "Worker に入れた APP_TOKEN と同じ", "aria-label": "合言葉" });    // 合言葉
     // モデル：決まったものから選ぶ。ほかの名前も入れられる
     const known = MODEL_CHOICES.some((m) => m.value === settings.model);
     const model = h("select", { class: "select", "aria-label": "モデル" },   // モデルを選ぶ欄
@@ -83,7 +81,7 @@ export async function renderAi(app) {
     /** 保存ボタン */
     const saveBtn = h("button", { class: "btn btn--primary btn--block", onclick: () => {
       settings = saveAiSettings({
-        apiKey: key.value.trim(), workerUrl: url.value.trim(), appToken: token.value.trim(),
+        apiKey: key.value.trim(),
         model: model.value === "__other" ? modelOther.value.trim() : model.value,
       });
       status = null;
@@ -105,10 +103,10 @@ export async function renderAi(app) {
             saveBtn)
         : settings.mode === "worker"
           ? h("div", { class: "mode-form" },
-              h("label", { class: "field" }, "Worker のURL", url),
-              h("label", { class: "field" }, "合言葉（APP_TOKEN）", token),
+              workerReady()
+                ? h("div", { class: "notice notice--ok" }, "サーバー（Cloudflare Worker）を通して使います。鍵はサーバーにあります")
+                : h("div", { class: "notice notice--warn", style: { fontWeight: 400 } }, "まだ使えません。Supabase と Worker の準備をして、config.js に SUPABASE_URL と API_WORKER_URL を入れてください（README.md の「本番の準備」）"),
               h("label", { class: "field" }, "モデル", model), modelOther,
-              h("div", { class: "home-muted" }, "Worker の作り方は README.md の「AI（Gemini）をつなぐ」にあります。"),
               saveBtn)
           : null,
     );

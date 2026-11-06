@@ -1,0 +1,16 @@
+# ============================================================
+# _headers — Cloudflare Pages が返す「安全のための印」
+# このファイルは、アプリのページを開いた時に、ブラウザへ安全の決まりを伝えるファイルです。
+# ============================================================
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000
+
+# サービスワーカーと設定は、毎回新しいものを読む（古いアプリが残らないように）
+/sw.js
+  Cache-Control: no-cache
+/js/config.js
+  Cache-Control: no-cache

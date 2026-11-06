@@ -7,6 +7,8 @@
 //   const members = await api.listMembers();
 //
 // config.js の API_MODE で、見本データ と 本物（Supabase）を切り替える。
+//   SUPABASE_URL が空 → mock-api.js（見本データ）
+//   SUPABASE_URL あり → supabase-api.js（本物。2026年11月6日）
 // 画面側は「どちらにつながっているか」を気にしなくてよい。
 // ============================================================
 
@@ -14,14 +16,16 @@ import { CONFIG } from "../config.js";
 import { mockApi } from "./mock-api.js";
 import { readCache, writeCache } from "../lib/offline-cache.js";
 
-/** 見本か本物（Supabase）かを選ぶ */
-function pickApi() {
-  if (CONFIG.API_MODE === "mock") return mockApi;
-  // "supabase" は段階1で supabase-api.js を作ってからつなぐ
-  throw new Error(`API_MODE "${CONFIG.API_MODE}" はまだ作っていません`);
+/**
+ * 見本か本物（Supabase）かを選ぶ
+ * 本物の時だけ supabase-api.js を読む（見本の時は読まないので軽い）
+ */
+async function pickApi() {
+  if (CONFIG.API_MODE === "supabase") return (await import("./supabase-api.js")).supabaseApi;
+  return mockApi;
 }
 
-const base = pickApi();   // 選んだ方のAPI
+const base = await pickApi();   // 選んだ方のAPI
 
 /**
  * 画面が使う api

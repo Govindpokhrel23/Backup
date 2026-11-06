@@ -1,0 +1,16 @@
+# ============================================================
+# workers/api/wrangler.toml — Cloudflare Worker の設定
+# このファイルは、アプリのサーバー（worker.js）を Cloudflare に置く時の設定のファイルです。
+# 秘密の値はここに書かない。Cloudflare の画面（Settings → Variables and Secrets）か、
+#   npx wrangler secret put SUPABASE_SERVICE_KEY
+#   npx wrangler secret put GEMINI_API_KEY
+# で入れる。
+# ============================================================
+name = "shiftapp-api"                # Worker の名前（URL の一部になる）
+main = "worker.js"                   # 動かすファイル
+compatibility_date = "2026-10-01"    # Cloudflare の動き方の日付
+
+[vars]
+SUPABASE_URL = ""                    # Supabase の Project URL（秘密ではない）
+ALLOWED_ORIGIN = ""                  # アプリのURL（例 https://shiftapp.pages.dev）。ほかのサイトからは使わせない
+LOGIN_EMAIL_DOMAIN = "login.shiftapp.example.com"   # アプリの config.js と同じにする

@@ -1,0 +1,13 @@
+{
+  "name": "shift-app",
+  "private": true,
+  "description": "コメダ珈琲（3店舗）のAIシフト管理アプリ。アプリ本体は npm なしで動く。npm はテストの時だけ使う",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "site": "sh tools/make-site.sh"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.2.17"
+  }
+}

@@ -22,6 +22,50 @@
 
 > ※ 見本データは「その機械のブラウザの中」に保存される。iPhone と MacBook では別々のデータになる（Supabase をつなぐと共通になる）。
 
+## 本番の準備（Supabase ＋ Cloudflare）2026年11月6日
+
+全部で6つ。上から順に。どれも無料プランでできる。
+
+### ① Supabase：データベースを作る
+1. supabase.com でアカウントを作る →「New project」（Region は Tokyo）
+2. 左の「SQL Editor」→ `supabase/schema.sql` の中身を全部貼って「Run」
+3. もう一度「New query」→ `supabase/seed.sql` を貼って「Run」→ 下に出る **初回コード（6桁）をメモ**（店長 ID 1000 用。7日以内に使う）
+4. 左の「Authentication」→「Sign In / Providers」→「Allow new users to sign up」を **オフ**（アカウントは Worker だけが作る。知らない人が勝手に登録できないように）
+5. 次の3つをメモ：
+   - Project URL（「Project Settings」→「Data API」。例 `https://abcd.supabase.co`）
+   - Publishable key（「Project Settings」→「API Keys」。`sb_publishable_…`。古い画面なら anon key）
+   - Secret key（同じ所。`sb_secret_…`。古い画面なら service_role key）← **これは秘密**
+
+### ② Cloudflare：Worker（サーバー）を作る
+1. dash.cloudflare.com →「Workers & Pages」→「Create」→「Create Worker」→ 名前 `shiftapp-api` →「Deploy」
+2. 「Edit code」→ `workers/api/worker.js` の中身を全部貼って「Deploy」
+3. 「Settings」→「Variables and Secrets」に入れる：
+   - `SUPABASE_URL`（Text）… ①の Project URL
+   - `SUPABASE_SERVICE_KEY`（Secret）… ①の Secret key
+   - `GEMINI_API_KEY`（Secret）… Google AI Studio の鍵
+   - `LOGIN_EMAIL_DOMAIN`（Text）… `login.shiftapp.example.com`
+   - `ALLOWED_ORIGIN`（Text）… ④でできるアプリのURL（④のあとに入れる）
+4. Worker のURL（例 `https://shiftapp-api.〇〇.workers.dev`）をメモ
+
+### ③ アプリの設定を書く
+`js/config.js` の一番上の3つに入れる：`SUPABASE_URL`（①）・`SUPABASE_ANON_KEY`（①の Publishable key）・`API_WORKER_URL`（②）
+> Publishable key は「画面に置いてよい鍵」。Secret key と Gemini の鍵は、ここには **絶対に書かない**。
+
+### ④ Cloudflare Pages：アプリを公開する
+1. MacBook のターミナルでこのフォルダに入り `sh tools/make-site.sh` → `dist` フォルダができる
+2. 「Workers & Pages」→「Create」→「Pages」→「Upload assets」→ 名前 `shiftapp` → `dist` フォルダを入れて「Deploy」
+3. できたURL（例 `https://shiftapp.pages.dev`）を、②の `ALLOWED_ORIGIN` に入れる
+
+### ⑤ 店長でログイン
+iPhone の Safari でアプリのURLを開く →「はじめての方」→ ID `1000` と①の初回コード → パスワードを決める
+→ Safari の共有ボタン →「ホーム画面に追加」
+
+### ⑥ 店員を足す
+「店舗」→「店員管理」→ 店員を作ると初回コードが出る → 本人に ID とコードを渡す（本人が「はじめての方」で決める）
+
+> 直した時：③ のあと ④-1 → Pages の「Create deployment」で `dist` を入れ直す。
+> 初回コードは7日・5回まちがえると使えない。その時は店員管理の「パスワードをリセット」で出し直す。
+
 ## AI（Gemini）をつなぐ（2026年11月5日）
 
 ### 今すぐ試す（この機械に鍵を入れる）
@@ -34,10 +78,7 @@
 > ※ 無料枠では、送った内容が Google の改善に使われることがある。だから名前は「S1」などの番号にして送っている（js/ai/prompt.js）。
 
 ### 本番（Cloudflare Worker を通す。鍵はサーバーにだけ置く）
-1. Cloudflare に入る → Workers & Pages →「Create」→ Worker を作る
-2. `workers/ai-proxy/worker.js` の中身を貼って「Deploy」
-3. Settings → Variables and Secrets に入れる：`GEMINI_API_KEY`（鍵）・`APP_TOKEN`（自分で決めた合言葉）・`ALLOWED_ORIGIN`（アプリのURL）
-4. アプリの「AIの設定」→「本番」に Worker のURLと合言葉を入れる
+下の「本番の準備」をしたあと、「AIの設定」→「本番」を選ぶ（Gemini の鍵は Worker に入れる）。
 
 ### AIの流れ（どのファイルか）
 - 「AIで作成」→ `ai/draft-service.js`：たたき台（simple-draft.js）→ Gemini（prompt.js → gemini.js）→ 確かめる（validate.js）→ よい方を使う
@@ -48,7 +89,8 @@
 ## ルールチェックのテスト
 
 ```bash
-node --test tests/*.test.mjs
+npm install   # はじめの1回（テスト用の Postgres が入る）
+npm test
 ```
 
 ## フォルダの中身（どこに何があるか）
@@ -71,6 +113,8 @@ shift-app/
 │  ├─ store.js             ログイン中の人
 │  ├─ api/
 │  │  ├─ index.js          データのやりとりの入口（画面はここだけを使う）
+│  │  ├─ supabase-api.js   本物（Supabase）につなぐ api（下の supabase/ をまとめる）
+│  │  ├─ supabase/         本物用：core（道具・ログイン中の人）・auth・stores・members・periods・notices・calls・ai
 │  │  ├─ mock-api.js       見本データで動く「にせものサーバー」
 │  │  ├─ mock-store.js     見本データの保存場所・共通の道具
 │  │  ├─ mock-calls.js     人が足りない時の自動連絡
@@ -110,12 +154,21 @@ shift-app/
 │     ├─ stores.js         店舗の管理（増やす・名前を変える・休止する）
 │     ├─ ai.js             AIの設定・AIが覚えたこと
 │     └─ settings.js       設定・ログアウト
-├─ workers/ai-proxy/       Gemini の鍵をかくす中つぎ（Cloudflare Worker）
+├─ _headers               Cloudflare Pages の安全の設定
+├─ package.json           テストの道具（npm はテストの時だけ。アプリには要らない）
+├─ supabase/
+│  ├─ schema.sql          データベースの表と、見てよい人の決まり（RLS）
+│  └─ seed.sql            最初のデータ（会社・3店舗・店長 1000・祝日）
+├─ workers/api/           サーバー（Cloudflare Worker）：はじめての方・AI
+├─ tools/make-site.sh     公開用の dist フォルダを作る
 └─ tests/
    ├─ rules.test.mjs       ルールチェックの自動テスト
    ├─ breaks.test.mjs      休憩の決まりのテスト
    ├─ labor.test.mjs       働いた時間・人件費の目安のテスト
-   └─ ai.test.mjs          AI（確かめ・学び・送る文・流れ・入れそうな人）のテスト
+   ├─ ai.test.mjs          AI（確かめ・学び・送る文・流れ・入れそうな人）のテスト
+   ├─ supabase.test.mjs    本物用の api を、本物の Postgres（PGlite）＋決まり（RLS）で通して確かめる
+   ├─ worker.test.mjs      Worker（はじめての方・AI）のテスト
+   └─ helpers/             テスト用の「にせもの Supabase」
 ```
 
 ## 決まりごと（コードを書く時）
@@ -141,6 +194,5 @@ shift-app/
 
 ## 次にやること（ロードマップ）
 
-1. 段階1：Supabase をつなぐ（`api/supabase-api.js` を作って `config.js` を切り替える）
-2. Cloudflare Workers（アカウント作成・パスワードリセット・AI・通知）
-4. プッシュ通知・バックアップ
+1. 本番の準備（上の①〜⑥）
+2. プッシュ通知・バックアップ

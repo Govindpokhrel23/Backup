@@ -2,19 +2,31 @@
 // config.js — アプリの設定（ここだけ見れば動き方が分かる）
 // ------------------------------------------------------------
 // このファイルは、アプリの設定（ここだけ見れば動き方が分かる）のファイルです。
-// ・API_MODE
-//     "mock"     … 見本データで動く（今はこれ。Supabaseなしで動く）
-//     "supabase" … 本物のデータベースにつなぐ（段階1で作る）
-// ・SUPABASE_URL / SUPABASE_ANON_KEY
-//     Supabaseのアカウントを作ったら入れる。
-//     ANON_KEY は「画面に置いてよい鍵」。管理用の鍵は絶対にここに書かない。
+// ・本物（Supabase）につなぐ時に入れるのは、下の3つだけ（2026年11月6日）
+//     SUPABASE_URL      … Supabase の Project URL（例 https://abcd.supabase.co）
+//     SUPABASE_ANON_KEY … Supabase の Publishable key（sb_publishable_…。古い画面では anon key）＝「画面に置いてよい鍵」
+//     API_WORKER_URL    … Cloudflare Worker のURL（アカウント作成・AI。workers/api）
+//   SUPABASE_URL が空なら、見本データ（mock）で動く。入れると本物につながる。
+//   ※ Secret key（sb_secret_…／古い service_role）・Gemini の鍵は、絶対にここに書かない（Worker の中にだけ置く）
 // ============================================================
 
 export const CONFIG = {
-  API_MODE: "mock",
-
+  // ---------- 本物につなぐ設定 ----------
   SUPABASE_URL: "",
   SUPABASE_ANON_KEY: "",
+  API_WORKER_URL: "",
+
+  // 見本か本物か（SUPABASE_URL があれば本物。下の一番最後で決める）
+  API_MODE: "mock",
+
+  // Supabase をブラウザで使う道具（バージョンを決めて読む。勝手に新しくならないように）
+  SUPABASE_JS_URL: "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm",
+
+  // ログインIDを Supabase のメールの形にする時の後ろ（メールは送らない。example.com は使われない決まりの名前）
+  LOGIN_EMAIL_DOMAIN: "login.shiftapp.example.com",
+
+  // パスワードの一番短い長さ（Supabase の決まりに合わせる）
+  PASSWORD_MIN: 6,
 
   // 営業時間の表示範囲（シフト表の左端と右端）
   DAY_START: 7 * 60,    // 7:00
@@ -45,8 +57,6 @@ export const CONFIG = {
   AI_MODEL: "gemini-3-flash-preview",
   // うまく動かない時に、次に試すモデル
   AI_MODEL_FALLBACK: "gemini-3.1-flash-lite",
-  // Cloudflare Worker のURL（workers/ai-proxy を公開したら入れる）
-  AI_WORKER_URL: "",
   // AIの返事を待つ一番長い時間（ミリ秒）。90秒
   AI_TIMEOUT_MS: 90000,
 
@@ -73,3 +83,6 @@ export const CONFIG = {
   ],
   SKILL_LEVELS: [0, 25, 50, 75, 100],
 };
+
+// SUPABASE_URL が入っていれば本物（Supabase）につなぐ
+CONFIG.API_MODE = CONFIG.SUPABASE_URL ? "supabase" : "mock";
