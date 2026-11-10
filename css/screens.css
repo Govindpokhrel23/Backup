@@ -350,3 +350,60 @@
 /* 個人カレンダーの「今月の合計」 */
 .month-total { display: flex; justify-content: space-between; align-items: baseline; }   /* 月の合計の行 */
 .month-total strong { font-size: 20px; }   /* 合計の数字 */
+
+/* ============================================================
+   シフト作成を見やすく（2026年11月10日）
+   ・上のボタンを小さく1行に（横にスクロール）
+   ・「週／日」の切りかえ
+   ・1週間の表（店員 × 7日）
+   ・スマホではタイムラインの行を低く
+   ============================================================ */
+.week-nav--compact { justify-content: flex-start; }   /* 左に寄せて並べる */
+.week-nav--compact .week-nav__label { flex: 1; font-size: 14px; }   /* 週の日付（少し小さく） */
+.btn--icon { min-height: 32px; min-width: 32px; padding: 0; font-size: 18px; }   /* ‹ › の小さい四角いボタン */
+.btn--tiny { min-height: 30px; padding: 0 10px; font-size: 12px; border-radius: 8px; white-space: nowrap; flex: none; }   /* とても小さいボタン */
+.editor-actions { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }   /* 1行のボタン（はみ出したら横にスクロール） */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex: none; }   /* 週／日の切りかえの枠 */
+.seg__btn { min-height: 30px; min-width: 40px; border: none; background: var(--surface); font-size: 13px; font-weight: 700; color: var(--ink-2); }   /* 切りかえのボタン */
+.seg__btn[aria-pressed="true"] { background: var(--ink); color: #fff; }   /* 選んでいる方はこい色 */
+.card--tight { padding: 8px; gap: 6px; }   /* 中の余白が少ないカード（表用） */
+.editor-week { display: flex; flex-direction: column; gap: 12px; }   /* 週の見方の入れ物 */
+
+/* ---------- 1週間の表 ---------- */
+.wk { overflow-x: auto; -webkit-overflow-scrolling: touch; }   /* 横にスクロールできる入れ物 */
+.wk__table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 340px; table-layout: fixed; font-size: 11px; }   /* 表（小さい文字） */
+.wk__table th, .wk__table td { border-bottom: 1px solid var(--line); padding: 0; }   /* マスの下の線 */
+.wk__corner, .wk__name { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; padding: 0 4px !important; width: 54px; max-width: 54px; overflow: hidden; white-space: normal; word-break: break-all; line-height: 1.2; font-size: 10px; font-weight: 700; }   /* 左の名前の列（横にスクロールしても残る） */
+.wk__day { padding: 2px 0 !important; }   /* 日付のマス */
+.wk__dayBtn { position: relative; width: 100%; border: none; background: transparent; display: flex; flex-direction: column; align-items: center; line-height: 1.2; padding: 2px 0; }   /* 日付のボタン */
+.wk__date { font-size: 10px; font-weight: 700; }   /* 「11/16」 */
+.wk__dow { font-size: 10px; color: var(--ink-3); }   /* 「月」 */
+.wk__date.is-sun, .wk__dow.is-sun { color: var(--danger); }   /* 日曜は赤 */
+.wk__date.is-sat, .wk__dow.is-sat { color: var(--hall); }   /* 土曜は青 */
+.wk__dot { position: absolute; top: 1px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }   /* 問題がある日の赤い点 */
+.wk__group td { font-size: 10px; font-weight: 700; color: var(--ink-3); padding: 6px 4px 2px !important; position: sticky; left: 0; background: var(--surface); }   /* 社員・バイト・応援の見出し */
+.wk__cell { height: 40px; padding: 1px !important; }   /* 1つのマスの高さ */
+.wk__cellBtn { width: 100%; height: 100%; min-height: 38px; border: none; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 1px; }   /* 押せるマス */
+.wk__shift { display: flex; flex-direction: column; align-items: center; line-height: 1.15; font-size: 10px; width: 100%; border-radius: 4px; padding: 2px 0; font-weight: 700; text-align: center; color: #fff; font-variant-numeric: tabular-nums; }   /* 勤務の時間 */
+.wk__shift--hall { background: var(--hall); }   /* ホールは青 */
+.wk__shift--kitchen { background: var(--kitchen); }   /* キッチンはオレンジ */
+.wk__shift.is-fixed { outline: 2px dashed var(--ink); outline-offset: -2px; }   /* 固定は点線 */
+.wk__away { display: block; width: 100%; font-size: 10px; border-radius: 4px; background: #D8D0C6; color: var(--ink); text-align: center; }   /* ほかの店舗（灰色） */
+.wk__off { color: var(--danger); font-weight: 700; }   /* 休み希望 */
+.wk__hope { display: flex; flex-direction: column; align-items: center; line-height: 1.15; color: #5B7A4A; font-size: 10px; }   /* 入れる希望（うすい緑の文字） */
+.wk__sum { width: 34px; text-align: right; padding: 0 4px !important; font-size: 10px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }   /* 右はしの週の時間 */
+.wk__count { text-align: center; font-size: 10px; color: var(--ink-2); padding: 4px 0 !important; }   /* いちばん下の人数 */
+.wk__table tr.is-selected th, .wk__table tr.is-selected td { background: #FCF3E8; }   /* 選んでいる人の行 */
+.wk__help { font-size: 11px; }   /* 使い方の文 */
+
+@media (max-width: 600px) {   /* スマホの幅なら */
+  .tl__row, .tl__name--btn { min-height: 36px; }   /* タイムラインの行を低く */
+  .tl__track { height: 36px; }   /* 棒の所も低く */
+  .tl__hope { top: 4px; height: 28px; }   /* 希望の帯も合わせる */
+  .tl__bar { top: 7px; }   /* 勤務の棒を行の真ん中に */
+  .tl__off { top: 8px; }   /* 休みの文字も合わせる */
+  .tl__need { height: 20px; font-size: 10px; }   /* 必要人数のマスを小さく */
+  .tl__row--need { min-height: 24px; }   /* 必要人数の行を低く */
+  .day-tab { min-height: 34px; font-size: 12px; padding: 0 10px; }   /* 日のタブを小さく */
+  .screen-header__title { font-size: 18px; }   /* 画面のタイトルを少し小さく */
+}

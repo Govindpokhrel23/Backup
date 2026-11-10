@@ -43,7 +43,8 @@ import { createHistory } from "../lib/history.js";   // 元に戻す・やり直
 import { assignmentPanel } from "../components/assignment-panel.js";   // 右の欄の部品を読む
 import { dayList } from "../components/day-list.js";   // 1日の一覧の部品を読む
 import { printWeek } from "../components/print-week.js";   // 印刷の道具を読む
-import { laborCost, minutesByMember, hoursText, yen } from "../lib/labor.js";   // 時間とお金の計算の道具を読む
+import { laborCost, minutesByMember, hoursText, yen } from "../lib/labor.js";
+import { weekGrid } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月10日）   // 時間とお金の計算の道具を読む
 
 /** シフト作成の画面を描く（店長） */
 export async function renderShiftEditor(app) {   // シフト作成の画面を描く関数
@@ -74,6 +75,7 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
   let unlocked = false;    // 公開済みの週で「編集する」を押したか
   let aiResult = null;     // 一番上に出す「AIの結果」{result, kind, before}（閉じたら null）
   const history = createHistory();   // 「元に戻す」用
+  let view = loadView();   // 見方："week"＝1週間の表 ／ "day"＝1日のタイムライン（前に選んだ方を覚えておく）
 
   /** 公開済みで、まだ「編集する」を押していない＝直せない */
   const locked = () => period.status === "published" && !unlocked;   // 変えられないか（公開済みで「編集する」を押していない）
@@ -253,6 +255,30 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
   }
 
   // ============================================================
+  // 見方（1週間／1日）を覚える（2026年11月10日）
+  // ============================================================
+
+  /** 前に選んだ見方を読む（はじめは1週間） */
+  function loadView() {   // 見方を読む関数
+    try { return localStorage.getItem("shiftapp-editor-view") === "day" ? "day" : "week"; }   // 保存があればそれ
+    catch (error) { return "week"; }   // 読めない時は1週間
+  }
+
+  /** 見方を変えて、覚えておく */
+  function setView(next) {   // 見方を変える関数
+    view = next;   // 変える
+    try { localStorage.setItem("shiftapp-editor-view", next); } catch (error) { /* 保存できなくても動く */ }   // 覚える
+    draw();   // 描きなおす
+  }
+
+  /** 週の表のマスを押した時：その日・その人の「1日」の画面にする */
+  function pickFromWeek(pickedDate, memberId) {   // 週の表から1日へ移る関数
+    date = pickedDate;   // その日にする
+    if (memberId) selectedId = memberId;   // 人を押したなら、その人を選ぶ
+    setView("day");   // 1日の見方にする
+  }
+
+  // ============================================================
   // 描く
   // ============================================================
 
@@ -263,41 +289,89 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
     mount(app,   // 画面に入れる
       screenHeader({   // 見出し
         title: "シフト作成",   // タイトル
-        sub: `${STATUS_LABEL[period.status]} ・ この日の営業 ${range(hoursOf(date).open, hoursOf(date).close)}`,   // 状態と営業時間
+        sub: view === "week" ? STATUS_LABEL[period.status] : `${STATUS_LABEL[period.status]} ・ ${label(date)} の営業 ${range(hoursOf(date).open, hoursOf(date).close)}`,   // 状態（日の見方なら営業時間も）
         extra: [   // 見出しの下
-        // 週の移動：前の週／次の週（2か月先まで作れる）
-        createElement("div", { class: "week-nav" },   // 週を変える行
-          createElement("button", { class: "btn btn--small", onclick: () => moveWeek(-1), "aria-label": "前の週" }, "‹ 前の週"),   // 前の週
+        // 週の移動（‹ ›）・見方の切りかえ（週／日）・印刷を1行に（2026年11月10日：小さくまとめた）
+        createElement("div", { class: "week-nav week-nav--compact" },   // 週を変える行
+          createElement("button", { class: "btn btn--icon", onclick: () => moveWeek(-1), "aria-label": "前の週" }, "‹"),   // 前の週
           createElement("strong", { class: "week-nav__label" }, weekLabel(period)),   // 週の日付
-          createElement("button", { class: "btn btn--small", onclick: () => moveWeek(1), disabled: period.weekStart >= lastWeek, "aria-label": "次の週" }, "次の週 ›"),   // 次の週
-          // 紙に印刷（お店に貼る用。PDFにも保存できる）
-          createElement("button", { class: "btn btn--small", onclick: () => printWeek({   // 印刷ボタン
-            title: `${state.stores.find((store) => store.id === period.storeId)?.name || ""} ${weekLabel(period)}${period.status === "published" ? "" : "（下書き）"}`,   // タイトル（店舗と週）
-            dates: datesOf(period), members: active, assignments: work, note: period.note,   // 7日・店員・勤務・連絡事項
-          }) }, "印刷"),   // ボタンの文字
+          createElement("button", { class: "btn btn--icon", onclick: () => moveWeek(1), disabled: period.weekStart >= lastWeek, "aria-label": "次の週" }, "›"),   // 次の週
+          createElement("div", { class: "seg", role: "group", "aria-label": "見方" },   // 見方の切りかえ
+            createElement("button", { class: "seg__btn", "aria-pressed": String(view === "week"), onclick: () => setView("week") }, "週"),   // 1週間の表
+            createElement("button", { class: "seg__btn", "aria-pressed": String(view === "day"), onclick: () => setView("day") }, "日"),   // 1日のタイムライン
+          ),
         ),
         locked()   // 公開済みなら
           // 公開済み：「編集する」を押すまで直せない
-          ? createElement("div", { class: "chip-row" },   // ボタンの行
+          ? createElement("div", { class: "editor-actions" },   // ボタンの行
               createElement("span", { class: "badge badge--hall", style: { alignSelf: "center" } }, "公開済み（見るだけ）"),   // 公開済みの印
-              createElement("button", { class: "btn btn--small btn--primary", onclick: () => { unlocked = true; toast("編集できます。直したら「変更を公開」を押してください"); draw(); } }, "✏️ 編集する"),   // 編集するボタン
+              createElement("button", { class: "btn btn--tiny btn--primary", onclick: () => { unlocked = true; toast("編集できます。直したら「変更を公開」を押してください"); draw(); } }, "✏️ 編集する"),   // 編集するボタン
+              printButton(),   // 印刷
             )
-          : createElement("div", { class: "chip-row" },   // 作っている時のボタンの行
+          // 作っている時：横にスクロールできる1行（よく使う順）
+          : createElement("div", { class: "editor-actions" },   // 作っている時のボタンの行
+          createElement("button", { class: "btn btn--tiny btn--blue", onclick: runDraft }, "✨ AIで作成"),   // AIで作る
+          createElement("button", { class: "btn btn--tiny btn--primary", onclick: publish }, period.status === "published" ? "変更を公開" : "公開する"),   // 公開
+          createElement("button", { class: "btn btn--tiny", onclick: undo, disabled: !history.canUndo(), "aria-label": "元に戻す" }, "↶"),   // 元に戻す
+          createElement("button", { class: "btn btn--tiny", onclick: redo, disabled: !history.canRedo(), "aria-label": "やり直す" }, "↷"),   // やり直し
+          createElement("button", { class: "btn btn--tiny", onclick: addPerson }, "＋人"),   // 人を追加
+          createElement("button", { class: "btn btn--tiny", onclick: copyLastWeek }, "前週コピー"),   // 前週コピー
           // 受付の切り替え：まちがえて締め切っても、もう一度押せば受付中に戻る
           period.status !== "published"   // 公開前なら
-            ? createElement("button", { class: "btn btn--small", onclick: toggleIntake }, period.status === "open" ? "受付を締め切る" : "受付を再開する")   // 受付を締め切る・再開
+            ? createElement("button", { class: "btn btn--tiny", onclick: toggleIntake }, period.status === "open" ? "受付を締切" : "受付を再開")   // 受付を締め切る・再開
             : null,   // 公開後は出さない
-          createElement("button", { class: "btn btn--small", onclick: undo, disabled: !history.canUndo(), "aria-label": "元に戻す" }, "↶ 元に戻す"),   // 元に戻す
-          createElement("button", { class: "btn btn--small", onclick: redo, disabled: !history.canRedo(), "aria-label": "やり直す" }, "↷ やり直す"),   // やり直し
-          createElement("button", { class: "btn btn--small btn--blue", onclick: runDraft }, "✨ AIで作成"),   // AIで作る
-          createElement("button", { class: "btn btn--small", onclick: addPerson }, "＋ 人を追加"),   // 人を追加
-          createElement("button", { class: "btn btn--small", onclick: copyLastWeek }, "前週コピー"),   // 前週コピー
-          createElement("button", { class: "btn btn--small btn--primary", onclick: publish }, period.status === "published" ? "変更を公開" : "公開する"),   // 公開
+          printButton(),   // 印刷
         ),
         ],
       }),
       createElement("div", { class: "screen-body" },   // 本文
         aiResult ? resultCard() : null,   // AIの結果があれば出す
+        view === "week" ? weekBody() : dayBody(today, checks),   // 1週間の表か、1日のタイムライン
+      ),
+    );
+  }
+
+  /** 印刷ボタン（お店に貼る用。PDFにも保存できる） */
+  function printButton() {   // 印刷ボタンを作る関数
+    return createElement("button", { class: "btn btn--tiny", onclick: () => printWeek({   // 印刷ボタン
+      title: `${state.stores.find((store) => store.id === period.storeId)?.name || ""} ${weekLabel(period)}${period.status === "published" ? "" : "（下書き）"}`,   // タイトル（店舗と週）
+      dates: datesOf(period), members: active, assignments: work, note: period.note,   // 7日・店員・勤務・連絡事項
+    }) }, "印刷");   // ボタンの文字
+  }
+
+  /** 「週」の見方：1週間の表＋週のチェック（2026年11月10日） */
+  function weekBody() {   // 週の見方の中身を作る関数
+    const problems = allProblems();   // この週の守れていないルール
+    const problemDays = new Set(datesOf(period).filter((eachDate) => onlyProblems(dayChecks(eachDate)).length));   // 問題がある日
+    return createElement("div", { class: "editor-week" },   // 縦に並べる入れ物
+      createElement("section", { class: "card card--tight" },   // 表のカード
+        weekGrid({   // 1週間の表
+          dates: datesOf(period),   // 7日
+          members: active,   // 店員
+          assignments: work,   // この週の勤務
+          elsewhere,   // ほかの店舗の勤務
+          availabilities: hopes,   // 希望
+          problemDays,   // 問題がある日
+          selectedId,   // 選んでいる人
+          onPick: pickFromWeek,   // マスを押した時
+        }),
+        createElement("div", { class: "home-muted wk__help" }, "マスを押すと、その日を細かく直せます。○・時間＝入れる希望、休＝休み希望"),   // 使い方
+      ),
+      createElement("section", { class: "card" },   // 週のチェック
+        createElement("h2", { class: "card__title" }, problems.length ? `守れていないルール（${problems.length}件）` : "ルールのチェック"),   // 見出し
+        problems.length   // 問題があれば
+          ? createElement("ul", { class: "check-list" }, problems.slice(0, 10).map((problem) => createElement("li", { class: "is-ng" }, createElement("strong", null, problem.day), problem.text)))   // 10件まで
+          : createElement("div", { class: "home-muted" }, "✓ この週は全部守れています"),   // なければ
+        !locked() && problems.length ? createElement("button", { class: "btn btn--small btn--blue", onclick: fixByAi }, "✨ AIに直してもらう") : null,   // AIに直してもらう
+      ),
+      shortageCard(),   // 足りない時間のカード
+      noteCard(),   // 連絡事項のカード
+    );
+  }
+
+  /** 「日」の見方：1日のタイムライン＋右の欄（今までの画面） */
+  function dayBody(today, checks) {   // 日の見方の中身を作る関数
+    return [   // 日のタブと、左右の入れ物
         dayTabs(),   // 日のタブ
         createElement("div", { class: "editor" },   // 左右の入れ物
           createElement("section", { class: "card editor__table" },   // 左：タイムライン
@@ -334,8 +408,7 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
             noteCard(),   // 連絡事項のカード
           ),
         ),
-      ),
-    );
+    ];
   }
 
   /** 日のタブ（守れていない日は赤い点） */
