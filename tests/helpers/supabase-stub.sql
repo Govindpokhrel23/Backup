@@ -14,6 +14,7 @@ $$;   -- 関数の終わり
 do $$ begin   -- 役割を作る処理の始まり
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;   -- ログインした人の役割がなければ作る
   if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;   -- ログイン前の人の役割がなければ作る
+  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;   -- Worker（管理者）の役割がなければ作る
 end $$;   -- 処理の終わり
 grant usage on schema auth to authenticated, anon;   -- 両方の役割に auth を使わせる
 grant execute on function auth.uid() to authenticated, anon;   -- 両方の役割に auth.uid() を使わせる

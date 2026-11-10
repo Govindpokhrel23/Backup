@@ -384,6 +384,9 @@ create policy holidays_read on holidays for select using (auth.uid() is not null
 grant usage on schema public to authenticated;   -- ログインした人が使えるように
 grant select, insert, update, delete on all tables in schema public to authenticated;   -- 表の操作を許す（中身はルールでしぼる）
 grant usage, select on all sequences in schema public to authenticated;   -- 番号を使えるように
+grant usage on schema public to service_role;   -- Worker（管理者の鍵）も使えるように
+grant all on all tables in schema public to service_role;   -- Worker は全部の表を読み書きできる（初回コード・通知の宛先など）
+grant usage, select on all sequences in schema public to service_role;   -- Worker も番号を使えるように
 revoke all on login_codes from authenticated;   -- 初回コードは関数だけが使う
 
 -- ------------------------------------------------------------
