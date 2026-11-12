@@ -12,8 +12,8 @@
 
 export const CONFIG = {   // アプリの設定をまとめたもの
   // ---------- 本物につなぐ設定 ----------
-  SUPABASE_URL: "https://cqkfwnhmncpvklbucvyg.supabase.co",   // Supabase の住所（空ならテスト版）
-  SUPABASE_ANON_KEY: "sb_publishable_bP7NyYmLv0JX-U0SI-lrBg__05OspWt",   // Supabase の Publishable key（公開してよい鍵だけ）
+  SUPABASE_URL: "https://stvaodfduawfbiuvgrji.supabase.co",   // Supabase の住所（空ならテスト版）
+  SUPABASE_ANON_KEY: "sb_publishable_dC5LVe6V8gcrHLeoG1OHOg_ye-ZvHrV",   // Supabase の Publishable key（公開してよい鍵だけ）
   API_WORKER_URL: "https://shiftapp-api.govindpokhrel23.workers.dev",   // Worker の住所
   // プッシュ通知の鍵（公開してよい方）。tools/make-vapid.html で作る。空なら通知は使わない（2026年11月6日）
   VAPID_PUBLIC_KEY: "",   // 通知の公開してよい鍵
