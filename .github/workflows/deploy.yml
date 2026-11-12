@@ -1,0 +1,65 @@
+# ============================================================
+# .github/workflows/deploy.yml — GitHub から Cloudflare に自動で公開する
+# ------------------------------------------------------------
+# このファイルは、GitHub の main に保存（push）した時に、
+#   ① テストを動かす
+#   ② サーバー（workers/api）を Cloudflare Worker に公開する
+#   ③ アプリ（dist）を Cloudflare Pages に公開する
+# を自動でやる GitHub Actions のファイルです（2026年11月12日）。
+#
+# GitHub の Settings → Secrets and variables → Actions に入れておくもの：
+#   CLOUDFLARE_API_TOKEN  … Cloudflare の API トークン（Workers と Pages を編集できるもの）。秘密！
+#   CLOUDFLARE_ACCOUNT_ID … Cloudflare のアカウントID（秘密ではないが、ここに書かない）
+# ============================================================
+
+name: deploy   # GitHub の画面に出る名前
+
+on:   # いつ動かすか
+  push:   # 保存（push）した時
+    branches: [main]   # main に保存した時だけ
+  workflow_dispatch:   # GitHub の画面のボタンからも動かせる
+
+concurrency:   # 同時に2つ動かさない
+  group: deploy   # 同じグループ
+  cancel-in-progress: false   # 動いている途中のものは止めない（最後まで公開する）
+
+jobs:   # やること
+  deploy:   # 公開する仕事
+    runs-on: ubuntu-latest   # GitHub が用意するパソコン（Linux）で動かす
+    steps:   # 順番
+      - uses: actions/checkout@v4   # コードを取ってくる
+
+      - uses: actions/setup-node@v4   # Node.js を用意する
+        with:   # 設定
+          node-version: 22   # Node.js の版
+
+      - name: テストを動かす   # ① まちがいがあれば、ここで止まって公開しない
+        run: |   # 動かすコマンド
+          npm ci   # テストの道具を入れる
+          npm test   # 全部のテスト
+
+      - name: サーバー（Worker）を公開する   # ②
+        uses: cloudflare/wrangler-action@v3   # Cloudflare の公式の道具
+        with:   # 設定
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}   # 秘密のトークン
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # アカウントID
+          workingDirectory: workers/api   # Worker のフォルダ（wrangler.toml がある所）
+          command: deploy   # 公開する
+
+      - name: アプリのファイルを作る   # ③ の準備
+        run: sh tools/make-site.sh   # dist フォルダを作る
+
+      - name: アプリ（Pages）の入れ物を用意する   # はじめての時だけ作る（もうあれば何もしない）
+        uses: cloudflare/wrangler-action@v3   # Cloudflare の公式の道具
+        continue-on-error: true   # もうある時のエラーは気にしない
+        with:   # 設定
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}   # 秘密のトークン
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # アカウントID
+          command: pages project create shiftapp --production-branch main   # Pages の入れ物を作る
+
+      - name: アプリ（Pages）を公開する   # ③
+        uses: cloudflare/wrangler-action@v3   # Cloudflare の公式の道具
+        with:   # 設定
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}   # 秘密のトークン
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # アカウントID
+          command: pages deploy dist --project-name shiftapp --branch main   # dist を公開する
