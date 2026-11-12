@@ -15,11 +15,37 @@ export const state = {   // アプリ全体で使う「今の状態」
   stores: [],   // 店舗の一覧
   /** 今見ている店舗のID（店長はホームで切り替えられる。店員はメインの店舗） */
   storeId: null,   // 今選んでいる店舗のID
+  /** 店長・開発者が「店員の画面」で見ている時 true（2026年11月12日） */
+  viewAsStaff: readViewAsStaff(),   // 店員の画面で見ているか
 };
+
+/** 「店員の画面で見る」を覚えておく名前 */
+const VIEW_KEY = "shiftapp-view-as-staff";   // スマホに保存する時の名前
+
+/** 前に「店員の画面で見る」にしていたか読む */
+function readViewAsStaff() {   // 保存を読む関数
+  try { return localStorage.getItem(VIEW_KEY) === "1"; } catch (error) { return false; }   // 読めない時は店長の画面
+}
+
+/** 本当に店長（または開発者）か。「店員の画面で見る」の時も true */
+export function isRealManager() {   // 本当の役割が店長か調べる関数
+  return state.user?.role === "manager";   // 役割が manager なら true
+}
+
+/** 開発者か（アプリを直す人。2026年11月12日） */
+export function isDeveloper() {   // 開発者か調べる関数
+  return state.user?.developer === true;   // developer が true なら開発者
+}
+
+/** 店長の画面／店員の画面を切りかえる（店長・開発者だけ） */
+export function setViewAsStaff(on) {   // 見る画面を切りかえる関数
+  state.viewAsStaff = Boolean(on) && isRealManager();   // 店長でなければ切りかえない
+  try { localStorage.setItem(VIEW_KEY, state.viewAsStaff ? "1" : "0"); } catch (error) { /* 保存できなくても動く */ }   // 覚える
+}
 
 /** 店長かどうか */
 export function isManager() {   // 店長か調べる関数
-  return state.user?.role === "manager";   // 役割が manager なら店長
+  return isRealManager() && !state.viewAsStaff;   // 店長で、「店員の画面で見る」にしていなければ店長の画面
 }
 
 /** 営業している店舗（休止した店舗は、切り替えのボタンなどに出さない） */

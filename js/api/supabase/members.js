@@ -26,10 +26,16 @@ export const membersApi = {   // 店員の窓口
   },
 
   /** 会社の店員みんな（店長。「人を追加」で使う）。mainShort・canHere つき */
+  /** 開発者アカウントの一覧（店長。店員管理で止めたり再開したりする。2026年11月12日） */
+  async listDevelopers() {   // 開発者の一覧を出す関数
+    await requireManager();   // 店長でなければ止める
+    return (await companyMembers()).filter((member) => member.developer);   // 開発者だけ
+  },
+
   async listCompanyMembers() {   // 会社の店員を全部出す関数（人を追加する時）
     await requireManager();   // 店長でなければ止める
     const [members, stores, store] = await Promise.all([companyMembers(), companyStores(), currentStore()]);   // 店員・店舗・今の店舗
-    return members.filter((member) => member.active).map((member) => ({   // 休止していない人を
+    return members.filter((member) => member.active && !member.developer).map((member) => ({   // 休止していない人を（開発者は出さない）
       ...member,   // もとの情報
       mainShort: stores.find((store) => store.id === member.storeId)?.short || "",   // 所属店の短い名前
       canHere: canWorkAt(member, store),   // この店舗で働けるか

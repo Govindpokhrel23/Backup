@@ -10,7 +10,7 @@
 import { createMockData } from "./mock-data.js";   // 見本データを作る関数を読む
 
 // 形を変えたら番号を上げる（古い見本データは自動で作り直される）
-export const STORAGE_KEY = "shiftapp-mock-v7";   // スマホに保存する時の名前（形を変えたら数字を上げる）
+export const STORAGE_KEY = "shiftapp-mock-v8";   // スマホに保存する時の名前（形を変えたら数字を上げる）
 
 // ------------------------------------------------------------
 // 保存と読み込み
@@ -81,6 +81,7 @@ export function companyStore(data, storeId) {   // 同じ会社の店舗か確�
 
 /** その人がその店舗に行けるか（店長が決めた「行ける店舗」） */
 export function canWorkAt(member, storeId) {   // その店舗で働けるか調べる関数
+  if (member.developer) return false;   // 開発者はどの店舗のシフトにも出ない（2026年11月12日）
   return member.storeId === storeId || (member.stores || []).some((store) => store.storeId === storeId);   // 所属店か、働ける店舗に入っていればOK
 }
 

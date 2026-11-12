@@ -68,6 +68,8 @@ export function createMockData() {   // 見本データを作る関数
     makeMember("i2", "4002", "スタッフP", "staff", "full", skillsOf(75, 100, 100, 50), [IMAMURA, ANJO], true),   // フルで入るバイト（今村・安城）
     makeMember("i3", "4003", "スタッフQ", "staff", "baito", skillsOf(100, 50, 0, 100), [IMAMURA]),   // バイト（今村）
     makeMember("i4", "4004", "スタッフR", "staff", "baito", skillsOf(100, 25, 0, 0), [IMAMURA, ANJO, FUKUGAMA]),   // バイト（今村・安城・福釜）
+    // --- 開発者（アプリを直す人。店長と同じことができるが、シフトには出ない。2026年11月12日） ---
+    { ...makeMember("d1", "9000", "開発者", "manager", "shain", skillsOf(0, 0, 0, 0), [FUKUGAMA]), stores: [], developer: true },   // 開発者
   ];
 
   // パスワード（見本なので全員 1234。本番はSupabaseが暗号化して持つ）

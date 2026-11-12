@@ -407,3 +407,7 @@
   .day-tab { min-height: 34px; font-size: 12px; padding: 0 10px; }   /* 日のタブを小さく */
   .screen-header__title { font-size: 18px; }   /* 画面のタイトルを少し小さく */
 }
+
+/* ---------- 店員の画面で見ている時の帯（店長・開発者。2026年11月12日） ---------- */
+.view-banner { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); background: #2A62A8; color: #fff; font-size: 13px; font-weight: 700; }   /* 青い帯（上にくっつく） */
+.view-banner .btn { color: var(--ink); background: var(--surface); }   /* 帯の中のボタンは白に黒い文字 */

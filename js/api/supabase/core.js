@@ -141,6 +141,7 @@ const memberMap = mapper([   // 店員の変換
   ["id", "id"], ["companyId", "company_id"], ["loginId", "login_id"], ["name", "name"], ["role", "role"], ["kind", "kind"],   // ID・会社・ログインID・名前・役割・立場
   ["skills", "skills"], ["everyday", "everyday"], ["active", "active"], ["account", "account"],   // できること・毎日・休止・アカウント
   ["storeId", "main_store_id"], ["stores", "stores"],   // 所属店・働ける店舗
+  ["developer", "developer"],   // 開発者か（2026年11月12日）
 ]);
 export const memberFrom = memberMap.from;   // 店員：データベース → アプリ
 export const memberTo = memberMap.to;   // 店員：アプリ → データベース
@@ -207,6 +208,7 @@ export async function companyStores() {   // 会社の店舗を全部出す関�
 
 /** その人がその店舗に行けるか */
 export function canWorkAt(member, storeId) {   // その店舗で働けるか調べる関数
+  if (member.developer) return false;   // 開発者はどの店舗のシフトにも出ない（2026年11月12日）
   return member.storeId === storeId || (member.stores || []).some((store) => store.storeId === storeId);   // 所属店か働ける店舗に入っていればOK
 }
 

@@ -9,7 +9,7 @@
 
 import { createElement, mount, toast, confirmDialog } from "../lib/dom.js";   // 画面の部品の道具を読む
 import { api } from "../api/index.js";   // データの窓口を読む
-import { state, isManager } from "../store.js";   // アプリの状態・店長か調べる道具を読む
+import { state, isManager, isRealManager, isDeveloper, setViewAsStaff } from "../store.js";   // アプリの状態・店長か・開発者か・見る画面の切りかえを読む
 import { saveFile } from "../lib/download.js";   // ファイルを保存する道具を読む
 import { today } from "../lib/date.js";   // 今日の日付の道具を読む
 import { go } from "../router.js";   // 画面を移動する道具を読む
@@ -50,6 +50,21 @@ function pushCard() {   // 通知のカードを作る関数
 }
 
 /** 設定の画面を描く */
+/**
+ * 見る画面のカード（店長・開発者）
+ * 店員の画面にすると、下のタブとホームが店員と同じになる（店員にどう見えるか確かめる用）
+ */
+function viewCard() {   // 見る画面のカードを作る関数
+  return createElement("section", { class: "card" },   // カード
+    createElement("h2", { class: "card__title" }, isDeveloper() ? "見る画面（開発者）" : "見る画面"),   // 見出し
+    createElement("div", { class: "home-muted" }, "店員にどう見えるかを確かめられます。もどす時は、上の帯かここで「店長の画面」を押します。"),   // 説明
+    createElement("div", { class: "chip-row" },   // ボタンの行
+      createElement("button", { class: "chip", "aria-pressed": String(!state.viewAsStaff), onclick: () => { setViewAsStaff(false); go("/home"); } }, "店長の画面"),   // 店長の画面
+      createElement("button", { class: "chip", "aria-pressed": String(state.viewAsStaff), onclick: () => { setViewAsStaff(true); go("/home"); } }, "店員の画面"),   // 店員の画面
+    ),
+  );
+}
+
 export async function renderSettings(app) {   // 設定の画面を描く関数
   mount(app,   // 画面に入れる
     screenHeader({ title: "設定", sub: `${state.user.name}（ID ${state.user.loginId}）` }),   // 見出し（名前とID）
@@ -58,6 +73,8 @@ export async function renderSettings(app) {   // 設定の画面を描く関数
         createElement("h2", { class: "card__title" }, "ホーム画面に追加"),   // 見出し
         createElement("div", { class: "home-muted" }, "iPhoneのSafariで開いて、共有ボタン（□↑）→「ホーム画面に追加」。追加したアプリから開くと、通知を受け取れます。"),   // やり方
       ),
+      // 店長の画面／店員の画面の切りかえ（店長・開発者だけ。2026年11月12日）
+      isRealManager() ? viewCard() : null,   // 見る画面のカード
       // プッシュ通知（2026年11月6日。lib/push.js）
       pushCard(),   // 通知のカード
       // スマホに保存している自分のシフト（サーバーにつながらない時用）

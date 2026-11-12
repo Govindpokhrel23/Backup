@@ -14,7 +14,7 @@
 import { createElement, mount, toast, confirmDialog } from "../lib/dom.js";   // 画面の部品の道具を読む
 import { api } from "../api/index.js";   // データの窓口を読む
 import { CONFIG } from "../config.js";   // 設定を読む
-import { state } from "../store.js";   // アプリの状態を読む
+import { state, isDeveloper } from "../store.js";   // アプリの状態・開発者か調べる道具を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
 
 /** 順番の呼び方 */
@@ -25,6 +25,7 @@ export async function renderStaff(app) {   // 店員管理の画面を描く関�
   let members = await api.listMembers();   // この店舗で働ける人
   let rules = await api.listMemberRules();   // 人ごとのルール
   let wages = await api.listWages();          // 時給・交通費（店長だけ。人件費の目安に使う）
+  let developers = await api.listDevelopers();   // 開発者アカウント（シフトには出ない。2026年11月12日）
   // 行ける店舗の選択には、営業している店舗だけを出す（休止した店舗は出さない）
   const stores = state.stores.filter((store) => store.active !== false);   // 営業中の店舗
   let editing = null;      // 直している店員（新しく作る時は "new"）
@@ -43,6 +44,7 @@ export async function renderStaff(app) {   // 店員管理の画面を描く関�
         editing ? form(editing === "new" ? null : members.find((member) => member.id === editing)) : null,   // 編集中なら入力の所
         ...["shain", "full", "baito"].map((kind) => group(kind)),   // 社員・フル・バイトのまとまり
         helpers(),   // 応援に来られる人
+        developerCard(),   // 開発者アカウント
       ),
     );
   }
@@ -189,12 +191,15 @@ export async function renderStaff(app) {   // 店員管理の画面を描く関�
           createElement("button", { class: "btn", onclick: () => { editing = null; draw(); } }, "閉じる"),   // 閉じる
         ),
 
-        member && member.role !== "manager"   // 直す時（店長以外）
+        // 店員は店長が直す。店長のパスワードは開発者がリセットできる（店長が忘れた時用。2026年11月12日）
+        member && (member.role !== "manager" || (isDeveloper() && member.id !== state.user.id))   // 直す時（店員、または開発者が見る店長）
           ? createElement("div", { class: "chip-row" },   // ボタンの行
               // アカウントがない人は「アカウントを作る」（初回コードを出す）。ある人は「パスワードをリセット」
               createElement("button", { class: `btn btn--small ${member.account === "none" ? "btn--primary" : ""}`, onclick: () => reset(member) },   // アカウントを作る・パスワードをリセット
                 member.account === "none" ? "アカウントを作る（初回コードを出す）" : "パスワードをリセット"),   // 文字
-              createElement("button", { class: "btn btn--small btn--danger", onclick: () => toggleActive(member) }, member.active ? "停止する（やめた人）" : "再開する"),   // 停止・再開
+              member.role !== "manager"   // 店長は止めない（開発者がまちがえて止めないように）
+                ? createElement("button", { class: "btn btn--small btn--danger", onclick: () => toggleActive(member) }, member.active ? "停止する（やめた人）" : "再開する")   // 停止・再開
+                : null,   // 店長には出さない
             )
           : null,   // 新しい時は出さない
       ];
@@ -222,6 +227,30 @@ export async function renderStaff(app) {   // 店員管理の画面を描く関�
     wages = await api.listWages();   // 時給を読みなおす
     editing = null;   // 編集を閉じる
     draw();   // 描きなおす
+  }
+
+  /**
+   * 開発者アカウントのカード（2026年11月12日）
+   * 開発者＝アプリを直す人。店長と同じことができるが、シフト・店員の一覧には出ない
+   * 店長はここで止められる（止めると、その人はログインできなくなる）
+   */
+  function developerCard() {   // 開発者のカードを作る関数
+    if (!developers.length) return null;   // いなければ出さない
+    return createElement("section", { class: "card" },   // カード
+      createElement("h2", { class: "card__title" }, "開発者（アプリを直す人）"),   // 見出し
+      createElement("div", { class: "home-muted" }, "店長と同じことができます。シフトには出ません。止めると、その人はログインできなくなります。"),   // 説明
+      developers.map((developer) => createElement("div", { class: "staff-row" },   // 1人ずつ
+        createElement("div", { class: "staff-row__name" },   // 名前の所
+          createElement("strong", null, developer.name), ` ID ${developer.loginId}`,   // 名前とID
+          developer.active ? null : createElement("span", { class: "badge", style: { marginLeft: "6px" } }, "停止中")),   // 止めていれば印
+        developer.id === state.user.id   // 自分なら
+          ? createElement("span", { class: "home-muted" }, "（自分）")   // 自分は止められない
+          : createElement("button", { class: "btn btn--small btn--danger", onclick: async () => {   // 停止・再開のボタン
+              await api.saveMember({ ...developer, active: !developer.active });   // 保存
+              developers = await api.listDevelopers();   // 読みなおす
+              toast(developer.active ? "停止しました" : "再開しました");   // お知らせ
+              draw();   // 描きなおす
+            } }, developer.active ? "停止する" : "再開する"))));   // ボタンの文字
   }
 
   /** パスワードのリセット／アカウントを作る：新しい初回コードを出して見せる */

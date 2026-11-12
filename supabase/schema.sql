@@ -62,6 +62,9 @@ create table if not exists members (   -- 店員の表
   stores        jsonb not null default '[]',                         -- 行ける店舗と順番 [{storeId, rank}]
   created_at    timestamptz not null default now()                   -- 作った日時
 );
+-- 開発者アカウント（アプリを直す人。2026年11月12日）：店長と同じことができるが、シフト・店員の一覧には出ない
+alter table members add column if not exists developer boolean not null default false;   -- 開発者なら true
+
 
 -- 人ごとのルール（店長だけ）
 create table if not exists member_rules (   -- 人ごとのルールのメモの表（店長だけ）

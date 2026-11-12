@@ -7,7 +7,7 @@
 // ・役割（店長／店員）で、使えるタブと画面が変わる（設計書3章）
 // ============================================================
 
-import { state, isManager } from "./store.js";   // ログイン中の人・店長か調べる道具を読む
+import { state, isManager, setViewAsStaff } from "./store.js";   // ログイン中の人・店長か調べる道具・見る画面の切りかえを読む
 import { createElement, mount, icon } from "./lib/dom.js";   // 画面の部品の道具を読む
 
 // 画面のファイル（1画面＝1ファイル）
@@ -89,7 +89,7 @@ export async function render() {   // 今の URL の画面を描く関数
   // → 前の画面の読み込みがおそく終わっても、もう外した入れ物に描くだけなので、
   //   新しい画面が古い画面で上書きされない
   const view = createElement("div", { class: "view" });   // この画面の入れ物
-  app.replaceChildren(view);   // 前の画面を外して入れ物を置く
+  app.replaceChildren(...viewBanner(), view);   // 前の画面を外して、（店員の画面で見ている時は帯と）入れ物を置く
 
   try {   // 画面でエラーが出ても止まらないように
     await route.render(view);   // 画面を描く
@@ -98,6 +98,17 @@ export async function render() {   // 今の URL の画面を描く関数
     mount(view, createElement("div", { class: "screen-body" },   // エラーの文を画面に出す
       createElement("div", { class: "notice notice--danger" }, `画面を開けませんでした：${error.message}`)));   // 赤いお知らせ
   }
+}
+
+/**
+ * 「店員の画面で見ています」の帯（店長・開発者が店員の画面を見ている時だけ。2026年11月12日）
+ * @returns {HTMLElement[]} 帯（いらない時は空）
+ */
+function viewBanner() {   // 店員の画面の帯を作る関数
+  if (!state.viewAsStaff) return [];   // ふだんは出さない
+  return [createElement("div", { class: "view-banner" },   // 帯
+    createElement("span", null, "👀 店員の画面で見ています"),   // 説明
+    createElement("button", { class: "btn btn--tiny", onclick: () => { setViewAsStaff(false); go("/home"); } }, "店長の画面にもどる"))];   // もどるボタン
 }
 
 /** 下のタブバーを描く */

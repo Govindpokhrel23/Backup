@@ -79,6 +79,13 @@ export const aiApi = {   // AIの窓口（テスト版）
    * 会社の店員みんな（店長。ほかの店舗の人を足す時に選ぶ）
    * mainShort＝その人のメインの店舗の短い名前、canHere＝今の店舗に行ける登録があるか
    */
+  /** 開発者アカウントの一覧（店長。2026年11月12日） */
+  async listDevelopers() {   // 開発者の一覧を出す関数
+    const data = load();   // 保存してあるデータを読む
+    requireManager(data);   // 店長でなければ止める
+    return reply(data.members.filter((member) => member.developer));   // 開発者だけ
+  },
+
   async listCompanyMembers() {   // 会社の店員を全部出す関数
     const data = load();   // 保存してあるデータを読む
     requireManager(data);   // 店長でなければ止める
@@ -86,7 +93,7 @@ export const aiApi = {   // AIの窓口（テスト版）
     const company = data.stores.find((eachStore) => eachStore.id === store)?.companyId;   // その店舗の会社
     const inCompany = new Set(data.stores.filter((store) => store.companyId === company).map((store) => store.id));   // 同じ会社の店舗
     return reply(data.members   // 返す
-      .filter((member) => member.active && inCompany.has(member.storeId))   // 同じ会社で休止していない人
+      .filter((member) => member.active && !member.developer && inCompany.has(member.storeId))   // 同じ会社で休止していない人（開発者は出さない）
       .map((member) => ({   // 1人ずつ
         ...member,   // もとの情報
         mainShort: data.stores.find((store) => store.id === member.storeId)?.short || "",   // 所属店の短い名前
