@@ -3,6 +3,19 @@
 飲食店向けのAIシフト管理Webアプリ（PWA）。
 いまは **見本データで動く版**（Supabase・Cloudflare・Gemini はまだつないでいない）。
 
+## GitHub から自動で公開する（2026年11月12日）
+
+コードは GitHub に置き、Cloudflare は GitHub から自動で公開する。サーバーの画面にコードを貼る作業はない。
+
+| Cloudflare | つなぎ方 | 設定 |
+|---|---|---|
+| Pages（アプリ） | Workers & Pages →「Create」→ Pages →「Import an existing Git repository」 | Build command：`sh tools/make-site.sh` ／ Build output directory：`dist` |
+| Worker（サーバー） | Workers & Pages →「Create」→ Workers →「Import a repository」 | Root directory：`workers/api` ／ Deploy command：`npx wrangler deploy` |
+
+- GitHub の main に保存（push）すると、両方が自動で公開される
+- Worker の値（SUPABASE_URL・秘密の鍵など）は Cloudflare の画面で入れる。`wrangler.toml` の `keep_vars = true` で、公開しても消えない
+- Supabase の表（schema.sql）は、はじめの1回だけ SQL Editor で Run する
+
 ## 動かし方（VS Code）
 
 1. このフォルダを VS Code で開く

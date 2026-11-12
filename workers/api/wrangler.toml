@@ -10,7 +10,6 @@ name = "shiftapp-api"                # Worker の名前（URL の一部になる
 main = "worker.js"                   # 動かすファイル
 compatibility_date = "2026-10-01"    # Cloudflare の動き方の日付
 
-[vars]
-SUPABASE_URL = ""                    # Supabase の Project URL（秘密ではない）
-ALLOWED_ORIGIN = ""                  # アプリのURL（例 https://shiftapp.pages.dev）。ほかのサイトからは使わせない
-LOGIN_EMAIL_DOMAIN = "login.shiftapp.example.com"   # アプリの config.js と同じにする
+# Cloudflare の画面で入れた値（SUPABASE_URL・ALLOWED_ORIGIN・秘密の鍵）を、公開する時に消さない（2026年11月12日）
+# → 値はここには書かない。全部 Cloudflare の画面（Settings → Variables and Secrets）で入れる
+keep_vars = true

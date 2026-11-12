@@ -8,7 +8,8 @@
 
 import test from "node:test";   // テストを書く道具
 import assert from "node:assert/strict";   // 答えを確かめる道具
-import worker, { encryptPayload, vapidHeader, fromB64url, toB64url } from "../workers/api/worker.js";   // テストする Worker の関数を読む
+import worker from "../workers/api/worker.js";   // Worker の本体
+import { encryptPayload, vapidHeader, fromB64url, toB64url } from "../workers/api/lib/webpush.js";   // 通知の暗号の道具
 
 /** 文字 ⇔ バイト */
 const enc = new TextEncoder();   // 文字 → バイト
