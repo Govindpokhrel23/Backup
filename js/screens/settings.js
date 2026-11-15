@@ -3,7 +3,7 @@
 // ------------------------------------------------------------
 // このファイルは、設定（全員）のファイルです。
 // ・ログアウト
-// ・ホーム画面への追加のしかた（通知に必要）
+// ・使い方（ヘルプ）の入口（ホーム画面への追加・電波がない時の説明はヘルプへ移した。2026年11月15日）
 // ・見本データの時だけ「最初に戻す」ボタン
 // ============================================================
 
@@ -15,7 +15,6 @@ import { today } from "../lib/date.js";   // 今日の日付の道具を読む
 import { go } from "../router.js";   // 画面を移動する道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
-import { cacheInfo } from "../lib/offline-cache.js";   // スマホに保存したシフトの量を調べる道具を読む
 import { pushStatus, isPushOn, turnOnPush, turnOffPush } from "../lib/push.js";   // 通知の道具を読む
 
 /**
@@ -71,23 +70,12 @@ export async function renderSettings(app) {   // 設定の画面を描く関数
     createElement("div", { class: "screen-body" },   // 本文
       // 使い方（ヘルプ）の入口（2026年11月15日。店員は「店舗」タブがないので、ここから開く）
       createElement("button", { class: "btn btn--block", onclick: () => go("/help") }, "📖 使い方（ヘルプ）"),   // ヘルプへ
-      createElement("section", { class: "card" },   // ホーム画面に追加のカード
-        createElement("h2", { class: "card__title" }, "ホーム画面に追加"),   // 見出し
-        createElement("div", { class: "home-muted" }, "iPhoneのSafariで開いて、共有ボタン（□↑）→「ホーム画面に追加」。追加したアプリから開くと、通知を受け取れます。"),   // やり方
-      ),
+      // 「ホーム画面に追加」のやり方は、ヘルプの「はじめに」に移した（2026年11月15日）
       // 店長の画面／店員の画面の切りかえ（店長・開発者だけ。2026年11月12日）
       isRealManager() ? viewCard() : null,   // 見る画面のカード
       // プッシュ通知（2026年11月6日。lib/push.js）
       pushCard(),   // 通知のカード
-      // スマホに保存している自分のシフト（サーバーにつながらない時用）
-      (() => {   // スマホに保存したシフトのカード
-        const info = cacheInfo();   // スマホに保存した自分のシフトの件数と大きさ
-        return createElement("section", { class: "card" },   // カード
-          createElement("h2", { class: "card__title" }, "スマホに保存している自分のシフト"),   // 見出し
-          createElement("div", { class: "home-muted" },   // 説明
-            `${info.count}件・約${info.kb}KB（2年分まで。それより前は自動で消えます）。サーバーにつながらない時も、ホームとカレンダーで見られます。`),   // 件数・大きさ
-        );
-      })(),   // すぐ作って入れる
+      // 「スマホに保存している自分のシフト」の説明は、ヘルプの「困った時」に移した（2026年11月15日）
       // バックアップ（店長だけ。2026年11月6日）
       isManager()   // 店長なら
         ? createElement("section", { class: "card" },   // バックアップのカード
