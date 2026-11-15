@@ -373,10 +373,10 @@
 .wk { overflow-x: auto; -webkit-overflow-scrolling: touch; }   /* 横にスクロールできる入れ物 */
 .wk__table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 340px; table-layout: fixed; font-size: 11px; }   /* 表（小さい文字） */
 .wk__table th, .wk__table td { border-bottom: 1px solid var(--line); padding: 0; }   /* マスの下の線 */
-.wk__corner, .wk__name { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; padding: 0 4px !important; width: 54px; max-width: 54px; overflow: hidden; white-space: normal; word-break: break-all; line-height: 1.2; font-size: 10px; font-weight: 700; }   /* 左の名前の列（横にスクロールしても残る） */
+.wk__corner, .wk__name { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; padding: 0 3px !important; width: 50px; max-width: 50px; overflow: hidden; white-space: normal; word-break: break-all; line-height: 1.15; font-size: 9px; font-weight: 700; }   /* 左の名前の列（横にスクロールしても残る） */
 .wk__day { padding: 2px 0 !important; }   /* 日付のマス */
 .wk__dayBtn { position: relative; width: 100%; border: none; background: transparent; display: flex; flex-direction: column; align-items: center; line-height: 1.2; padding: 2px 0; }   /* 日付のボタン */
-.wk__date { font-size: 10px; font-weight: 700; }   /* 「11/16」 */
+.wk__date { font-size: 13px; font-weight: 700; }   /* 日にち「16」 */
 .wk__dow { font-size: 10px; color: var(--ink-3); }   /* 「月」 */
 .wk__date.is-sun, .wk__dow.is-sun { color: var(--danger); }   /* 日曜は赤 */
 .wk__date.is-sat, .wk__dow.is-sat { color: var(--hall); }   /* 土曜は青 */
@@ -452,7 +452,11 @@
 .hope-list__table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 340px; table-layout: fixed; font-size: 11px; }   /* 表（小さい文字） */
 .hope-list__table th, .hope-list__table td { border-bottom: 1px solid var(--line); padding: 4px 2px; text-align: center; white-space: pre-line; }   /* マス */
 .hope-list__table thead th { font-weight: 700; color: var(--ink-3); line-height: 1.2; }   /* 日付の見出し */
-.hope-list__name { width: 6.5em; text-align: left !important; font-weight: 700; position: sticky; left: 0; background: var(--surface); }   /* 名前（横にスクロールしても残る） */
+.hope-list__date { display: block; font-size: 13px; color: var(--ink); }   /* 日にち「16」 */
+.hope-list__dow { display: block; font-size: 10px; }   /* 曜日「月」 */
+.hope-list__table th.is-sun span { color: var(--danger); }   /* 日曜は赤 */
+.hope-list__table th.is-sat span { color: var(--hall); }   /* 土曜は青 */
+.hope-list__name { width: 50px; max-width: 50px; text-align: left !important; font-weight: 700; font-size: 9px; line-height: 1.15; word-break: break-all; position: sticky; left: 0; background: var(--surface); }   /* 名前（小さく。横にスクロールしても残る） */
 .hope-list__store th { text-align: left !important; background: var(--surface-2); color: var(--ink); font-size: 13px; padding: 6px 8px !important; }   /* 店舗の見出し（例「福釜（15人）」） */
 .hope-list__miss { display: block; font-size: 9px; color: var(--danger); font-weight: 700; }   /* 未提出の印 */
 .hope-list__cell { cursor: pointer; }   /* 押せるマス */
@@ -462,3 +466,4 @@
 .hope-list__cell.is-soft { opacity: 0.45; font-weight: 400; }   /* 社員の希望なし（うすい） */
 .hope-list__cell.is-time { color: #2A62A8; }   /* 時間指定（青） */
 .hope-list__help { font-size: 11px; margin-top: 6px; }   /* 記号の説明 */
+.published-seg { margin: 0 0 4px auto; }   /* 公開シフトの週／日の切りかえ（右によせる） */

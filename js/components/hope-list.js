@@ -73,7 +73,9 @@ export function hopeList(props) {   // 希望の一覧を作る関数
       createElement("table", { class: "hope-list__table" },   // 表
         createElement("thead", null, createElement("tr", null,   // 見出しの行
           createElement("th", { class: "hope-list__name" }, "名前"),   // 名前
-          props.dates.map((date) => createElement("th", null, label(date).replace(/（(.)）/, "\n$1"))),   // 「11/16 月」
+          props.dates.map((date) => createElement("th", { class: dayClass(date) },   // 日付のマス（土曜は青・日曜は赤）
+            createElement("span", { class: "hope-list__date" }, String(Number(date.slice(8)))),   // 日にち（例「16」）
+            createElement("span", { class: "hope-list__dow" }, label(date).match(/（(.)）/)?.[1] || ""))),   // 曜日（例「月」）
         )),
         groups.map((group) => createElement("tbody", null,   // 店舗ごとのまとまり
           createElement("tr", { class: "hope-list__store" }, createElement("th", { colspan: props.dates.length + 1 }, `${group.store.short}（${group.list.length}人）`)),   // 店舗の見出し（例「福釜（15人）」）
@@ -93,6 +95,12 @@ export function hopeList(props) {   // 希望の一覧を作る関数
   );
   box.addEventListener("toggle", () => { try { localStorage.setItem(OPEN_KEY, box.open ? "1" : "0"); } catch { /* 覚えられなくても使える */ } });   // 開け閉めを覚える
   return box;   // カードを返す
+}
+
+/** 土曜は青、日曜は赤の class */
+function dayClass(date) {   // 曜日の色の class を出す関数
+  const weekday = new Date(`${date}T12:00:00`).getDay();   // 曜日の番号（0＝日曜）
+  return weekday === 0 ? "is-sun" : weekday === 6 ? "is-sat" : "";   // 日曜・土曜・平日
 }
 
 /** 並べる順番（社員 → フル → バイト） */

@@ -18,6 +18,7 @@ import { dayList } from "../components/day-list.js";   // 1日の一覧の部品
 import { weekLabel, datesOf } from "../lib/period.js";   // 週の表示の道具を読む
 import { label, today, dayType } from "../lib/date.js";   // 日付の道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
+import { weekGrid } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月15日：店員も週で見られるように）
 import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む
 
 /** 公開シフトの画面を描く */
@@ -33,6 +34,7 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
   let assignments = [];               // その週の勤務
   let confirmed = false;              // 自分が「確認しました」を押したか
   let date = today();                 // 見ている日
+  let view = readView();              // 見方（"week"＝1週間の表／"day"＝1日の線）。はじめは1週間
 
   await loadStore(storeId);   // はじめの店舗を読む
   draw();   // 描く
@@ -93,8 +95,10 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
                     } }, "シフトを見ました（確認する）"))   // ボタンの文字
               : null,   // ほかの店舗では出さない
             period.note ? createElement("div", { class: "notice notice--warn", style: { fontWeight: 400, whiteSpace: "pre-line" } }, `連絡事項：${period.note}`) : null,   // 連絡事項
-            dayTabs(),   // 日のタブ
-            createElement("div", { class: "card" },   // カード
+            viewSwitch(),   // 週／日の切りかえ
+            view === "week" ? weekCard() : null,   // 1週間の表（紙のシフト表と同じ形）
+            view === "day" ? dayTabs() : null,   // 日のタブ
+            view === "day" ? createElement("div", { class: "card" },   // カード
               timeline({   // タイムライン
                 ...dayRange(),   // 表示する時間のはば
                 hours: hoursOn(storeHours, date, dayType(date, holidays)),     // 「立」「締」の印に使う
@@ -103,10 +107,37 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
                 selectedId: state.user.id,                      // 自分の行に色をつける
                 editable: false,   // 見るだけ（動かせない）
               }),
-            ),
-            dayList({ assignments: assignments.filter((shift) => shift.date === date), members, hours: hoursOn(storeHours, date, dayType(date, holidays)) }),   // 1日の一覧
+            ) : null,   // 1日の見方の時だけ
+            view === "day" ? dayList({ assignments: assignments.filter((shift) => shift.date === date), members, hours: hoursOn(storeHours, date, dayType(date, holidays)) }) : null,   // 1日の一覧
           )
         : createElement("div", { class: "screen-body" }, createElement("div", { class: "card" }, "この店舗には、まだ公開されたシフトはありません")),   // 週がない時の文
+    );
+  }
+
+  /** 週／日の切りかえ（選んだ見方はこのスマホに覚える） */
+  function viewSwitch() {   // 見方の切りかえを作る関数
+    const pick = (next) => { view = next; saveView(next); draw(); };   // 見方を変える
+    return createElement("div", { class: "seg published-seg", role: "group", "aria-label": "見方" },   // 切りかえの枠
+      createElement("button", { class: "seg__btn", "aria-pressed": String(view === "week"), onclick: () => pick("week") }, "週"),   // 1週間の表
+      createElement("button", { class: "seg__btn", "aria-pressed": String(view === "day"), onclick: () => pick("day") }, "日"));   // 1日の線
+  }
+
+  /** 1週間の表（たて＝人・よこ＝7日。マスを押すとその日の線の見方へ） */
+  function weekCard() {   // 1週間の表のカードを作る関数
+    const dates = datesOf(period);   // 7日
+    return createElement("section", { class: "card card--tight" },   // カード
+      weekGrid({   // 1週間の表（シフト作成と同じ部品）
+        dates,   // 7日
+        members: members.filter((member) => member.active && assignments.some((shift) => shift.memberId === member.id)),   // この週に入っている人だけ
+        assignments,   // この週の勤務
+        elsewhere: [],   // ほかの店舗の勤務は出さない
+        availabilities: [],   // 希望は出さない（店長だけが見る）
+        problemDays: new Set(),   // 問題の印は出さない
+        closedDays: new Set(dates.filter((eachDate) => hoursOn(storeHours, eachDate, dayType(eachDate, holidays)).closed)),   // お休みの日
+        selectedId: state.user.id,   // 自分の行に色をつける
+        onPick: (pickedDate) => { date = pickedDate; view = "day"; saveView("day"); draw(); window.scrollTo(0, 0); },   // マスを押したらその日へ
+      }),
+      createElement("div", { class: "home-muted wk__help" }, "マスを押すと、その日を時間の線で見られます。色の行が自分です"),   // 使い方
     );
   }
 
@@ -129,4 +160,17 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
     await loadWeek(published.find((period) => period.id === event.target.value));   // 選んだ週を読む
     draw();   // 描く
   }
+}
+
+/** 公開シフトの見方を覚える名前 */
+const VIEW_KEY = "shiftapp-published-view";   // このスマホに覚える名前
+
+/** 前に選んだ見方を読む（はじめは1週間） */
+function readView() {   // 見方を読む関数
+  try { return localStorage.getItem(VIEW_KEY) === "day" ? "day" : "week"; } catch { return "week"; }   // 読めない時は1週間
+}
+
+/** 見方を覚える（覚えられなくても止めない） */
+function saveView(view) {   // 見方を覚える関数
+  try { localStorage.setItem(VIEW_KEY, view); } catch { /* 覚えられなくても使える */ }   // 覚える
 }

@@ -58,7 +58,7 @@ export function weekGrid(props) {   // 1週間のシフト表を作る関数
           createElement("th", { class: "wk__corner" }, "名前"),   // 左上
           props.dates.map((date) => createElement("th", { class: "wk__day" },   // 日付のマス
             createElement("button", { class: "wk__dayBtn", onclick: () => props.onPick(date, null), "aria-label": `${label(date)} を1日の画面で開く` },   // 押すとその日を開く
-              createElement("span", { class: `wk__date${dayClass(date)}` }, label(date).replace(/（.）/, "")),   // 「11/16」
+              createElement("span", { class: `wk__date${dayClass(date)}` }, String(Number(date.slice(8)))),   // 日にち（例「16」。紙のシフト表と同じく月は出さない。2026年11月15日）
               createElement("span", { class: `wk__dow${dayClass(date)}` }, label(date).match(/（(.)）/)?.[1] || ""),   // 「月」
               props.problemDays.has(date) ? createElement("span", { class: "wk__dot", "aria-label": "守れていないルールあり" }) : null,   // 問題がある日の赤い点
               props.closedDays?.has(date) ? createElement("span", { class: "wk__closed" }, "休業") : null))),   // お休みの日の印
