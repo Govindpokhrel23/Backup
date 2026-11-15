@@ -46,6 +46,7 @@ const pct = (minute) => ((minute - START) / SPAN) * 100;   // 時間を表の左
  * @param {boolean}  [props.editable]      ドラッグで直せるか
  * @param {(memberId:string)=>void} [props.onSelect]   名前や線を押した時
  * @param {(assignment:object, change:object)=>void} [props.onChange] ドラッグが終わった時
+ * @param {(memberId:string)=>void} [props.onDoubleTap] 人の行を2回タップした時（時間をすぐ直す。2026年11月15日）
  */
 export function timeline(props) {   // 1日のタイムライン（横の棒の表）を作る関数
   START = props.start ?? CONFIG.DAY_START;   // 始まりの時間
@@ -120,7 +121,7 @@ function memberRow(props, member) {   // 1人の行を作る関数
     createElement("button", { class: "tl__name tl__name--btn", onclick: () => props.onSelect?.(member.id) },   // 名前のボタン（押すと右の欄に出す）
       createElement("span", { class: "tl__person" }, member.name),   // 名前
     ),
-    createElement("div", { class: "tl__track tl__track--grid" },   // 棒の所（うしろにマス目）
+    createElement("div", { class: "tl__track tl__track--grid", onclick: () => doubleTap(props, member.id) },   // 棒の所（うしろにマス目）。2回タップで時間をすぐ直す
       // 希望（薄い緑の帯）
       hope && hope.kind === "time"   // 時間の希望なら
         ? createElement("div", { class: "tl__hope", style: { left: `${pct(hope.from)}%`, width: `${pct(hope.to) - pct(hope.from)}%` } })   // うすい色で希望の時間を出す
@@ -139,6 +140,18 @@ function memberRow(props, member) {   // 1人の行を作る関数
       work.map((shift) => bar(props, shift)),   // この店舗の勤務の棒
     ),
   );
+}
+
+/** 2回タップを見分ける（400ミリ秒の中に同じ人を2回押したら） */
+let lastTap = { id: null, at: 0 };   // 前に押した人と時刻
+function doubleTap(props, memberId) {   // 2回タップを調べる関数
+  const now = Date.now();   // 今の時刻
+  if (lastTap.id === memberId && now - lastTap.at < 400) {   // 同じ人をすぐもう1回押したら
+    lastTap = { id: null, at: 0 };   // 記録を消す
+    props.onDoubleTap?.(memberId);   // 知らせる
+    return;   // 終わり
+  }
+  lastTap = { id: memberId, at: now };   // 1回目として覚える
 }
 
 /**

@@ -44,6 +44,8 @@ import { dayList } from "../components/day-list.js";   // 1日の一覧の部品
 import { printWeek } from "../components/print-week.js";   // 印刷の道具を読む
 import { laborCost, minutesByMember, hoursText, yen } from "../lib/labor.js";
 import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む（2026年11月15日）
+import { defaultBreak } from "../lib/breaks.js";   // 休憩の目安の位置を決める道具を読む
+import { openQuickTime } from "../components/quick-time.js";   // 時間をすぐ直す小さい画面を読む（2026年11月15日）
 import { hopeList } from "../components/hope-list.js";   // 希望の一覧の部品を読む（2026年11月15日）
 import { weekGrid } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月10日）   // 時間とお金の計算の道具を読む
 
@@ -184,6 +186,24 @@ export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   /
     history.push(work);   // 今の状態を記録
     change();   // 変える
     persist();   // 保存して描く
+  }
+
+  /** 2回タップした人の時間を、小さい画面で直す（2026年11月15日） */
+  function quickTime(id) {   // 時間をすぐ直す関数
+    if (locked()) { toast("公開済みです。直す時は「編集する」を押してください"); return; }   // 公開済みなら止める
+    const member = members.find((person) => person.id === id);   // その人
+    if (!member) return;   // いなければ何もしない
+    const shift = work.find((each) => each.memberId === id && each.date === date) || null;   // その日の勤務（1つめ）
+    const hope = hopes.find((each) => each.memberId === id && each.date === date) || null;   // その日の希望
+    openQuickTime({ member, date, shift, hope, onSave: (result) => {   // 小さい画面を出す
+      selectedId = id;   // その人を選ぶ
+      if (result.remove) { edit(() => { work = work.filter((each) => !(each.memberId === id && each.date === date)); }); return; }   // 消す
+      edit(() => {   // 変える
+        const breakAt = result.to - result.from >= CONFIG.BREAK_NEEDED_MIN ? defaultBreak(result.from, result.to) : null;   // 長い勤務なら休憩の目安を真ん中に
+        if (shift) { shift.from = result.from; shift.to = result.to; shift.breakAt = breakAt; }   // 時間を変える
+        else work.push({ memberId: id, date, from: result.from, to: result.to, area: member.skills.kitchen > member.skills.hall ? "kitchen" : "hall", breakAt, fixed: false, createdBy: "manager", requested: false });   // 足す（得意な場所で）
+      });
+    } });
   }
 
   /** 元に戻す／やり直す */
@@ -428,6 +448,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   /
               editable: !locked(),   // 動かせるか
               onSelect: (id) => { selectedId = id; draw(); },   // 人を選んだ時
               onChange: (shift, change) => { selectedId = shift.memberId; edit(() => Object.assign(shift, change)); },   // 棒を動かした時
+              onDoubleTap: (id) => quickTime(id),   // 2回タップした時：小さい画面で時間を直す
             }),
             legend(),   // 色の説明
           ),

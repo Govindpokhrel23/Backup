@@ -483,3 +483,11 @@
 .wk__day.is-today, .hope-list__table th.is-today { background: #FDE7B0; border-radius: 6px 6px 0 0; }   /* 今日の日付（黄色） */
 .wk__cell.is-today, .hope-list__cell.is-today { background: #FFF4D6; }   /* 今日の列（うすい黄色） */
 .day-tab.is-today { box-shadow: inset 0 -3px 0 #E0A526; }   /* 「日」のタブの今日（下に黄色の線） */
+/* 2回タップの小さい画面（2026年11月15日） */
+.quick-time { display: flex; flex-direction: column; gap: 10px; }   /* 中身を縦に並べる */
+.quick-time__hope { font-size: 17px; font-weight: 700; color: #2F7D4F; }   /* 希望（緑） */
+.quick-time__hope.is-off { color: var(--danger); }   /* 休み・入れない（赤） */
+.quick-time__row { display: flex; align-items: center; gap: 8px; font-size: 18px; }   /* 始まり〜終わり */
+.quick-time__select { flex: 1; font-size: 18px; }   /* 時刻を選ぶ欄 */
+.quick-time__remove { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--danger); }   /* 消すチェック */
+.tl__track { touch-action: manipulation; }   /* 2回タップで画面が拡大しないように（2回タップで時間を直すため） */
