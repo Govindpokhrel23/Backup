@@ -24,6 +24,7 @@ jobs:   # やること
       - uses: actions/checkout@v4   # コードを取ってくる
         with:   # 設定
           fetch-depth: 0   # 今までの記録も全部取ってくる（お店の方にも全部残す）
+          persist-credentials: false   # 個人の GitHub の鍵を残さない（残すとお店に送る時にじゃまをする）
 
       - name: お店の GitHub に送る   # 本体
         env:   # 使う値
