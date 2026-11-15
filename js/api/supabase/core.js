@@ -175,6 +175,7 @@ export const reqMap = mapper([["id", "id"], ["positionId", "position_id"], ["sto
 export const swapMap = mapper([   // 交代の変換
   ["id", "id"], ["assignmentId", "assignment_id"], ["storeId", "store_id"], ["date", "date"], ["from", "from_min"], ["to", "to_min"],   // ID・勤務・店舗・日・時間
   ["area", "area"], ["fromMemberId", "from_member_id"], ["takerId", "taker_id"], ["note", "note"], ["status", "status"], ["createdAt", "created_at"],   // 場所・お願いした人・代わる人・メモ・状態・時間
+  ["targets", "targets"],   // 頼む人（空なら行ける人みんな。2026年11月15日）
 ]);
 
 /** 人が足りない時の募集 */

@@ -181,6 +181,7 @@ create table if not exists swaps (   -- 交代の表
   status         text not null default 'open' check (status in ('open','taken','approved','rejected','canceled')),   -- 状態
   created_at     timestamptz not null default now()                   -- 日時
 );
+alter table swaps add column if not exists targets jsonb not null default '[]';   -- 頼む人（空なら行ける人みんな。2026年11月15日）
 
 -- 人が足りない時の募集（自動連絡）
 create table if not exists calls (   -- 人が足りない時の募集の表
@@ -424,6 +425,7 @@ begin   -- 始まり
   select * into x from swaps where id = p_swap_id and store_in_my_company(store_id);   -- 交代を探す
   if x.id is null or x.status <> 'open' then raise exception 'この交代はもう受け付けていません'; end if;   -- 募集中でなければ止める
   if x.from_member_id = me_id then raise exception '自分の勤務には代われません'; end if;   -- 自分の勤務なら止める
+  if jsonb_array_length(x.targets) > 0 and not (x.targets ? me_id) then raise exception 'この交代は、頼まれた人だけが代われます'; end if;   -- 頼む人を決めてあれば、その人だけ
   if exists(select 1 from assignments a where a.member_id = me_id and a.date = x.date and a.from_min < x.to_min and x.from_min < a.to_min) then   -- 同じ時間に勤務があれば
     raise exception '同じ時間にほかの勤務が入っています';   -- 止める
   end if;   -- ここまで

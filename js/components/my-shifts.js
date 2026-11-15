@@ -16,7 +16,13 @@ import { range, fmt } from "../lib/time.js";   // 時間の表示の道具を読
 /** 交代：お願い中なら状態、まだならボタン */
 function swapPart(props, shift) {   // 交代のお願いの部分を作る関数
   const sw = (props.swaps || []).find((swap) => swap.assignmentId === shift.id && ["open", "taken"].includes(swap.status));   // この勤務の交代のお願い（募集中・承認待ち）
-  if (sw) return createElement("span", { class: "badge badge--warn" }, sw.status === "open" ? "交代をさがし中" : `${sw.takerName}さんが代わる予定（店長の承認待ち）`);   // もう交代を出していれば、その状態を出す
+  if (sw && sw.status === "taken") return createElement("span", { class: "badge badge--warn" }, `${sw.takerName}さんが代わる予定（店長の承認待ち）`);   // 代わる人が決まって承認待ち
+  if (sw) return createElement("div", { class: "my-shifts__swapbox" },   // さがし中（2026年11月15日：直す・取り下げるを足した）
+    createElement("span", { class: "badge badge--warn" }, sw.targets?.length ? `交代をさがし中（${sw.targets.length}人に頼んでいます）` : "交代をさがし中（行ける人みんな）"),   // 状態
+    sw.note ? createElement("div", { class: "home-muted" }, `メッセージ：${sw.note}`) : null,   // メッセージ
+    createElement("div", { class: "chip-row" },   // ボタンの行
+      props.onEditSwap ? createElement("button", { class: "btn btn--small", onclick: () => props.onEditSwap(shift, sw) }, "✏️ 直す") : null,   // 直す
+      props.onCancelSwap ? createElement("button", { class: "btn btn--small", onclick: () => props.onCancelSwap(sw) }, "取り下げる") : null));   // 取り下げる
   if (!props.onSwap || !shift.id) return null;   // 交代を出せない時は何も出さない
   return createElement("button", { class: "btn btn--small my-shifts__swap", onclick: () => props.onSwap(shift) }, "交代をお願いする");   // 「交代をお願いする」ボタン
 }
@@ -29,6 +35,8 @@ function swapPart(props, shift) {   // 交代のお願いの部分を作る関�
  * @param {number}   [props.limit]      いくつまで出すか
  * @param {object[]} [props.swaps]      自分が出した交代のお願い（募集中・承認待ちを出す）
  * @param {(a:object)=>void} [props.onSwap]  「交代をお願いする」を押した時（ないとボタンを出さない）
+ * @param {(a:object, swap:object)=>void} [props.onEditSwap] 「直す」を押した時（さがし中のお願い）
+ * @param {(swap:object)=>void} [props.onCancelSwap] 「取り下げる」を押した時
  */
 export function myShifts(props) {   // 自分のシフトのカードを作る関数
   const now = today();   // 今日の日付
