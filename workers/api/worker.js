@@ -14,7 +14,7 @@
 //   SUPABASE_URL          … Supabase の Project URL
 //   SUPABASE_SERVICE_KEY  … Supabase の Secret key（sb_secret_…。古い画面では service_role key）。秘密！アプリには絶対に入れない
 //   GEMINI_API_KEY        … Google AI Studio の鍵（秘密）
-//   ALLOWED_ORIGIN        … アプリのURL（例 https://shiftapp.pages.dev）
+//   ALLOWED_ORIGIN        … アプリのURL（wrangler.toml に書いてある）
 //   LOGIN_EMAIL_DOMAIN    … アプリの config.js と同じ（login.shiftapp.example.com）
 //   VAPID_PUBLIC_KEY      … 通知の鍵（公開してよい方）。tools/make-vapid.html で作る。アプリの config.js にも同じものを入れる
 //   VAPID_PRIVATE_JWK     … 通知の鍵（秘密の方。JSON の文字のまま貼る）

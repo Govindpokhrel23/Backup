@@ -13,3 +13,8 @@ compatibility_date = "2026-10-01"    # Cloudflare の動き方の日付
 # Cloudflare の画面で入れた値（SUPABASE_URL・ALLOWED_ORIGIN・秘密の鍵）を、公開する時に消さない（2026年11月12日）
 # → 値はここには書かない。全部 Cloudflare の画面（Settings → Variables and Secrets）で入れる
 keep_vars = true
+
+# 秘密ではない値（GitHub から公開する時に、この値が入る。2026年11月15日）
+[vars]
+SUPABASE_URL = "https://stvaodfduawfbiuvgrji.supabase.co"   # お店の Supabase の住所
+ALLOWED_ORIGIN = "https://aichi21cafe-shift.pages.dev"      # アプリの URL（ここ以外のサイトからは使わせない）

@@ -10,6 +10,9 @@
 # GitHub の Settings → Secrets and variables → Actions に入れておくもの：
 #   CLOUDFLARE_API_TOKEN  … Cloudflare の API トークン（Workers と Pages を編集できるもの）。秘密！
 #   CLOUDFLARE_ACCOUNT_ID … Cloudflare のアカウントID（秘密ではないが、ここに書かない）
+#   SUPABASE_SERVICE_KEY  … Supabase の Secret key（sb_secret_…）。Worker に入る。秘密！
+#   GEMINI_API_KEY        … Gemini の鍵（AIza…）。Worker に入る。秘密！
+# Worker の URL は公開した時に分かるので、アプリの config.js に自動で入れる（手で書かなくてよい）
 # ============================================================
 
 name: deploy   # GitHub の画面に出る名前
@@ -39,15 +42,28 @@ jobs:   # やること
           npm test   # 全部のテスト
 
       - name: サーバー（Worker）を公開する   # ②
+        id: worker   # 下で URL を使うための名前
         uses: cloudflare/wrangler-action@v3   # Cloudflare の公式の道具
         with:   # 設定
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}   # 秘密のトークン
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # アカウントID
           workingDirectory: workers/api   # Worker のフォルダ（wrangler.toml がある所）
           command: deploy   # 公開する
+          secrets: |   # Worker に入れる秘密の値（GitHub の Secrets から）
+            SUPABASE_SERVICE_KEY
+            GEMINI_API_KEY
+        env:   # 上の秘密の値の中身
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}   # Supabase の Secret key
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}   # Gemini の鍵
 
       - name: アプリのファイルを作る   # ③ の準備
-        run: sh tools/make-site.sh   # dist フォルダを作る
+        run: |   # 動かすコマンド
+          sh tools/make-site.sh   # dist フォルダを作る
+          # 公開した Worker の URL を、アプリの設定（config.js）に自動で入れる
+          if [ -n "${{ steps.worker.outputs.deployment-url }}" ]; then
+            sed -i "s#API_WORKER_URL: \"[^\"]*\"#API_WORKER_URL: \"${{ steps.worker.outputs.deployment-url }}\"#" dist/js/config.js
+          fi
+          grep -n "API_WORKER_URL:" dist/js/config.js   # 入った値をログに出す
 
       - name: アプリ（Pages）の入れ物を用意する   # はじめての時だけ作る（もうあれば何もしない）
         uses: cloudflare/wrangler-action@v3   # Cloudflare の公式の道具
@@ -55,11 +71,11 @@ jobs:   # やること
         with:   # 設定
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}   # 秘密のトークン
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # アカウントID
-          command: pages project create shiftapp --production-branch main   # Pages の入れ物を作る
+          command: pages project create aichi21cafe-shift --production-branch main   # Pages の入れ物を作る
 
       - name: アプリ（Pages）を公開する   # ③
         uses: cloudflare/wrangler-action@v3   # Cloudflare の公式の道具
         with:   # 設定
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}   # 秘密のトークン
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # アカウントID
-          command: pages deploy dist --project-name shiftapp --branch main   # dist を公開する
+          command: pages deploy dist --project-name aichi21cafe-shift --branch main   # dist を公開する
