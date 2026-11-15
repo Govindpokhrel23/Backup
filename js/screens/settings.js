@@ -33,7 +33,7 @@ function pushCard() {   // 通知のカードを作る関数
     const on = await isPushOn();                                                                   // 今オンか
     box.replaceChildren(   // 中身を入れかえる
       createElement("h2", { class: "card__title" }, "スマホへの通知"),   // 見出し
-      createElement("div", { class: "home-muted" }, on ? "このスマホで通知を受け取っています（シフトの公開・変更・交代・人が足りない時）" : "シフトが公開された時・変わった時などに、スマホに通知が来ます"),   // 今の状態の説明
+      createElement("div", { class: "home-muted" }, on ? "このスマホで通知を受け取っています（シフトの公開・変更・人が足りない時）" : "シフトが公開された時・変わった時などに、スマホに通知が来ます"),   // 今の状態の説明
       createElement("button", { class: `btn ${on ? "" : "btn--primary"}`, onclick: async () => {   // オン・オフのボタン
         try {   // 失敗しても止まらないように
           if (on) await turnOffPush((endpoint) => api.deletePushSubscription(endpoint));   // オンならオフにする

@@ -58,7 +58,7 @@ const TABS = {   // 下のタブ
     { path: "/store", label: "店舗", icon: "store" },                  // 店員管理・地図・集計・店舗の追加などのメニュー
   ],
   staff: [                                                            // 店員のタブ（4つ）
-    { path: "/home", label: "ホーム", icon: "home" },                  // 次のシフト・お知らせ・交代のお願い
+    { path: "/home", label: "ホーム", icon: "home" },                  // 次のシフト・お知らせ
     { path: "/kibou", label: "希望入力", icon: "edit" },               // 入れる日・時間と休み希望を出す
     { path: "/calendar", label: "カレンダー", icon: "calendar" },      // 自分の勤務を月のカレンダーで見る
     { path: "/published", label: "公開シフト", icon: "list" },         // お店全員の決まったシフトを見る

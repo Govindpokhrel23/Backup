@@ -5,11 +5,11 @@
 // 店員：①いちばん上に「希望を入れる」ボタン
 //       ②その下に自分のシフト（今日 → 明日 → 明後日 の順。昨日のものは消える）
 //       ③お知らせ
-//       ほかの人の「交代のお願い」に「代わります」
 // 店長：店舗の切り替え（3店舗）、受付の状態（締め切る／再開する・未提出の人に催促）、
-//       交代の承認、公開シフトを確認していない人、
+//       公開シフトを確認していない人、
 //       人が足りない日と時間、自分のシフト（店長も仕事に入る）
 //       （店舗の設定は「店舗」タブにまとめた。2026年11月15日）
+// 2026年11月15日：シフト交代の機能はなくした（店長と本人で直接話して、店長がシフト作成で直す）
 // 2026年11月5日：人が足りない時の自動連絡
 //   店長 → 「入れます」と返事した人を見て「この人に入ってもらう」
 //   店員 → 届いた募集に「入れます」
@@ -48,7 +48,6 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
   const period = workingPeriod(periods);   // 作っている週
   const hopes = period ? await api.listAvailabilities(period.id) : [];   // その週の希望
   const shortCard = period ? await shortageCard(period) : null;   // 人が足りない時間のカード
-  const swaps = await api.listSwaps();   // 交代のお願い
   const calls = await api.listCalls();                     // 人が足りない時の募集（さがし中）
   // 公開済みでいちばん新しい週の「確認しました」
   const published = periods.filter((period) => period.status === "published").pop();   // 一番新しい公開した週
@@ -98,7 +97,6 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
       storeSwitcher(app),   // 店舗の切りかえ
       statusCard,   // 今の週の状態
       callsManagerCard(app, calls),   // 人が足りない時の募集
-      swapApprovalCard(app, swaps),   // 交代の承認
       shortCard,   // 足りない時間
       published ? confirmCard(published, members, confirms) : null,   // 公開シフトの確認
       // 店長も仕事に入るので、自分のシフトも出す
@@ -126,28 +124,6 @@ function storeSwitcher(app) {   // 店舗の切りかえのカードを作る関
           renderHome(app);   // 描きなおす
         },
       }, eachStore.name))),   // 店舗の名前
-  );
-}
-
-/**
- * 交代の承認（7shifts の「シフトプール」の承認と同じ考え方）
- * 代わる人が決まったものを、店長が「承認／見送り」する
- */
-function swapApprovalCard(app, swaps) {   // 交代の承認のカードを作る関数
-  const waiting = swaps.filter((swap) => swap.status === "taken");   // 店長の承認待ち
-  const open = swaps.filter((swap) => swap.status === "open");   // 代わる人をさがし中
-  if (!waiting.length && !open.length) return null;   // 何もなければ出さない
-  return createElement("section", { class: "card" },   // カード
-    createElement("h2", { class: "card__title" }, "シフト交代"),   // 見出し
-    waiting.map((swap) => createElement("div", { class: "swap-row" },   // 承認待ちごとに
-      createElement("div", null,   // 左側
-        createElement("strong", null, `${label(swap.date)} ${range(swap.from, swap.to)}`),   // 日付と時間
-        createElement("div", { class: "home-muted" }, `${swap.fromName} → ${swap.takerName}（承認待ち）${swap.note ? `　理由：${swap.note}` : ""}`)),   // だれからだれへ
-      createElement("div", { class: "chip-row" },   // ボタンの行
-        createElement("button", { class: "btn btn--small btn--primary", onclick: async () => { await api.decideSwap(swap.id, true); toast("承認しました。シフトを入れ替えました"); renderHome(app); } }, "承認"),   // 承認
-        createElement("button", { class: "btn btn--small", onclick: async () => { await api.decideSwap(swap.id, false); toast("見送りました"); renderHome(app); } }, "見送り"),   // 却下
-      ))),
-    open.length ? createElement("div", { class: "home-muted" }, `代わる人をさがし中：${open.map((swap) => `${label(swap.date)} ${swap.fromName}`).join("、")}`) : null,   // さがし中の交代
   );
 }
 
@@ -223,26 +199,10 @@ async function shortageCard(period) {   // 足りない時間のカードを作�
 // 店員のホーム
 // ------------------------------------------------------------
 async function renderStaffHome(app) {   // 店員のホームを描く関数
-  const [periods, mine, notes, stores, swaps, calls] = await Promise.all([   // 週・自分の勤務・お知らせ・店舗・交代・募集
-    api.listPeriods(), api.listMyAssignments(), api.listNotifications(), api.listStores(), api.listSwaps(), api.listCalls(),   // 週・自分の勤務・お知らせ・店舗・交代・募集を同時に読む
+  const [periods, mine, notes, stores, calls] = await Promise.all([   // 週・自分の勤務・お知らせ・店舗・募集
+    api.listPeriods(), api.listMyAssignments(), api.listNotifications(), api.listStores(), api.listCalls(),   // 週・自分の勤務・お知らせ・店舗・募集を同時に読む
   ]);
   const open = openPeriod(periods);   // 受付中の週
-  const mySwaps = swaps.filter((swap) => swap.fromMemberId === state.user.id);   // 自分が出した交代のお願い
-  const othersOpen = swaps.filter((swap) => swap.status === "open" && swap.fromMemberId !== state.user.id);   // ほかの人の交代のお願い（さがし中）
-
-  /** 「交代をお願いする」：理由を聞いてからお願いを出す */
-  const askSwap = async (shift) => {   // 交代をお願いする関数
-    const note = createElement("textarea", { class: "textarea", placeholder: "理由（なくてもOK）例：学校の用事" });   // 理由を書く欄
-    const ok = await confirmDialog({   // お願いするか聞く
-      title: `${label(shift.date)} ${range(shift.from, shift.to)} の交代をお願いしますか？`,   // 確認のタイトル
-      body: createElement("div", null, createElement("p", { style: { margin: "0 0 8px" } }, "行ける人に知らせます。代わる人が決まったら、店長が承認して入れ替わります。"), note),   // 説明とメモの欄
-      yes: "お願いする", no: "やめる",   // ボタンの文字
-    });
-    if (!ok) return;   // 「やめる」なら止める
-    try { await api.offerShift(shift.id, note.value.trim()); toast("交代のお願いを出しました"); }   // お願いする
-    catch (error) { toast(error.message); }   // 失敗したら理由を出す
-    renderHome(app);   // 描きなおす
-  };
 
   mount(app,   // 画面に入れる
     screenHeader({ title: "ホーム", sub: state.user.name, right: settingsButton() }),   // 見出し
@@ -253,7 +213,7 @@ async function renderStaffHome(app) {   // 店員のホームを描く関数
         createElement("span", { class: "home-kibou__sub" },   // 小さい説明
           open ? `${weekLabel(open)} の締切 ${deadlineLabel(open)} ・ 2か月先まで入れられます` : "2か月先まで入れられます")),   // 締切
       // ② 自分のシフト（今日 → 明日 → 明後日）
-      myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, swaps: mySwaps, onSwap: askSwap }),   // 自分のシフト
+      myShifts({ assignments: mine, stores, myStoreId: state.user.storeId }),   // 自分のシフト
       // 人が足りない時の募集（自分に届いた分）：「入れます」を押す
       calls.length   // 募集が来ていれば
         ? createElement("section", { class: "card call-card" },   // カード
@@ -271,20 +231,6 @@ async function renderStaffHome(app) {   // 店員のホームを描く関数
                     catch (error) { toast(error.message); }   // 失敗したら理由を出す
                     renderHome(app);   // 描きなおす
                   } }, "入れます"))))   // ボタンの文字
-        : null,   // なければ出さない
-      // ほかの人の「交代のお願い」（自分が行ける店舗の分）
-      othersOpen.length   // ほかの人の交代のお願いがあれば
-        ? createElement("section", { class: "card" },   // カード
-            createElement("h2", { class: "card__title" }, "交代のお願い（代われる人をさがしています）"),   // 見出し
-            othersOpen.map((swap) => createElement("div", { class: "swap-row" },   // お願いごとに
-              createElement("div", null,   // 左側
-                createElement("strong", null, `${label(swap.date)} ${range(swap.from, swap.to)}`),   // 日付と時間
-                createElement("div", { class: "home-muted" }, `${swap.storeShort} ・ ${swap.area === "hall" ? "ホール" : "キッチン"} ・ ${swap.fromName}さん${swap.note ? `　理由：${swap.note}` : ""}`)),   // 店舗と場所
-              createElement("button", { class: "btn btn--small btn--primary", onclick: async () => {   // 代わりますボタン
-                try { await api.takeSwap(swap.id); toast("「代わります」を送りました。店長の承認を待ってください"); }   // 引き受ける
-                catch (error) { toast(error.message); }   // 失敗したら理由を出す
-                renderHome(app);   // 描きなおす
-              } }, "代わります"))))   // ボタンの文字
         : null,   // なければ出さない
       // ③ お知らせ
       createElement("section", { class: "card" },   // お知らせのカード

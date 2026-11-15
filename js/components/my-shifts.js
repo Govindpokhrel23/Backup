@@ -13,22 +13,12 @@ import { createElement } from "../lib/dom.js";   // 画面の部品の道具を�
 import { today, addDays, label } from "../lib/date.js";   // 日付の道具を読む
 import { range, fmt } from "../lib/time.js";   // 時間の表示の道具を読む
 
-/** 交代：お願い中なら状態、まだならボタン */
-function swapPart(props, shift) {   // 交代のお願いの部分を作る関数
-  const sw = (props.swaps || []).find((swap) => swap.assignmentId === shift.id && ["open", "taken"].includes(swap.status));   // この勤務の交代のお願い（募集中・承認待ち）
-  if (sw) return createElement("span", { class: "badge badge--warn" }, sw.status === "open" ? "交代をさがし中" : `${sw.takerName}さんが代わる予定（店長の承認待ち）`);   // もう交代を出していれば、その状態を出す
-  if (!props.onSwap || !shift.id) return null;   // 交代を出せない時は何も出さない
-  return createElement("button", { class: "btn btn--small my-shifts__swap", onclick: () => props.onSwap(shift) }, "交代をお願いする");   // 「交代をお願いする」ボタン
-}
-
 /**
  * @param {object} props
  * @param {object[]} props.assignments  自分の勤務（公開済み）
  * @param {object[]} props.stores       店舗の一覧（店名を出すため）
  * @param {string}   props.myStoreId    自分のいつもの店舗（応援を見分けるため）
  * @param {number}   [props.limit]      いくつまで出すか
- * @param {object[]} [props.swaps]      自分が出した交代のお願い（募集中・承認待ちを出す）
- * @param {(a:object)=>void} [props.onSwap]  「交代をお願いする」を押した時（ないとボタンを出さない）
  */
 export function myShifts(props) {   // 自分のシフトのカードを作る関数
   const now = today();   // 今日の日付
@@ -60,7 +50,6 @@ export function myShifts(props) {   // 自分のシフトのカードを作る�
               createElement("div", { class: "home-muted" },   // 小さい説明
                 `${shift.area === "hall" ? "ホール" : "キッチン"}${shift.breakAt != null ? ` ・ 休憩 ${fmt(shift.breakAt)}` : ""}`),   // 場所と休憩の時間
               help ? createElement("span", { class: "badge badge--warn" }, "応援") : null,   // ほかの店舗なら「応援」の印
-              swapPart(props, shift),   // 交代のお願いの部分
             );
           }))
       : createElement("div", { class: "home-muted" }, "これからの予定はまだありません（公開されると出ます）"),   // 予定がない時の文
