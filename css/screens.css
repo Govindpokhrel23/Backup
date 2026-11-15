@@ -464,3 +464,18 @@
 .hope-list__cell.is-time { color: #2A62A8; }   /* 時間指定（青） */
 .hope-list__help { font-size: 11px; margin-top: 6px; }   /* 記号の説明 */
 .published-seg { margin: 0 0 4px auto; }   /* 公開シフトの週／日の切りかえ（右によせる） */
+
+/* ---------- シフト作成の見出しを小さく（2026年11月15日） ---------- */
+.screen-header--compact { padding-top: 8px; padding-bottom: 6px; gap: 4px; }   /* すきまを詰める */
+.store-tabs { display: flex; gap: 4px; }   /* 店舗の切りかえの行 */
+.store-tabs__btn { flex: 1; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 0; font-size: 14px; font-weight: 700; color: var(--ink-2); }   /* 店舗のボタン */
+.store-tabs__btn[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }   /* 今の店舗 */
+.editor-status { font-size: 11px; color: var(--ink-3); }   /* 受付中などの小さい文字 */
+.screen-header--compact .week-nav__label { font-size: 14px; white-space: nowrap; }   /* 週の日付を1行に */
+.screen-header--compact .btn--icon { width: 34px; height: 34px; min-height: 34px; padding: 0; }   /* ‹ › を小さく */
+.screen-header--compact .seg__btn { padding: 6px 12px; font-size: 13px; }   /* 週／日を小さく */
+.screen-header--compact .editor-actions .btn--tiny { padding: 6px 10px; font-size: 13px; min-height: 34px; }   /* ボタンの行を小さく */
+.need-day { padding: 6px 0; border-top: 1px solid var(--line); }   /* 足りない時間の1日分 */
+.need-day:first-of-type { border-top: none; }   /* 最初は線なし */
+.need-day__date { font-weight: 700; font-size: 14px; }   /* 「11/16（月）」 */
+.need-day__row { font-size: 14px; color: var(--danger); padding-left: 8px; }   /* 「キッチン 8:00〜22:00 2人」 */

@@ -25,7 +25,6 @@
 import { createElement, mount, toast, confirmDialog, busy } from "../lib/dom.js";   // 画面の部品の道具を読む
 import { api } from "../api/index.js";   // データの窓口を読む
 import { CONFIG } from "../config.js";   // 設定を読む
-import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
 import { timeline } from "../components/timeline.js";   // タイムラインの部品を読む
 import { checkDay, checkWeek, onlyProblems, requiredAt, assignedAt, findShortages } from "../rules/shift-rules.js";   // シフトのルールの道具を読む
 import { runAiDraft, fixWithAi } from "../ai/draft-service.js";   // AIで下書き・直す道具を読む
@@ -34,10 +33,10 @@ import { aiResultCard } from "../components/ai-result.js";   // AIの結果の�
 import { openAddPerson } from "../components/add-person.js";   // 人を追加の小さい画面を読む
 import { mergeNeeds } from "../rules/candidates.js";   // 足りない時間をまとめる道具を読む
 import { go } from "../router.js";   // 画面を移動する道具を読む
-import { STATUS_LABEL, weekLabel, datesOf, workingPeriod } from "../lib/period.js";   // 週の表示の道具を読む
+import { STATUS_LABEL, weekLabel, weekShort, datesOf, workingPeriod } from "../lib/period.js";   // 週の表示の道具を読む
 import { label, dayType, addDays, mondayOf, toIso, monthStart, monthEnd } from "../lib/date.js";   // 日付の道具を読む
 import { checkLabor, usageOf } from "../rules/labor-rules.js";   // 働き方のルールの道具を読む
-import { state } from "../store.js";   // アプリの状態を読む
+import { state, switchStore, activeStores } from "../store.js";   // アプリの状態・店舗を切りかえる道具を読む
 import { range, EDIT_MIN, EDIT_MAX } from "../lib/time.js";   // 時間の道具を読む
 import { createHistory } from "../lib/history.js";   // 元に戻す・やり直しの道具を読む
 import { assignmentPanel } from "../components/assignment-panel.js";   // 右の欄の部品を読む
@@ -296,14 +295,15 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
     const checks = [...dayChecks(date), ...weekChecks()];   // その日と週のチェック
 
     mount(app,   // 画面に入れる
-      screenHeader({   // 見出し
-        title: "シフト作成",   // タイトル
-        sub: view === "week" ? STATUS_LABEL[period.status] : `${STATUS_LABEL[period.status]} ・ ${label(date)} ${isClosed(date) ? "はお休み" : `の営業 ${range(hoursOf(date).open, hoursOf(date).close)}`}`,   // 状態（日の見方なら営業時間も）
-        extra: [   // 見出しの下
+      // 見出し（2026年11月15日：「シフト作成」の文字はなくして、いちばん上で店舗を切りかえる）
+      createElement("header", { class: "screen-header screen-header--compact" },   // 見出しの入れ物
+        storeTabs(),   // 店舗の切りかえ（押すとその店舗のシフトになる）
+        createElement("div", { class: "editor-status" },   // 状態の小さい行
+          view === "week" ? STATUS_LABEL[period.status] : `${STATUS_LABEL[period.status]} ・ ${label(date)} ${isClosed(date) ? "はお休み" : `の営業 ${range(hoursOf(date).open, hoursOf(date).close)}`}`),   // 状態（日の見方なら営業時間も）
         // 週の移動（‹ ›）・見方の切りかえ（週／日）・印刷を1行に（2026年11月10日：小さくまとめた）
         createElement("div", { class: "week-nav week-nav--compact" },   // 週を変える行
           createElement("button", { class: "btn btn--icon", onclick: () => moveWeek(-1), "aria-label": "前の週" }, "‹"),   // 前の週
-          createElement("strong", { class: "week-nav__label" }, weekLabel(period)),   // 週の日付
+          createElement("strong", { class: "week-nav__label" }, weekShort(period)),   // 週の日付（短い形「11/16〜11/22」で1行に）
           createElement("button", { class: "btn btn--icon", onclick: () => moveWeek(1), disabled: period.weekStart >= lastWeek, "aria-label": "次の週" }, "›"),   // 次の週
           createElement("div", { class: "seg", role: "group", "aria-label": "見方" },   // 見方の切りかえ
             createElement("button", { class: "seg__btn", "aria-pressed": String(view === "week"), onclick: () => setView("week") }, "週"),   // 1週間の表
@@ -331,8 +331,7 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
             : null,   // 公開後は出さない
           printButton(),   // 印刷
         ),
-        ],
-      }),
+      ),
       createElement("div", { class: "screen-body" },   // 本文
         // いちばん上に「希望の一覧」（店舗ごと。2026年11月15日）
         hopeList({ dates: datesOf(period), members: active, availabilities: hopes, stores: state.stores, storeId: state.storeId, onPick: pickFromWeek }),   // 希望の一覧
@@ -340,6 +339,20 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
         view === "week" ? weekBody() : dayBody(today, checks),   // 1週間の表か、1日のタイムライン
       ),
     );
+  }
+
+  /** いちばん上の店舗の切りかえ（2026年11月15日） */
+  function storeTabs() {   // 店舗の切りかえを作る関数
+    return createElement("div", { class: "store-tabs", role: "group", "aria-label": "店舗" },   // 店舗のボタンの行
+      activeStores().map((eachStore) => createElement("button", {   // 店舗ごとに
+        class: "store-tabs__btn",   // 見た目
+        "aria-pressed": String(eachStore.id === state.storeId),   // 今の店舗に印
+        onclick: async () => {   // 押した時
+          if (eachStore.id === state.storeId) return;   // 同じなら何もしない
+          await switchStore(eachStore.id);   // 切りかえる（ほかの画面もこの店舗になる）
+          await renderShiftEditor(app);   // この店舗のシフトで描きなおす
+        },
+      }, eachStore.short || eachStore.name)));   // 短い名前（例「福釜」）
   }
 
   /** 印刷ボタン（お店に貼る用。PDFにも保存できる） */
@@ -352,7 +365,6 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
 
   /** 「週」の見方：1週間の表＋週のチェック（2026年11月10日） */
   function weekBody() {   // 週の見方の中身を作る関数
-    const problems = allProblems();   // この週の守れていないルール
     const problemDays = new Set(datesOf(period).filter((eachDate) => onlyProblems(dayChecks(eachDate)).length));   // 問題がある日
     return createElement("div", { class: "editor-week" },   // 縦に並べる入れ物
       createElement("section", { class: "card card--tight" },   // 表のカード
@@ -369,13 +381,7 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
         }),
         createElement("div", { class: "home-muted wk__help" }, "マスを押すと、その日を細かく直せます。○・時間＝入れる希望、休＝休み希望"),   // 使い方
       ),
-      createElement("section", { class: "card" },   // 週のチェック
-        createElement("h2", { class: "card__title" }, problems.length ? `守れていないルール（${problems.length}件）` : "ルールのチェック"),   // 見出し
-        problems.length   // 問題があれば
-          ? createElement("ul", { class: "check-list" }, problems.slice(0, 10).map((problem) => createElement("li", { class: "is-ng" }, createElement("strong", null, problem.day), problem.text)))   // 10件まで
-          : createElement("div", { class: "home-muted" }, "✓ この週は全部守れています"),   // なければ
-        !locked() && problems.length ? createElement("button", { class: "btn btn--small btn--blue", onclick: fixByAi }, "✨ AIに直してもらう") : null,   // AIに直してもらう
-      ),
+      // 「守れていないルール」のカードは外した（表の日付の赤い点で分かる。2026年11月15日）
       shortageCard(),   // 足りない時間のカード
       noteCard(),   // 連絡事項のカード
     );
@@ -711,9 +717,11 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
     /** 場所の名前 */
     const area = (need) => (need.area === "hall" ? "ホール" : "キッチン");   // 場所の名前
     return createElement("section", { class: "card" },   // カード
-      createElement("h2", { class: "card__title" }, `人が足りない時間（この週 ${list.length}件）`),   // 見出し
-      createElement("ul", { class: "check-list" }, list.slice(0, 8).map((need) => createElement("li", { class: "is-ng" }, createElement("strong", null, label(need.date)), `${area(need)} ${range(need.from, need.to)} ${need.short}人`))),   // 8件まで
-      list.length > 8 ? createElement("div", { class: "home-muted" }, `ほか ${list.length - 8}件`) : null,   // ほかの件数
+      createElement("h2", { class: "card__title" }, `足りない時間（この週 ${list.length}件）`),   // 見出し
+      // 日ごとに：日付の下に「キッチン 8:00〜22:00 2人」（2026年11月15日）
+      [...new Set(list.map((need) => need.date))].sort().map((eachDate) => createElement("div", { class: "need-day" },   // 1日分
+        createElement("div", { class: "need-day__date" }, label(eachDate)),   // 「11/16（月）」
+        list.filter((need) => need.date === eachDate).map((need) => createElement("div", { class: "need-day__row" }, `${area(need)} ${range(need.from, need.to)} ${need.short}人`)))),   // 場所・時間・人数
       createElement("button", { class: "btn btn--small", onclick: async () => {   // 連絡ボタン
         const result = await api.sendCalls(period.id, list);   // 連絡した結果
         toast(result.sent ? `${result.people}人に連絡しました（${result.sent}件）${result.none ? `。入れそうな人がいない所 ${result.none}件` : ""}` : result.none ? "入れそうな人がいませんでした" : "もう連絡してあります");   // お知らせ
