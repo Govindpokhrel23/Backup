@@ -12,7 +12,7 @@
 // ============================================================
 
 import { createElement } from "../lib/dom.js";                 // 画面の部品を作る道具を読む
-import { label } from "../lib/date.js";                         // 日付を「11/16（月）」にする道具を読む
+import { label, today } from "../lib/date.js";                         // 日付を「11/16（月）」にする道具を読む
 import { workedMinutes, hoursText } from "../lib/labor.js";     // 働いた時間の計算と表示の道具を読む
 
 /** 休み希望の種類（入れない日） */
@@ -56,7 +56,8 @@ export function weekGrid(props) {   // 1週間のシフト表を作る関数
       createElement("thead", null,   // 見出し
         createElement("tr", null,   // 1行
           createElement("th", { class: "wk__corner" }, "名前"),   // 左上
-          props.dates.map((date) => createElement("th", { class: "wk__day" },   // 日付のマス
+          props.dates.map((date) => createElement("th", { class: `wk__day${date === today() ? " is-today" : ""}` },   // 今日は塗りつぶす（2026年11月15日）
+              // 日付のマス
             createElement("button", { class: "wk__dayBtn", onclick: () => props.onPick(date, null), "aria-label": `${label(date)} を1日の画面で開く` },   // 押すとその日を開く
               createElement("span", { class: `wk__date${dayClass(date)}` }, String(Number(date.slice(8)))),   // 日にち（例「16」。紙のシフト表と同じく月は出さない。2026年11月15日）
               createElement("span", { class: `wk__dow${dayClass(date)}` }, label(date).match(/（(.)）/)?.[1] || ""),   // 「月」
@@ -124,6 +125,6 @@ function dayCell(props, member, date) {   // 1つのマスを作る関数
   } else {   // 何もなければ
     inside = null;   // 空のマス
   }
-  return createElement("td", { class: `wk__cell${closed ? " is-closed" : ""}` },   // マス
+  return createElement("td", { class: `wk__cell${closed ? " is-closed" : ""}${date === today() ? " is-today" : ""}` },   // 今日の列は塗りつぶす   // マス
     createElement("button", { class: "wk__cellBtn", onclick: open, "aria-label": `${member.name} ${label(date)}` }, inside));   // 押せるマス
 }

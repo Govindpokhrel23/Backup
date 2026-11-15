@@ -12,7 +12,7 @@
 // ============================================================
 
 import { createElement } from "../lib/dom.js";   // 画面の部品を作る道具を読む
-import { label } from "../lib/date.js";   // 日付を「11/16（月）」にする道具を読む
+import { label, today } from "../lib/date.js";   // 日付を「11/16（月）」にする道具を読む
 
 /** 閉じたかどうかを覚える名前 */
 const OPEN_KEY = "shiftapp-hope-list-open";   // このスマホに覚える名前
@@ -73,7 +73,8 @@ export function hopeList(props) {   // 希望の一覧を作る関数
       createElement("table", { class: "hope-list__table" },   // 表
         createElement("thead", null, createElement("tr", null,   // 見出しの行
           createElement("th", { class: "hope-list__name" }, "名前"),   // 名前
-          props.dates.map((date) => createElement("th", { class: dayClass(date) },   // 日付のマス（土曜は青・日曜は赤）
+          props.dates.map((date) => createElement("th", { class: `${dayClass(date)}${date === today() ? " is-today" : ""}` },   // 今日は塗りつぶす
+              // 日付のマス（土曜は青・日曜は赤）
             createElement("span", { class: "hope-list__date" }, String(Number(date.slice(8)))),   // 日にち（例「16」）
             createElement("span", { class: "hope-list__dow" }, label(date).match(/（(.)）/)?.[1] || ""))),   // 曜日（例「月」）
         )),
@@ -85,7 +86,7 @@ export function hopeList(props) {   // 希望の一覧を作る関数
               member.kind !== "shain" && !sent(member) ? createElement("span", { class: "hope-list__miss" }, "未提出") : null),   // 出していない印
             props.dates.map((date) => {   // 7日
               const cell = cellOf(member, props.availabilities.find((hope) => hope.memberId === member.id && hope.date === date));   // マスの中身
-              return createElement("td", { class: `hope-list__cell ${cell.cls}`, onclick: props.onPick ? () => props.onPick(date, member.id) : null }, cell.text);   // マス
+              return createElement("td", { class: `hope-list__cell ${cell.cls}${date === today() ? " is-today" : ""}`, onclick: props.onPick ? () => props.onPick(date, member.id) : null }, cell.text);   // マス
             }),
           )),
         )),

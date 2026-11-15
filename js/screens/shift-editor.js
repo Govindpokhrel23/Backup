@@ -48,7 +48,7 @@ import { hopeList } from "../components/hope-list.js";   // 希望の一覧の�
 import { weekGrid } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月10日）   // 時間とお金の計算の道具を読む
 
 /** シフト作成の画面を描く（店長） */
-export async function renderShiftEditor(app) {   // シフト作成の画面を描く関数
+export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   // シフト作成の画面を描く関数（openWeek：開く週。なければ今週）
   // ---------- 最初に全部読む ----------
   // periods＝週の一覧 / baseMembers＝この店舗で働ける人 / positions・requirements＝マップと必要人数 /
   // holidays＝祝日 / rules＝人ごとのルール / storeHours＝営業時間 / wages＝時給 / learnings＝店長の直し方
@@ -89,10 +89,13 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
     return mondayOf(toIso(limit));   // その週の月曜日
   })();   // すぐ計算
 
-  // まだ週が1つもない店舗（増やしたばかりの店舗など）は、来週の受付を作って始める
-  if (!period) {   // 週がなければ
-    period = await api.ensurePeriod(addDays(mondayOf(toIso(new Date())), 7));   // 来週を作る
+  // ほかのタブから来た時は「今週」を開く（店舗を切りかえた時は、見ていた週のまま。2026年11月15日）
+  const startWeek = openWeek || mondayOf(toIso(new Date()));   // 開く週の月曜
+  period = periods.find((eachPeriod) => eachPeriod.weekStart === startWeek) || null;   // その週の受付
+  if (!period) {   // まだなければ
+    period = await api.ensurePeriod(startWeek);   // 作る
     periods.push(period);   // 一覧に足す
+    periods.sort((periodA, periodB) => periodA.weekStart.localeCompare(periodB.weekStart));   // 日付順
   }
   await loadPeriod();   // 週の中身を読む
   draw();   // 描く
@@ -128,7 +131,7 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
     elsewhere = all.filter((shift) => shift.storeId !== period.storeId).map((shift) => ({ ...shift, storeShort: shortOf(shift.storeId) }));   // ほかの店舗の勤務
     await loadHistory(end);   // 月・年・連勤のための勤務を読む
     await loadGuests();   // この週だけ足した人を読む
-    if (!date || !datesOf(period).includes(date)) date = period.weekStart;   // 見ている日がこの週になければ週の始まり
+    if (!date || !datesOf(period).includes(date)) date = datesOf(period).includes(toIso(new Date())) ? toIso(new Date()) : period.weekStart;   // 見ている日がこの週になければ、今日（この週なら）か週の始まり
   }
 
   /**
@@ -350,7 +353,7 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
         onclick: async () => {   // 押した時
           if (eachStore.id === state.storeId) return;   // 同じなら何もしない
           await switchStore(eachStore.id);   // 切りかえる（ほかの画面もこの店舗になる）
-          await renderShiftEditor(app);   // この店舗のシフトで描きなおす
+          await renderShiftEditor(app, { weekStart: period.weekStart });   // この店舗のシフトで描きなおす（同じ週のまま）
         },
       }, eachStore.short || eachStore.name)));   // 短い名前（例「福釜」）
   }
@@ -438,7 +441,7 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
     return createElement("div", { class: "day-tabs" },   // タブの入れ物
       datesOf(period).map((eachDate) => {   // 7日ごとに
         const bad = onlyProblems(dayChecks(eachDate)).length > 0;   // 守れていないルールがある日か
-        return createElement("button", { class: "chip day-tab", "aria-pressed": String(eachDate === date), onclick: () => { date = eachDate; draw(); } },   // タブのボタン
+        return createElement("button", { class: `chip day-tab${eachDate === toIso(new Date()) ? " is-today" : ""}`, "aria-pressed": String(eachDate === date), onclick: () => { date = eachDate; draw(); } },   // タブのボタン
           label(eachDate), bad ? createElement("span", { class: "day-tab__dot", "aria-label": "守れていないルールあり" }) : null);   // 日付と問題の赤い点
       }));
   }
