@@ -8,7 +8,8 @@
 //       ほかの人の「交代のお願い」に「代わります」
 // 店長：店舗の切り替え（3店舗）、受付の状態（締め切る／再開する・未提出の人に催促）、
 //       交代の承認、公開シフトを確認していない人、
-//       人が足りない日と時間、自分のシフト（店長も仕事に入る）、店舗の設定
+//       人が足りない日と時間、自分のシフト（店長も仕事に入る）
+//       （店舗の設定は「店舗」タブにまとめた。2026年11月15日）
 // 2026年11月5日：人が足りない時の自動連絡
 //   店長 → 「入れます」と返事した人を見て「この人に入ってもらう」
 //   店員 → 届いた募集に「入れます」
@@ -102,13 +103,7 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
       published ? confirmCard(published, members, confirms) : null,   // 公開シフトの確認
       // 店長も仕事に入るので、自分のシフトも出す
       myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, limit: 5 }),   // 自分のシフト
-      createElement("section", { class: "card" },   // 店舗の設定のカード
-        createElement("h2", { class: "card__title" }, "店舗の設定"),   // 見出し
-        createElement("div", { class: "chip-row" },   // ボタンの行
-          createElement("button", { class: "btn", onclick: () => go("/staff") }, "店員管理"),   // 店員管理へ
-          createElement("button", { class: "btn", onclick: () => go("/map") }, "マップ・必要人数・営業時間"),   // マップへ
-        ),
-      ),
+      // 店舗の設定（店員管理・マップなど）は「店舗」タブにまとめた（2026年11月15日）
     ),
   );
 }
@@ -119,9 +114,7 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
  */
 function storeSwitcher(app) {   // 店舗の切りかえのカードを作る関数
   return createElement("section", { class: "card" },   // カード
-    createElement("div", { class: "screen-header__row" },   // 上の行
-      createElement("h2", { class: "card__title" }, "見ている店舗"),   // 見出し
-      createElement("button", { class: "btn btn--small", onclick: () => go("/stores") }, "店舗の追加・名前変更")),   // 店舗の管理へ
+    createElement("h2", { class: "card__title" }, "見ている店舗"),   // 見出し（店舗の追加・名前変更は「店舗」タブへ移した。2026年11月15日）
     createElement("div", { class: "store-switch" },   // 店舗のボタン
       activeStores().map((eachStore) => createElement("button", {   // 店舗ごとに
         class: "chip store-switch__btn",   // 見た目
