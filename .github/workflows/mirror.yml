@@ -5,7 +5,7 @@
 # お店の GitHub（cafa21sift/shift-app）にも、同じコードを自動でコピーするファイルです（2026年11月15日）。
 #
 # GitHub の Settings → Secrets and variables → Actions に入れておくもの：
-#   STORE_REPO_TOKEN … お店の GitHub で作ったトークン（shift-app だけ・Contents を Read and write）。秘密！
+#   STORE_REPO_TOKEN … お店の GitHub で作ったトークン（shift-app だけ・Contents と Workflows を Read and write）。秘密！
 # 入れていない時は、何もしないで終わる（エラーにしない）
 # ============================================================
 
@@ -18,6 +18,7 @@ on:   # いつ動かすか
 
 jobs:   # やること
   mirror:   # コピーする仕事
+    if: github.repository == 'Govindpokhrel23/shift-app'   # 個人の GitHub の時だけ動かす（お店の方では何もしない）
     runs-on: ubuntu-latest   # GitHub が用意するパソコン（Linux）で動かす
     steps:   # 順番
       - uses: actions/checkout@v4   # コードを取ってくる

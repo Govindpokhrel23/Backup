@@ -7,7 +7,7 @@
 #   ③ アプリ（dist）を Cloudflare Pages に公開する
 # を自動でやる GitHub Actions のファイルです（2026年11月12日）。
 #
-# GitHub の Settings → Secrets and variables → Actions に入れておくもの：
+# お店の GitHub（cafa21sift/shift-app）の Settings → Secrets and variables → Actions に入れておくもの：
 #   CLOUDFLARE_API_TOKEN  … Cloudflare の API トークン（Workers と Pages を編集できるもの）。秘密！
 #   CLOUDFLARE_ACCOUNT_ID … Cloudflare のアカウントID（秘密ではないが、ここに書かない）
 #   SUPABASE_SERVICE_KEY  … Supabase の Secret key（sb_secret_…）。Worker に入る。秘密！
@@ -28,6 +28,7 @@ concurrency:   # 同時に2つ動かさない
 
 jobs:   # やること
   deploy:   # 公開する仕事
+    if: github.repository == 'cafa21sift/shift-app'   # お店の GitHub の時だけ公開する（個人の GitHub では動かさない）
     runs-on: ubuntu-latest   # GitHub が用意するパソコン（Linux）で動かす
     steps:   # 順番
       - uses: actions/checkout@v4   # コードを取ってくる
