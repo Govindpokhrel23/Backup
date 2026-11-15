@@ -69,6 +69,8 @@ export async function renderSettings(app) {   // 設定の画面を描く関数
   mount(app,   // 画面に入れる
     screenHeader({ title: "設定", sub: `${state.user.name}（ID ${state.user.loginId}）` }),   // 見出し（名前とID）
     createElement("div", { class: "screen-body" },   // 本文
+      // 使い方（ヘルプ）の入口（2026年11月15日。店員は「店舗」タブがないので、ここから開く）
+      createElement("button", { class: "btn btn--block", onclick: () => go("/help") }, "📖 使い方（ヘルプ）"),   // ヘルプへ
       createElement("section", { class: "card" },   // ホーム画面に追加のカード
         createElement("h2", { class: "card__title" }, "ホーム画面に追加"),   // 見出し
         createElement("div", { class: "home-muted" }, "iPhoneのSafariで開いて、共有ボタン（□↑）→「ホーム画面に追加」。追加したアプリから開くと、通知を受け取れます。"),   // やり方

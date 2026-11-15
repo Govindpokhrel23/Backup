@@ -24,6 +24,7 @@ import { renderSettings } from "./screens/settings.js";   // 設定
 import { renderStores } from "./screens/stores.js";   // 店舗の管理
 import { renderAi } from "./screens/ai.js";   // AIの設定
 import { renderReport } from "./screens/report.js";   // 勤務時間の集計
+import { renderHelp } from "./screens/help.js";   // ヘルプ（使い方）（2026年11月15日）
 
 /**
  * 画面の一覧
@@ -45,6 +46,7 @@ const ROUTES = [   // 画面の表
   { path: "/stores", render: renderStores, who: "manager" },   // 店舗の追加・編集（4店舗目から）
   { path: "/ai", render: renderAi, who: "manager" },   // AIの設定と覚えたこと（2026年11月5日）
   { path: "/report", render: renderReport, who: "manager" },   // 勤務時間の集計（月ごと・CSV）（2026年11月6日）
+  { path: "/help", render: renderHelp, who: "all" },   // ヘルプ（使い方）。店長は「店舗」タブから、店員は設定から（2026年11月15日）
 ];
 
 /** 下のタブバー（役割で中身が変わる） */
@@ -117,7 +119,7 @@ function renderTabbar(path) {   // 下のタブを描く関数
   if (!state.user) { bar.hidden = true; return; }   // ログインしていなければ隠す
   const tabs = TABS[isManager() ? "manager" : "staff"];   // 店長か店員かで変わるタブ
   // 店舗メニューの中の画面（店員管理・マップ）も「店舗」タブを光らせる
-  const current = ["/staff", "/map", "/stores", "/ai", "/report"].includes(path) ? "/store" : path;   // 店舗メニューの中の画面なら「店舗」タブを光らせる
+  const current = ["/staff", "/map", "/stores", "/ai", "/report"].includes(path) || (path === "/help" && isManager()) ? "/store" : path;   // 店舗メニューの中の画面なら「店舗」タブを光らせる
   mount(bar, tabs.map((tab) =>   // タブを入れる
     createElement("button", {   // タブのボタン
       class: "tabbar__btn",   // 見た目

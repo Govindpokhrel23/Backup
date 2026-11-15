@@ -430,3 +430,11 @@
 .store-sec__body .time-range input[type="date"] { flex: 1; min-width: 0; }   /* 日付の欄は同じ幅 */
 .wk__closed { display: block; font-size: 10px; font-weight: 700; color: #8A2F22; }   /* 日付の下の「休業」 */
 .wk__cell.is-closed { background: repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 4px, transparent 4px, transparent 8px); }   /* お休みの日のマスはしま模様 */
+
+/* ---------- ヘルプ（2026年11月15日） ---------- */
+.help-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }   /* タブの行（横にスクロール。見出しの中に入れるので上に残る） */
+.help-tabs::-webkit-scrollbar { display: none; }   /* スクロールの線を隠す */
+.help-tabs__btn { flex: none; white-space: nowrap; }   /* タブは折り返さない */
+.help-card .card__title { margin-bottom: 6px; }   /* 見出しの下のすきま */
+.help-list { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; font-size: 15px; line-height: 1.5; }   /* ポイントの一覧 */
+.help-list--steps li::marker { font-weight: 700; }   /* 手順の番号は太く */
