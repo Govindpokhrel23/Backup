@@ -16,6 +16,48 @@ import { go } from "../router.js";   // 画面を移動する道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
 import { pushStatus, isPushOn, turnOnPush, turnOffPush } from "../lib/push.js";   // 通知の道具を読む
+import { isTestMode, startTestMode, endTestMode } from "../lib/test-mode.js";   // テストモードの道具を読む（2026年11月15日）
+
+/**
+ * テストモードのカード（2026年11月15日）
+ * ・本番で開発者がログインしている時 →「テストモードにする」
+ * ・テストモードの時（だれでも）→ この人として入る・希望をまとめて入れる・最初に戻す・本番にもどる
+ */
+function testModeCard() {   // テストモードのカードを作る関数
+  if (!isTestMode()) {   // 本番の時
+    if (!isDeveloper()) return null;   // 開発者でなければ出さない
+    return createElement("section", { class: "card" },   // カード
+      createElement("h2", { class: "card__title" }, "テストモード（開発者）"),   // 見出し
+      createElement("div", { class: "home-muted" }, "このスマホだけ、テスト用のデータ（社員5人・バイト30人）で動かします。本物のデータやお店のみんなには影響しません。"),   // 説明
+      createElement("button", { class: "btn btn--primary btn--block", onclick: async () => {   // 入るボタン
+        const ok = await confirmDialog({ title: "テストモードにしますか？", body: createElement("p", { style: { margin: 0 } }, "ログイン画面にもどります。テストでは ID 9000・パスワード 1234 で開発者として入れます。"), yes: "テストモードにする", no: "やめる" });   // 確かめる
+        if (ok) startTestMode();   // 入る
+      } }, "🧪 テストモードにする"),   // ボタンの文字
+    );
+  }
+  // ---------- テストモードの時 ----------
+  const pick = createElement("select", { class: "select", "aria-label": "入る人" }, createElement("option", { value: "" }, "読み込み中…"));   // 人を選ぶ欄
+  api.testListPeople().then((people) => {   // テストの人を読む
+    const groups = [["社員", (person) => person.kind === "shain" && person.role !== "manager"], ["バイト・フル", (person) => person.kind !== "shain"], ["店長・開発者", (person) => person.role === "manager"]];   // 分け方
+    pick.replaceChildren(...groups.map(([title, test]) => createElement("optgroup", { label: title },   // まとまりごとに
+      people.filter(test).map((person) => createElement("option", { value: person.id, selected: person.id === state.user.id }, `${person.name}（ID ${person.loginId}）`)))));   // 1人ずつ
+  }).catch((error) => toast(error.message));   // 読めなければ理由を出す
+  return createElement("section", { class: "card test-card" },   // カード
+    createElement("h2", { class: "card__title" }, "🧪 テストモード"),   // 見出し
+    createElement("div", { class: "home-muted" }, "このスマホの中だけのテスト用データです。本物のデータは変わりません。パスワードは全員 1234。"),   // 説明
+    createElement("label", { class: "field" }, "この人として入る（パスワードなし）", pick),   // 人を選ぶ
+    createElement("button", { class: "btn btn--block", onclick: async () => {   // 入るボタン
+      if (!pick.value) return;   // 選んでいなければ何もしない
+      try { state.user = await api.testSwitchUser(pick.value); toast(`${state.user.name} として入りました`); location.hash = "/home"; location.reload(); }   // その人で入って、読みなおす
+      catch (error) { toast(error.message); }   // 失敗したら理由を出す
+    } }, "この人として入る"),   // ボタンの文字
+    createElement("button", { class: "btn btn--block", onclick: async () => {   // 希望をまとめて入れるボタン
+      try { const result = await api.testFillHopes(4); toast(`希望を ${result.count}件 入れました（${result.from}〜${result.to}）`); }   // 入れる
+      catch (error) { toast(error.message); }   // 失敗したら理由を出す
+    } }, "全員の希望をまとめて入れる（来週から4週間）"),   // ボタンの文字
+    createElement("button", { class: "btn btn--primary btn--block", onclick: () => endTestMode() }, "本番にもどる"),   // 本番にもどるボタン
+  );
+}
 
 /**
  * プッシュ通知のカード：このスマホで通知を受け取る／受け取らない
@@ -73,6 +115,7 @@ export async function renderSettings(app) {   // 設定の画面を描く関数
       // 「ホーム画面に追加」のやり方は、ヘルプの「はじめに」に移した（2026年11月15日）
       // 店長の画面／店員の画面の切りかえ（店長・開発者だけ。2026年11月12日）
       isRealManager() ? viewCard() : null,   // 見る画面のカード
+      testModeCard(),   // テストモード（開発者・テストモードの時だけ）
       // プッシュ通知（2026年11月6日。lib/push.js）
       pushCard(),   // 通知のカード
       // 「スマホに保存している自分のシフト」の説明は、ヘルプの「困った時」に移した（2026年11月15日）
@@ -97,14 +140,14 @@ export async function renderSettings(app) {   // 設定の画面を描く関数
         ? createElement("button", {   // 見本データをもどすボタン
             class: "btn btn--danger btn--block",   // 赤いボタン
             onclick: async () => {   // 押した時
-              const ok = await confirmDialog({ title: "見本データを最初に戻しますか？", body: createElement("p", { style: { margin: 0 } }, "入れた希望やシフトは消えます。"), yes: "戻す", no: "やめる" });   // 本当に戻すか聞く
+              const ok = await confirmDialog({ title: isTestMode() ? "テストのデータを最初に戻しますか？" : "見本データを最初に戻しますか？", body: createElement("p", { style: { margin: 0 } }, "入れた希望やシフトは消えます（このスマホの中だけ）。"), yes: "戻す", no: "やめる" });   // 本当に戻すか聞く
               if (!ok) return;   // 「いいえ」なら止める
               await api.resetMock();   // 見本データをもどす
               state.user = null;   // ログアウト
               toast("最初に戻しました");   // お知らせ
               go("/login");   // ログイン画面へ
             },
-          }, "見本データを最初に戻す（開発用）")   // ボタンの文字
+          }, isTestMode() ? "テストのデータを最初に戻す" : "見本データを最初に戻す（開発用）")   // ボタンの文字
         : null,   // 本物版では出さない
     ),
   );

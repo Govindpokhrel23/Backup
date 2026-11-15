@@ -9,6 +9,7 @@
 
 import { state, isManager, setViewAsStaff } from "./store.js";   // ログイン中の人・店長か調べる道具・見る画面の切りかえを読む
 import { createElement, mount, icon } from "./lib/dom.js";   // 画面の部品の道具を読む
+import { isTestMode, endTestMode } from "./lib/test-mode.js";   // テストモードの道具を読む（2026年11月15日）
 
 // 画面のファイル（1画面＝1ファイル）
 import { renderLogin } from "./screens/login.js";   // ログイン画面
@@ -107,8 +108,13 @@ export async function render() {   // 今の URL の画面を描く関数
  * @returns {HTMLElement[]} 帯（いらない時は空）
  */
 function viewBanner() {   // 店員の画面の帯を作る関数
-  if (!state.viewAsStaff) return [];   // ふだんは出さない
-  return [createElement("div", { class: "view-banner" },   // 帯
+  const bars = [];   // 出す帯
+  // テストモードの帯（ログイン画面にも出す。2026年11月15日）
+  if (isTestMode()) bars.push(createElement("div", { class: "view-banner view-banner--test" },   // 帯
+    createElement("span", null, "🧪 テストモード（このスマホだけ）"),   // 説明
+    createElement("button", { class: "btn btn--tiny", onclick: () => endTestMode() }, "本番にもどる")));   // 本番にもどるボタン
+  if (!state.viewAsStaff) return bars;   // 店員の画面で見ていなければ、テストの帯だけ
+  return [...bars, createElement("div", { class: "view-banner" },   // 帯
     createElement("span", null, "👀 店員の画面で見ています"),   // 説明
     createElement("button", { class: "btn btn--tiny", onclick: () => { setViewAsStaff(false); go("/home"); } }, "店長の画面にもどる"))];   // もどるボタン
 }
