@@ -167,24 +167,6 @@ test("シフト交代：A が自分の勤務の交代をお願いできる（ほ
   await assert.rejects(() => api.offerShift(others.id, ""), /自分の勤務だけ/);   // ほかの人の勤務はだめ
 });
 
-test("シフト交代：頼む人をえらぶと、その人にだけ見えて、その人だけ代われる（2026年11月15日）", { skip }, async () => {   // テスト：頼む人
-  const mine = await api.listMyAssignments();   // A の勤務
-  const people = await api.listSwapCandidates(mine[0].id);   // 頼める人
-  assert.ok(people.some((person) => person.id === ctx.b.id), "B を頼めない");   // B は頼める
-  const swap = (await api.listSwaps()).find((each) => each.status === "open" && each.fromMemberId === ctx.a.id);   // A のお願い
-  const other = people.find((person) => person.id !== ctx.b.id);   // B 以外の人
-  assert.ok(other, "B 以外に頼める人がいない");   // いる
-  await api.updateSwap(swap.id, { note: "よろしく", targets: [other.id] });   // B 以外に頼む
-  await api.logout(); await api.login(ctx.b.loginId, "pass-b");   // Bでログイン
-  assert.ok(!(await api.listSwaps()).some((each) => each.status === "open"), "頼まれていない B に見えている");   // B には見えない
-  await assert.rejects(() => api.takeSwap(swap.id), /頼まれた人だけ/);   // B は代われない
-  await api.logout(); await api.login(ctx.a.loginId, "pass-a");   // Aでログイン
-  await api.updateSwap(swap.id, { note: "よろしく", targets: [ctx.b.id] });   // B に頼みなおす
-  await api.logout(); await api.login(ctx.b.loginId, "pass-b");   // Bでログイン
-  assert.ok((await api.listNotifications()).some((note) => /よろしく/.test(note.text)), "B に知らせが来ていない");   // 知らせが来た
-  await api.logout(); await api.login(ctx.a.loginId, "pass-a");   // A にもどす（次のテストのため）
-});
-
 test("シフト交代：重ならない人なら代われて、店長が承認すると入れ替わる", { skip }, async () => {   // テスト：交代
   // A の勤務（10:00〜15:00）と B の勤務（15:00〜22:00）は重ならないので、B は代われる
   await api.logout();   // ログアウト

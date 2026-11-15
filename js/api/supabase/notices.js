@@ -83,25 +83,9 @@ export const noticesApi = {   // お知らせの窓口
 
   // ---------- シフト交代 ----------
 
-  /**
-   * 交代を頼める人（その店舗で働けて、同じ時間に勤務がない人。2026年11月15日）
-   * @returns {Promise<{id:string,name:string,kind:string}[]>}
-   */
-  async listSwapCandidates(assignmentId) {   // 頼める人を出す関数
+  /** 自分の勤務の交代をお願いする */
+  async offerShift(assignmentId, note) {   // 交代をお願いする関数
     const user = await requireMe();   // ログイン中の人
-    const client = await supabaseClient();   // Supabase の道具
-    const shift = workMap.from(must(await client.from("assignments").select("*").eq("id", assignmentId).single()));   // その勤務
-    const busy = new Set(must(await client.from("assignments").select("member_id, from_min, to_min").eq("date", shift.date))   // その日の勤務
-      .filter((row) => row.from_min < shift.to && shift.from < row.to_min).map((row) => row.member_id));   // 同じ時間に入っている人
-    return (await companyMembers())   // 会社の店員
-      .filter((member) => member.id !== user.id && member.active && !member.developer && canWorkAt(member, shift.storeId) && !busy.has(member.id))   // 頼める人
-      .map((member) => ({ id: member.id, name: member.name, kind: member.kind }));   // 名前と立場
-  },
-
-  /** 自分の勤務の交代をお願いする（targets：頼む人のID。空なら行ける人みんな） */
-  async offerShift(assignmentId, note, targets = []) {   // 交代をお願いする関数
-    const user = await requireMe();   // ログイン中の人
-    targets = await cleanTargets(targets, user);   // 頼む人は、会社の休止していない人だけ
     const client = await supabaseClient();   // Supabase の道具
     const row = must(await client.from("assignments").select("*").eq("id", assignmentId).maybeSingle());   // その勤務
     const shift = row && workMap.from(row);   // その勤務（アプリの形）
@@ -111,26 +95,12 @@ export const noticesApi = {   // お知らせの窓口
     if (open.length) throw new Error("もうお願いしています");   // もうお願いしていれば止める
     const swap = swapMap.from(must(await client.from("swaps").insert(swapMap.to({   // 出したお願い
       id: newId(), assignmentId, storeId: shift.storeId, date: shift.date, from: shift.from, to: shift.to, area: shift.area,   // ID・勤務・店舗・日・時間・場所
-      fromMemberId: user.id, takerId: null, note: note || "", status: "open", targets,   // お願いした人・まだ誰も代わっていない・メモ・さがし中・頼む人
+      fromMemberId: user.id, takerId: null, note: note || "", status: "open",   // お願いした人・まだ誰も代わっていない・メモ・さがし中
     })).select().single()));                                           // 出したお願い
-    await notify(await swapRecipients(swap, user), swapText(swap, user));   // 頼む人（なければ行ける人みんな）に知らせる
+    // その店舗で働ける人に知らせる
+    const people = (await companyMembers()).filter((member) => member.id !== user.id && member.active && canWorkAt(member, shift.storeId));   // 代われる人（同じ店舗で働ける人）
+    await notify(people.map((member) => member.id), `${label(shift.date)} ${range(shift.from, shift.to)} の交代をさがしています（ホームから「代わります」）`);   // その人たちに知らせる
     return swap;   // お願いを返す
-  },
-
-  /** 出したお願いを直す（メッセージ・頼む人）。新しく頼んだ人にだけ知らせる（2026年11月15日） */
-  async updateSwap(swapId, { note, targets }) {   // お願いを直す関数
-    const user = await requireMe();   // ログイン中の人
-    const client = await supabaseClient();   // Supabase の道具
-    const before = swapMap.from(must(await client.from("swaps").select("*").eq("id", swapId).eq("from_member_id", user.id).maybeSingle()) || {});   // 前のお願い
-    if (!before?.id || before.status !== "open") throw new Error("さがし中のお願いだけ直せます");   // さがし中でなければ止める
-    targets = await cleanTargets(targets, user);   // 頼む人は、会社の休止していない人だけ
-    const rows = must(await client.from("swaps").update({ note: note || "", targets }).eq("id", swapId).eq("status", "open").select());   // 直す
-    if (!rows.length) throw new Error("直せませんでした（もう誰かが代わると言ったかもしれません）");   // 直せなければ止める
-    const after = swapMap.from(rows[0]);   // 直したお願い
-    const old = new Set(await swapRecipients(before, user));   // 前に知らせた人
-    const fresh = (await swapRecipients(after, user)).filter((id) => !old.has(id));   // 新しく知らせる人
-    if (fresh.length) await notify(fresh, swapText(after, user));   // 新しく頼んだ人に知らせる
-    return after;   // 直したお願いを返す
   },
 
   /** 交代の一覧（店員＝行ける店舗の募集中と自分の分、店長＝今の店舗の全部） */
@@ -148,7 +118,7 @@ export const noticesApi = {   // お知らせの窓口
       const store = await currentStore();   // 今見ている店舗
       return list.filter((swap) => swap.storeId === store);   // 今の店舗の分
     }
-    return list.filter((swap) => swap.fromMemberId === user.id || swap.takerId === user.id || (swap.status === "open" && canWorkAt(user, swap.storeId) && forMe(swap, user)));   // 店員なら、自分の分と、代われるもの（頼まれた分だけ）
+    return list.filter((swap) => swap.fromMemberId === user.id || swap.takerId === user.id || (swap.status === "open" && canWorkAt(user, swap.storeId)));   // 店員なら、自分の分と、代われるもの
   },
 
   /** 「代わります」（店員）→ データベースの関数 take_swap */
@@ -185,25 +155,3 @@ export const noticesApi = {   // お知らせの窓口
     return { ...swap, status: approve ? "approved" : "rejected" };   // 変えたものを返す
   },
 };
-
-/** 交代のお願いを知らせる人：頼む人を決めてあればその人、なければその店舗で働ける人みんな（2026年11月15日） */
-async function swapRecipients(swap, user) {   // 知らせる人を出す関数
-  if (swap.targets?.length) return swap.targets;   // 頼む人を決めてあればその人
-  return (await companyMembers()).filter((member) => member.id !== user.id && member.active && canWorkAt(member, swap.storeId)).map((member) => member.id);   // 行ける人みんな
-}
-
-/** 交代のお願いの知らせの文（メッセージがあれば付ける） */
-function swapText(swap, user) {   // 知らせの文を作る関数
-  return `${user.name}さんから：${label(swap.date)} ${range(swap.from, swap.to)} の交代をさがしています${swap.note ? `「${swap.note}」` : ""}（ホームから「代わります」）`;   // 文
-}
-
-/** この交代が自分に向けたものか（頼む人を決めていなければ、みんなに向けたもの） */
-function forMe(swap, user) {   // 自分に向けたものか調べる関数
-  return !swap.targets?.length || swap.targets.includes(user.id);   // 決めていない・自分が入っている
-}
-
-/** 頼む人を、会社の休止していない人だけにする（自分はのぞく） */
-async function cleanTargets(targets, user) {   // 頼む人を確かめる関数
-  const ok = new Set((await companyMembers()).filter((member) => member.active && member.id !== user.id).map((member) => member.id));   // 頼んでよい人
-  return [...new Set(targets || [])].filter((id) => ok.has(id));   // 頼んでよい人だけ（同じ人は1回）
-}

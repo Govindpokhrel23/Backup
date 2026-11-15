@@ -491,11 +491,3 @@
 .quick-time__select { flex: 1; font-size: 18px; }   /* 時刻を選ぶ欄 */
 .quick-time__remove { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--danger); }   /* 消すチェック */
 .tl__track, .tl__name--btn { touch-action: manipulation; }   /* 2回タップで画面が拡大しないように（2回タップで時間を直すため） */
-/* 交代のお願い（2026年11月15日） */
-.swap-dialog { display: flex; flex-direction: column; gap: 8px; }   /* 中身を縦に並べる */
-.swap-dialog__label { font-weight: 700; font-size: 14px; }   /* 見出し */
-.swap-dialog__people { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; max-height: 180px; overflow-y: auto; }   /* 人のチェック（2列・多ければスクロール） */
-.swap-dialog__person { display: flex; align-items: center; gap: 6px; font-size: 15px; }   /* 1人 */
-.swap-dialog__warn { background: #FFF4E5; border: 1px solid #F0B86E; border-radius: 10px; padding: 8px 10px; font-size: 13px; line-height: 1.5; color: #7A4A00; }   /* 注意の箱 */
-.my-shifts__swapbox { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }   /* さがし中の部分 */
-.swap-row__msg { font-size: 13px; margin-top: 2px; }   /* 交代のメッセージ */

@@ -26,7 +26,6 @@ import { findShortages } from "../rules/shift-rules.js";   // 足りない時間
 import { label, dayType } from "../lib/date.js";   // 日付の道具を読む
 import { range } from "../lib/time.js";   // 時間の表示の道具を読む
 import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む
-import { openSwapDialog } from "../components/swap-dialog.js";   // 交代のお願いを書く小さい画面を読む（2026年11月15日）
 
 /** ホームの画面を描く（店長と店員で中身が変わる） */
 export async function renderHome(app) {   // ホームを描く関数
@@ -231,33 +230,17 @@ async function renderStaffHome(app) {   // 店員のホームを描く関数
   const mySwaps = swaps.filter((swap) => swap.fromMemberId === state.user.id);   // 自分が出した交代のお願い
   const othersOpen = swaps.filter((swap) => swap.status === "open" && swap.fromMemberId !== state.user.id);   // ほかの人の交代のお願い（さがし中）
 
-  /** 「交代をお願いする」：だれに頼むか・メッセージ・注意を出してから送る（2026年11月15日） */
+  /** 「交代をお願いする」：理由を聞いてからお願いを出す */
   const askSwap = async (shift) => {   // 交代をお願いする関数
-    try {   // 失敗しても止まらないように
-      const people = await api.listSwapCandidates(shift.id);   // 頼める人
-      const result = await openSwapDialog({ shift, people });   // 小さい画面
-      if (!result) return;   // やめたら何もしない
-      await api.offerShift(shift.id, result.note, result.targets);   // お願いを送る
-      toast(result.targets.length ? `${result.targets.length}人にお願いを送りました` : "行ける人みんなにお願いを送りました");   // お知らせ
-    } catch (error) { toast(error.message); }   // 失敗したら理由を出す
-    renderHome(app);   // 描きなおす
-  };
-  /** 出したお願いを直す（メッセージ・頼む人） */
-  const editSwap = async (shift, swap) => {   // お願いを直す関数
-    try {   // 失敗しても止まらないように
-      const people = await api.listSwapCandidates(shift.id);   // 頼める人
-      const result = await openSwapDialog({ shift, people, swap });   // 小さい画面（前の内容が入る）
-      if (!result) return;   // やめたら何もしない
-      await api.updateSwap(swap.id, result);   // 直す
-      toast("お願いを直しました（新しく頼んだ人にだけ知らせます）");   // お知らせ
-    } catch (error) { toast(error.message); }   // 失敗したら理由を出す
-    renderHome(app);   // 描きなおす
-  };
-  /** 出したお願いを取り下げる */
-  const cancelSwap = async (swap) => {   // 取り下げる関数
-    const ok = await confirmDialog({ title: "交代のお願いを取り下げますか？", body: createElement("p", { style: { margin: 0 } }, "この勤務は、あなたが出勤します。"), yes: "取り下げる", no: "やめる" });   // 確かめる
-    if (!ok) return;   // やめたら何もしない
-    try { await api.cancelSwap(swap.id); toast("取り下げました"); } catch (error) { toast(error.message); }   // 取り下げる
+    const note = createElement("textarea", { class: "textarea", placeholder: "理由（なくてもOK）例：学校の用事" });   // 理由を書く欄
+    const ok = await confirmDialog({   // お願いするか聞く
+      title: `${label(shift.date)} ${range(shift.from, shift.to)} の交代をお願いしますか？`,   // 確認のタイトル
+      body: createElement("div", null, createElement("p", { style: { margin: "0 0 8px" } }, "行ける人に知らせます。代わる人が決まったら、店長が承認して入れ替わります。"), note),   // 説明とメモの欄
+      yes: "お願いする", no: "やめる",   // ボタンの文字
+    });
+    if (!ok) return;   // 「やめる」なら止める
+    try { await api.offerShift(shift.id, note.value.trim()); toast("交代のお願いを出しました"); }   // お願いする
+    catch (error) { toast(error.message); }   // 失敗したら理由を出す
     renderHome(app);   // 描きなおす
   };
 
@@ -270,7 +253,7 @@ async function renderStaffHome(app) {   // 店員のホームを描く関数
         createElement("span", { class: "home-kibou__sub" },   // 小さい説明
           open ? `${weekLabel(open)} の締切 ${deadlineLabel(open)} ・ 2か月先まで入れられます` : "2か月先まで入れられます")),   // 締切
       // ② 自分のシフト（今日 → 明日 → 明後日）
-      myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, swaps: mySwaps, onSwap: askSwap, onEditSwap: editSwap, onCancelSwap: cancelSwap }),   // 自分のシフト（交代のお願い・直す・取り下げる）
+      myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, swaps: mySwaps, onSwap: askSwap }),   // 自分のシフト
       // 人が足りない時の募集（自分に届いた分）：「入れます」を押す
       calls.length   // 募集が来ていれば
         ? createElement("section", { class: "card call-card" },   // カード
@@ -296,8 +279,7 @@ async function renderStaffHome(app) {   // 店員のホームを描く関数
             othersOpen.map((swap) => createElement("div", { class: "swap-row" },   // お願いごとに
               createElement("div", null,   // 左側
                 createElement("strong", null, `${label(swap.date)} ${range(swap.from, swap.to)}`),   // 日付と時間
-                createElement("div", { class: "home-muted" }, `${swap.storeShort} ・ ${swap.area === "hall" ? "ホール" : "キッチン"} ・ ${swap.fromName}さん${swap.targets?.length ? "（あなたに頼んでいます）" : ""}`),   // 店舗と場所
-                swap.note ? createElement("div", { class: "swap-row__msg" }, `💬 ${swap.note}`) : null),   // メッセージ
+                createElement("div", { class: "home-muted" }, `${swap.storeShort} ・ ${swap.area === "hall" ? "ホール" : "キッチン"} ・ ${swap.fromName}さん${swap.note ? `　理由：${swap.note}` : ""}`)),   // 店舗と場所
               createElement("button", { class: "btn btn--small btn--primary", onclick: async () => {   // 代わりますボタン
                 try { await api.takeSwap(swap.id); toast("「代わります」を送りました。店長の承認を待ってください"); }   // 引き受ける
                 catch (error) { toast(error.message); }   // 失敗したら理由を出す
