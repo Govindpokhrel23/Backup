@@ -1,0 +1,32 @@
+# ============================================================
+# .github/workflows/mirror.yml — お店の GitHub にも同じコードを送る
+# ------------------------------------------------------------
+# このファイルは、Govind さんの GitHub（Govindpokhrel23/shift-app）の main に保存した時、
+# お店の GitHub（cafa21sift/shift-app）にも、同じコードを自動でコピーするファイルです（2026年11月15日）。
+#
+# GitHub の Settings → Secrets and variables → Actions に入れておくもの：
+#   STORE_REPO_TOKEN … お店の GitHub で作ったトークン（shift-app だけ・Contents を Read and write）。秘密！
+# 入れていない時は、何もしないで終わる（エラーにしない）
+# ============================================================
+
+name: mirror   # GitHub の画面に出る名前
+
+on:   # いつ動かすか
+  push:   # 保存（push）した時
+    branches: [main]   # main に保存した時だけ
+  workflow_dispatch:   # GitHub の画面のボタンからも動かせる
+
+jobs:   # やること
+  mirror:   # コピーする仕事
+    runs-on: ubuntu-latest   # GitHub が用意するパソコン（Linux）で動かす
+    steps:   # 順番
+      - uses: actions/checkout@v4   # コードを取ってくる
+        with:   # 設定
+          fetch-depth: 0   # 今までの記録も全部取ってくる（お店の方にも全部残す）
+
+      - name: お店の GitHub に送る   # 本体
+        env:   # 使う値
+          TOKEN: ${{ secrets.STORE_REPO_TOKEN }}   # お店のトークン
+        run: |   # 動かすコマンド
+          if [ -z "$TOKEN" ]; then echo "STORE_REPO_TOKEN がないので、何もしません"; exit 0; fi   # トークンがなければ終わる
+          git push --force "https://x-access-token:${TOKEN}@github.com/cafa21sift/shift-app.git" HEAD:main   # お店の main を同じにする
