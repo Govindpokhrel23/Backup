@@ -13,6 +13,8 @@
 #   SUPABASE_ACCESS_TOKEN … Supabase のアクセストークン（sbp_…）。止まった時に Restore を頼むのに使う。秘密！
 #                           入れていない時は、Restore はしないで、失敗のメールだけ届く
 # 止まっていた時は、Restore を頼んだあとで「失敗」にする → お店の Gmail にメールが届いて、気づける
+# さらに、GitHub に「お知らせ（Issue）」を日本語で作る → お店の Gmail に「ここを開いて Restore を押して」のメールが届く
+# 直ったら、そのお知らせを自動で閉じる（「直りました」のメールが届く）
 # ============================================================
 
 name: keepalive   # GitHub の画面に出る名前
@@ -22,7 +24,8 @@ on:   # いつ動かすか
     - cron: "17 3 */3 * *"   # 3日に1回、日本時間の昼12時17分ごろ（GitHub は世界時間で数えるので 3時17分）
   workflow_dispatch:   # GitHub の画面のボタンからも動かせる
 
-permissions: {}   # GitHub の中のものは何もさわらない（安全のため、権限をなしにする）
+permissions:   # GitHub の中でさわってよいもの（安全のため、最小だけ）
+  issues: write   # お知らせ（Issue）を作る・閉じるだけ。コードにはさわれない
 
 jobs:   # やること
   ping:   # 話しかける仕事
@@ -68,3 +71,42 @@ jobs:   # やること
             echo "お休みではありません（${STATUS}）。鍵（SUPABASE_SERVICE_KEY）が古いか、Supabase の障害かもしれません"   # 原因の予想を出す
           fi
           exit 1   # どちらでも失敗にする（お店の Gmail にメールが届いて、気づける）
+
+      - name: ③ 止まっていたら、お知らせ（メール）を出す   # ① が失敗した時だけ
+        if: failure() && steps.ping.outcome == 'failure'   # ① か ② が失敗した時だけ
+        env:   # 使う値
+          GH_TOKEN: ${{ github.token }}   # この GitHub の中だけで使える使い捨ての鍵（自動で用意される）
+          REPO: ${{ github.repository }}   # このリポジトリの名前
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}   # 今回のログの URL
+        run: |   # 動かすコマンド
+          # もう開いているお知らせがあれば、新しく作らない（同じメールを何回も送らない）
+          OPEN=$(gh issue list --repo "$REPO" --label keepalive --state open --json number --jq 'length')
+          if [ "$OPEN" != "0" ]; then echo "お知らせはもう出ています"; exit 0; fi   # あれば終わる
+          gh label create keepalive --repo "$REPO" --color D93F0B --description "Supabase の自動チェック" 2>/dev/null || true   # ラベルがなければ作る
+          gh issue create --repo "$REPO" --label keepalive \
+            --title "【要確認】シフトアプリのデータベース（Supabase）が止まっています" \
+            --body "$(printf '%s\n' \
+              '自動チェックで、Supabase に返事がありませんでした。' \
+              '自動で Restore（もとにもどす）を頼みましたが、念のため確認してください。' \
+              '' \
+              '## やること' \
+              '1. お店の Gmail で下を開く' \
+              '   https://supabase.com/dashboard/project/stvaodfduawfbiuvgrji' \
+              '2. 「Restore」ボタンがあれば押す（数分で戻ります。お金はかかりません）' \
+              '3. アプリを開いてログインできるか確かめる' \
+              '   https://aichi21cafe-shift.pages.dev' \
+              '' \
+              '直ると、次の自動チェック（3日ごと）でこのお知らせは自動で閉じます。' \
+              '' \
+              "くわしいログ：${RUN}")"   # お知らせを作る（お店の Gmail にメールが届く）
+
+      - name: ④ 直っていたら、お知らせを閉じる   # ① が成功した時だけ
+        if: steps.ping.outcome == 'success'   # ① が成功した時だけ
+        env:   # 使う値
+          GH_TOKEN: ${{ github.token }}   # この GitHub の中だけで使える使い捨ての鍵
+          REPO: ${{ github.repository }}   # このリポジトリの名前
+        run: |   # 動かすコマンド
+          # 開いているお知らせを全部閉じる（なければ何もしない）
+          for n in $(gh issue list --repo "$REPO" --label keepalive --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --repo "$REPO" --comment "自動チェックで Supabase が動いているのを確かめました。直りました ✅"   # 閉じる（メールが届く）
+          done
