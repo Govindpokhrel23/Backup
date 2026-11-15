@@ -118,7 +118,7 @@ function memberRow(props, member) {   // 1人の行を作る関数
     ? (hope.kind === "offx" ? "休（許可待ち）" : "休") : null;   // 休み希望なら「休」
 
   return createElement("div", { class: `tl__row ${selected ? "is-selected" : ""}` },   // 行（選んでいれば色を変える）
-    createElement("button", { class: "tl__name tl__name--btn", onclick: () => props.onSelect?.(member.id) },   // 名前のボタン（押すと右の欄に出す）
+    createElement("button", { class: "tl__name tl__name--btn", onclick: () => { props.onSelect?.(member.id); doubleTap(props, member.id); } },   // 名前のボタン（押すと右の欄に出す。2回タップで時間をすぐ直す）
       createElement("span", { class: "tl__person" }, member.name),   // 名前
     ),
     createElement("div", { class: "tl__track tl__track--grid", onclick: () => doubleTap(props, member.id) },   // 棒の所（うしろにマス目）。2回タップで時間をすぐ直す

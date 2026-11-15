@@ -490,4 +490,4 @@
 .quick-time__row { display: flex; align-items: center; gap: 8px; font-size: 18px; }   /* 始まり〜終わり */
 .quick-time__select { flex: 1; font-size: 18px; }   /* 時刻を選ぶ欄 */
 .quick-time__remove { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--danger); }   /* 消すチェック */
-.tl__track { touch-action: manipulation; }   /* 2回タップで画面が拡大しないように（2回タップで時間を直すため） */
+.tl__track, .tl__name--btn { touch-action: manipulation; }   /* 2回タップで画面が拡大しないように（2回タップで時間を直すため） */
