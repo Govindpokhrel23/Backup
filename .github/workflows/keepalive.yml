@@ -1,0 +1,36 @@
+# ============================================================
+# .github/workflows/keepalive.yml — Supabase をお休みさせない
+# ------------------------------------------------------------
+# このファイルは、3日に1回、自動で Supabase（データベース）に話しかけるファイルです（2026年11月15日）。
+#
+# なぜ必要か：
+#   Supabase の無料プランは、7日間だれも使わないと自動で止まる（ログインできなくなる）。
+#   お店がしばらくアプリを開かなくても止まらないように、GitHub が代わりに使う。
+#
+# 使うもの（お店の GitHub の Secrets にもう入っている）：
+#   SUPABASE_SERVICE_KEY … Supabase の Secret key
+# 失敗した時は、GitHub からお店の Gmail にメールが届く
+# ============================================================
+
+name: keepalive   # GitHub の画面に出る名前
+
+on:   # いつ動かすか
+  schedule:   # 決まった時間に自動で
+    - cron: "17 3 */3 * *"   # 3日に1回、日本時間の昼12時17分ごろ（GitHub は世界時間で数えるので 3時17分）
+  workflow_dispatch:   # GitHub の画面のボタンからも動かせる
+
+jobs:   # やること
+  ping:   # 話しかける仕事
+    if: github.repository == 'cafa21sift/shift-app'   # お店の GitHub の時だけ動かす
+    runs-on: ubuntu-latest   # GitHub が用意するパソコン（Linux）で動かす
+    steps:   # 順番
+      - name: Supabase に話しかける   # 本体
+        env:   # 使う値
+          KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}   # Supabase の Secret key（秘密）
+          URL: https://stvaodfduawfbiuvgrji.supabase.co   # お店の Supabase の住所（秘密ではない）
+        run: |   # 動かすコマンド
+          # 会社の表を1行だけ読む（データは変えない）。失敗したら止まって、メールが届く
+          curl --fail --silent --show-error \
+            -H "apikey: ${KEY}" \
+            "${URL}/rest/v1/companies?select=id&limit=1" > /dev/null
+          echo "Supabase は動いています"   # 成功したらログに出す
