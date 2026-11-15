@@ -12,6 +12,10 @@
 #   CLOUDFLARE_ACCOUNT_ID … Cloudflare のアカウントID（秘密ではないが、ここに書かない）
 #   SUPABASE_SERVICE_KEY  … Supabase の Secret key（sb_secret_…）。Worker に入る。秘密！
 #   GEMINI_API_KEY        … Gemini の鍵（AIza…）。Worker に入る。秘密！
+#   VAPID_PUBLIC_KEY      … 通知の鍵（公開してよい方）。Worker とアプリの config.js に入る（2026年11月15日）
+#   VAPID_PRIVATE_JWK     … 通知の鍵（秘密の方。{"kty":"EC",… の形）。Worker にだけ入る。秘密！
+#   VAPID_SUBJECT         … 通知を送る人の連絡先（mailto:お店のメール）。Worker に入る
+#   ※ 通知の鍵は https://aichi21cafe-shift.pages.dev/make-vapid.html で作る（1回だけ）
 # Worker の URL は公開した時に分かるので、アプリの config.js に自動で入れる（手で書かなくてよい）
 # ============================================================
 
@@ -57,14 +61,35 @@ jobs:   # やること
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}   # Supabase の Secret key
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}   # Gemini の鍵
 
+      - name: 通知の鍵を Worker に入れる   # ②の続き（鍵が GitHub に入っている時だけ。2026年11月15日）
+        working-directory: workers/api   # Worker のフォルダ
+        env:   # 使う値
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}   # 秘密のトークン
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # アカウントID
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}   # 通知の鍵（公開してよい方）
+          VAPID_PRIVATE_JWK: ${{ secrets.VAPID_PRIVATE_JWK }}   # 通知の鍵（秘密の方）
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}   # 通知を送る人の連絡先
+        run: |   # 動かすコマンド
+          if [ -z "$VAPID_PRIVATE_JWK" ] || [ -z "$VAPID_PUBLIC_KEY" ]; then echo "通知の鍵がまだないので、とばします"; exit 0; fi   # 鍵がなければ何もしない
+          FILE="$RUNNER_TEMP/vapid.json"   # 一時ファイル（GitHub のパソコンの中だけ。終わったら消す）
+          node -e 'const e=process.env;require("fs").writeFileSync(process.argv[1],JSON.stringify({VAPID_PUBLIC_KEY:e.VAPID_PUBLIC_KEY,VAPID_PRIVATE_JWK:e.VAPID_PRIVATE_JWK,VAPID_SUBJECT:e.VAPID_SUBJECT||"mailto:admin@example.com"}))' "$FILE"   # 3つを1つのファイルにまとめる
+          npx --yes wrangler@3 secret bulk "$FILE"   # Worker の秘密の値にまとめて入れる
+          rm -f "$FILE"   # 一時ファイルを消す
+
       - name: アプリのファイルを作る   # ③ の準備
+        env:   # 使う値
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}   # 通知の鍵（公開してよい方）。config.js に入れる
         run: |   # 動かすコマンド
           sh tools/make-site.sh   # dist フォルダを作る
           # 公開した Worker の URL を、アプリの設定（config.js）に自動で入れる
           if [ -n "${{ steps.worker.outputs.deployment-url }}" ]; then
             sed -i "s#API_WORKER_URL: \"[^\"]*\"#API_WORKER_URL: \"${{ steps.worker.outputs.deployment-url }}\"#" dist/js/config.js
           fi
-          grep -n "API_WORKER_URL:" dist/js/config.js   # 入った値をログに出す
+          # 通知の鍵（公開してよい方）を、アプリの設定（config.js）に自動で入れる
+          if [ -n "$VAPID_PUBLIC_KEY" ]; then
+            sed -i "s#VAPID_PUBLIC_KEY: \"[^\"]*\"#VAPID_PUBLIC_KEY: \"${VAPID_PUBLIC_KEY}\"#" dist/js/config.js
+          fi
+          grep -n "API_WORKER_URL:\|VAPID_PUBLIC_KEY:" dist/js/config.js   # 入った値をログに出す（どちらも公開してよい値）
 
       - name: アプリ（Pages）の入れ物を用意する   # はじめての時だけ作る（もうあれば何もしない）
         uses: cloudflare/wrangler-action@v3   # Cloudflare の公式の道具
