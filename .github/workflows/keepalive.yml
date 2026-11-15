@@ -1,15 +1,18 @@
 # ============================================================
-# .github/workflows/keepalive.yml — Supabase をお休みさせない
+# .github/workflows/keepalive.yml — Supabase をお休みさせない・止まったら自動で戻す
 # ------------------------------------------------------------
 # このファイルは、3日に1回、自動で Supabase（データベース）に話しかけるファイルです（2026年11月15日）。
 #
 # なぜ必要か：
 #   Supabase の無料プランは、7日間だれも使わないと自動で止まる（ログインできなくなる）。
 #   お店がしばらくアプリを開かなくても止まらないように、GitHub が代わりに使う。
+#   もし止まっていたら、自動で「Restore（もとにもどす）」を頼む（無料プランのまま。お金はかからない）。
 #
-# 使うもの（お店の GitHub の Secrets にもう入っている）：
-#   SUPABASE_SERVICE_KEY … Supabase の Secret key
-# 失敗した時は、GitHub からお店の Gmail にメールが届く
+# お店の GitHub の Secrets に入れておくもの：
+#   SUPABASE_SERVICE_KEY  … Supabase の Secret key（もう入っている）
+#   SUPABASE_ACCESS_TOKEN … Supabase のアクセストークン（sbp_…）。止まった時に Restore を頼むのに使う。秘密！
+#                           入れていない時は、Restore はしないで、失敗のメールだけ届く
+# 止まっていた時は、Restore を頼んだあとで「失敗」にする → お店の Gmail にメールが届いて、気づける
 # ============================================================
 
 name: keepalive   # GitHub の画面に出る名前
@@ -19,18 +22,49 @@ on:   # いつ動かすか
     - cron: "17 3 */3 * *"   # 3日に1回、日本時間の昼12時17分ごろ（GitHub は世界時間で数えるので 3時17分）
   workflow_dispatch:   # GitHub の画面のボタンからも動かせる
 
+permissions: {}   # GitHub の中のものは何もさわらない（安全のため、権限をなしにする）
+
 jobs:   # やること
   ping:   # 話しかける仕事
     if: github.repository == 'cafa21sift/shift-app'   # お店の GitHub の時だけ動かす
     runs-on: ubuntu-latest   # GitHub が用意するパソコン（Linux）で動かす
+    timeout-minutes: 5   # 5分で終わらなければ止める（ムダに動かさない）
+    env:   # この仕事の中で使う値（秘密ではないもの）
+      URL: https://stvaodfduawfbiuvgrji.supabase.co   # お店の Supabase の住所
+      REF: stvaodfduawfbiuvgrji   # お店の Supabase のプロジェクトID
     steps:   # 順番
-      - name: Supabase に話しかける   # 本体
+      - name: ① Supabase に話しかける   # 動いているか確かめる
+        id: ping   # 下で結果を使うための名前
+        continue-on-error: true   # 失敗しても次の ② に進む
         env:   # 使う値
           KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}   # Supabase の Secret key（秘密）
-          URL: https://stvaodfduawfbiuvgrji.supabase.co   # お店の Supabase の住所（秘密ではない）
         run: |   # 動かすコマンド
-          # 会社の表を1行だけ読む（データは変えない）。失敗したら止まって、メールが届く
-          curl --fail --silent --show-error \
+          # 会社の表を1行だけ読む（データは変えない）。30秒で返事がなければ失敗
+          curl --fail --silent --show-error --max-time 30 \
             -H "apikey: ${KEY}" \
             "${URL}/rest/v1/companies?select=id&limit=1" > /dev/null
           echo "Supabase は動いています"   # 成功したらログに出す
+
+      - name: ② 止まっていたら Restore を頼む   # ① が失敗した時だけ動く
+        if: steps.ping.outcome == 'failure'   # ① が失敗した時だけ
+        env:   # 使う値
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}   # Supabase のアクセストークン（秘密）
+        run: |   # 動かすコマンド
+          if [ -z "$TOKEN" ]; then   # トークンが入っていなければ
+            echo "SUPABASE_ACCESS_TOKEN がないので、自動の Restore はしません。Supabase の画面で Restore を押してください"   # 手で直す方法を出す
+            exit 1   # 失敗にする（メールが届く）
+          fi
+          # プロジェクトの今の状態を聞く（ACTIVE_HEALTHY＝元気、INACTIVE＝お休み中）
+          STATUS=$(curl --fail --silent --show-error --max-time 30 \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "https://api.supabase.com/v1/projects/${REF}" | jq -r .status)
+          echo "今の状態：${STATUS}"   # ログに出す
+          if [ "$STATUS" = "INACTIVE" ]; then   # お休み中なら
+            curl --fail --silent --show-error --max-time 30 -X POST \
+              -H "Authorization: Bearer ${TOKEN}" \
+              "https://api.supabase.com/v1/projects/${REF}/restore" > /dev/null   # Restore を頼む（数分で戻る）
+            echo "お休みしていたので Restore を頼みました。5分ほどで使えるようになります"   # ログに出す
+          else   # お休み中ではないのに①が失敗した時
+            echo "お休みではありません（${STATUS}）。鍵（SUPABASE_SERVICE_KEY）が古いか、Supabase の障害かもしれません"   # 原因の予想を出す
+          fi
+          exit 1   # どちらでも失敗にする（お店の Gmail にメールが届いて、気づける）
