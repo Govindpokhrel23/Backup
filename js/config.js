@@ -90,12 +90,5 @@ export const CONFIG = {   // アプリの設定をまとめたもの
   SKILL_LEVELS: [0, 25, 50, 75, 100],   // できること％の選べる数字
 };
 
-// テストモード（開発者が「テストモードにする」を押した時。このスマホの中だけ。2026年11月15日）
-// → 本物（Supabase）にはつながず、スマホの中のテスト用データ（api/test-data.js）で動く。本物のデータは変わらない
-export const TEST_MODE_KEY = "shiftapp-test-mode";   // テストモードを覚える名前（このスマホの中）
-CONFIG.TEST_MODE = (() => {   // テストモードか調べる
-  try { return !!CONFIG.SUPABASE_URL && localStorage.getItem(TEST_MODE_KEY) === "1"; } catch { return false; }   // 本物の設定があって、テストモードの印がある時だけ
-})();   // すぐ調べる
-
-// SUPABASE_URL が入っていれば本物（Supabase）につなぐ（テストモードの時はつながない）
-CONFIG.API_MODE = CONFIG.SUPABASE_URL && !CONFIG.TEST_MODE ? "supabase" : "mock";   // Supabase の住所があれば本物版、なければ（またはテストモードなら）見本版
+// SUPABASE_URL が入っていれば本物（Supabase）につなぐ
+CONFIG.API_MODE = CONFIG.SUPABASE_URL ? "supabase" : "mock";   // Supabase の住所があれば本物版、なければテスト版

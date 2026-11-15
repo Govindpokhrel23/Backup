@@ -8,12 +8,9 @@
 // ============================================================
 
 import { createMockData } from "./mock-data.js";   // 見本データを作る関数を読む
-import { createTestData } from "./test-data.js";   // テストモードのデータを作る関数を読む（2026年11月15日）
-import { CONFIG } from "../config.js";   // 設定（テストモードか）を読む
 
 // 形を変えたら番号を上げる（古い見本データは自動で作り直される）
-// テストモードの時は、別の名前で保存する（ふつうの見本データとまざらないように）
-export const STORAGE_KEY = CONFIG.TEST_MODE ? "shiftapp-test-v1" : "shiftapp-mock-v8";   // スマホに保存する時の名前（形を変えたら数字を上げる）
+export const STORAGE_KEY = "shiftapp-mock-v8";   // スマホに保存する時の名前（形を変えたら数字を上げる）
 
 // ------------------------------------------------------------
 // 保存と読み込み
@@ -27,7 +24,7 @@ export function load() {   // 見本データを読む関数
   } catch (error) {   // 読めなかった時
     console.warn("見本データを読めなかったので作り直します", error);   // 理由を開発者用に残す
   }
-  const fresh = CONFIG.TEST_MODE ? createTestData() : createMockData();   // 新しいデータ（テストモードならテスト用）
+  const fresh = createMockData();   // 新しい見本データ
   save(fresh);   // 新しい見本データを保存
   return fresh;   // それを返す
 }

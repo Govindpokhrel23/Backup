@@ -8,7 +8,6 @@
 import { createElement, mount } from "../lib/dom.js";   // 画面の部品を作る・画面に入れる道具を読む
 import { go } from "../router.js";   // 画面を移動する道具を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
-import { isTestMode } from "../lib/test-mode.js";   // テストモードか調べる道具を読む
 
 /** 店舗メニューの画面を描く（店長） */
 export async function renderStoreMenu(app) {   // 店舗メニューの画面を描く関数
@@ -21,7 +20,6 @@ export async function renderStoreMenu(app) {   // 店舗メニューの画面を
   mount(app,   // 画面に入れる
     screenHeader({ title: "店舗" }),   // 見出し
     createElement("div", { class: "screen-body" },   // 本文
-      isTestMode() ? item("🧪 希望を代わりに入れる（テストモード）", "テストの人をえらんで、その人の希望を入れる。保存すると次の人へ進む", "/kibou") : null,   // テストモードの時だけ（2026年11月15日）
       item("店員管理", "アカウント作成・立場（社員／バイト）・できること％・人ごとのルール", "/staff"),   // 店員管理へ
       item("マップ・必要人数", "人のマークを置いて、場所ごとに何時〜何時・何人必要か決める", "/map"),   // マップへ
       item("店舗の設定", "営業時間・お休みの日・時間の変更・店舗の名前・店舗を増やす", "/stores"),   // 店舗の設定へ（2026年11月15日：名前を変えた）

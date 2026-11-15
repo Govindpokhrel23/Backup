@@ -13,10 +13,9 @@
 import {   // 見本データの道具を読む
   STORAGE_KEY, load, save, reply, fail, me, storeOf, companyStore, canWorkAt, rankAt, requireManager,   // 保存・返事・ログイン・店舗・店長チェックなど
 } from "./mock-store.js";   // 読む元
-import { today, addDays, weekDates, label, mondayOf } from "../lib/date.js";   // 日付の道具を読む
+import { today, addDays, weekDates, label } from "../lib/date.js";   // 日付の道具を読む
 import { range } from "../lib/time.js";   // 時間の表示の道具を読む
 import { checkStoreHours } from "../lib/store-hours.js";   // 営業時間が正しいか確かめる道具を読む
-import { fillTestHopes } from "./test-data.js";   // テストの希望をまとめて作る道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
 import { callsApi } from "./mock-calls.js";   // 人が足りない時の自動連絡
 import { aiApi } from "./mock-ai.js";         // AIの下書き・学び・人の追加
@@ -414,9 +413,9 @@ export const mockApi = {   // テスト版の窓口（Supabase 版と同じ関�
   },
 
   /** 自分の希望（from〜to の日付）。希望入力の画面で使う */
-  async listMyAvailabilities(from, to, asMemberId) {   // 自分の希望を出す関数（テストモードでは asMemberId の人の分）
+  async listMyAvailabilities(from, to) {   // 自分の希望を出す関数
     const data = load();   // 保存してあるデータを読む
-    const user = whoseHopes(data, asMemberId);   // ログイン中の人（テストモードで代わりに入れる時はその人）
+    const user = me(data);   // ログイン中の人
     return reply(data.availabilities.filter((hope) => hope.memberId === user.id && hope.date >= from && hope.date <= to));   // 自分の分で日付のはばの中
   },
 
@@ -426,9 +425,9 @@ export const mockApi = {   // テスト版の窓口（Supabase 版と同じ関�
   },
 
   /** 自分の希望を1週間分保存する（ロックされた週は保存できない） */
-  async saveMyAvailabilities(weekStart, rows, asMemberId) {   // 自分の希望を保存する関数（テストモードでは asMemberId の人の分）
+  async saveMyAvailabilities(weekStart, rows) {   // 自分の希望を保存する関数
     const data = load();   // 保存してあるデータを読む
-    const user = whoseHopes(data, asMemberId);   // ログイン中の人（テストモードで代わりに入れる時はその人）
+    const user = me(data);   // ログイン中の人
     const reason = lockReason(data, weekStart);   // 入れられない理由（入れられれば null）
     if (reason) return fail(reason);   // 出せなければ止める
     const dates = new Set(weekDates(weekStart));   // その週の日付
@@ -712,55 +711,11 @@ export const mockApi = {   // テスト版の窓口（Supabase 版と同じ関�
     load();   // 作りなおす
     return reply(true);   // できた
   },
-
-  // ---------- テストモードだけで使う道具（2026年11月15日） ----------
-
-  /** テストモードの人の一覧（「この人として入る」で選ぶ） */
-  async testListPeople() {   // テストの人の一覧を出す関数
-    if (!CONFIG.TEST_MODE) return fail("テストモードの時だけ使えます");   // テストモードでなければ止める
-    const data = load();   // データを読む
-    return reply(data.members.filter((member) => member.active).map((member) => ({ id: member.id, loginId: member.loginId, name: member.name, kind: member.kind, role: member.role })));   // ID・名前・立場
-  },
-
-  /** テストモードで、パスワードなしでその人としてログインする */
-  async testSwitchUser(memberId) {   // その人として入る関数
-    if (!CONFIG.TEST_MODE) return fail("テストモードの時だけ使えます");   // テストモードでなければ止める
-    const data = load();   // データを読む
-    const user = data.members.find((member) => member.id === memberId && member.active);   // その人
-    if (!user) return fail("その人がいません");   // いなければ止める
-    data.session = { memberId: user.id, storeId: user.storeId };   // その人でログインした状態にする
-    save(data);   // 保存
-    return reply(user);   // その人を返す
-  },
-
-  /** テストモードで、全員の希望を来週から weeks 週分まとめて入れる */
-  async testFillHopes(weeks = 4) {   // 希望をまとめて入れる関数
-    if (!CONFIG.TEST_MODE) return fail("テストモードの時だけ使えます");   // テストモードでなければ止める
-    const data = load();   // データを読む
-    const start = addDays(mondayOf(today()), 7);   // 来週の月曜
-    const dates = Array.from({ length: weeks * 7 }, (_, index) => addDays(start, index));   // 来週から weeks 週分の日
-    const count = fillTestHopes(data, dates);   // 希望を作る
-    save(data);   // 保存
-    return reply({ count, from: dates[0], to: dates[dates.length - 1] });   // 入れた数と期間
-  },
 };
 
 // ------------------------------------------------------------
 // 内部で使う小さな関数
 // ------------------------------------------------------------
-
-/**
- * 希望を読む・書く人（2026年11月15日）
- * ふつうはログイン中の人。テストモードで店長・開発者が「代わりに入れる」時だけ、その人
- */
-function whoseHopes(data, asMemberId) {   // だれの希望か決める関数
-  const user = me(data);   // ログイン中の人
-  if (!asMemberId || asMemberId === user?.id) return user;   // 代わりでなければ自分
-  if (!CONFIG.TEST_MODE || user?.role !== "manager") throw new Error("代わりに入れられるのは、テストモードの店長・開発者だけです");   // テストモード以外はできない
-  const target = data.members.find((member) => member.id === asMemberId && member.active);   // 代わりに入れる人
-  if (!target) throw new Error("その人がいません");   // いなければ止める
-  return target;   // その人
-}
 
 /**
  * その週に希望を入れられない理由（入れられれば null）
