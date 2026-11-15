@@ -18,6 +18,7 @@ import { dayList } from "../components/day-list.js";   // 1日の一覧の部品
 import { weekLabel, datesOf } from "../lib/period.js";   // 週の表示の道具を読む
 import { label, today, dayType } from "../lib/date.js";   // 日付の道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
+import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む
 
 /** 公開シフトの画面を描く */
 export async function renderPublished(app) {   // 公開シフトの画面を描く関数
@@ -96,14 +97,14 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
             createElement("div", { class: "card" },   // カード
               timeline({   // タイムライン
                 ...dayRange(),   // 表示する時間のはば
-                hours: storeHours[dayType(date, holidays)],     // 「立」「締」の印に使う
+                hours: hoursOn(storeHours, date, dayType(date, holidays)),     // 「立」「締」の印に使う
                 members: members.filter((member) => member.active),   // 休止していない店員
                 assignments: assignments.filter((shift) => shift.date === date),   // その日の勤務
                 selectedId: state.user.id,                      // 自分の行に色をつける
                 editable: false,   // 見るだけ（動かせない）
               }),
             ),
-            dayList({ assignments: assignments.filter((shift) => shift.date === date), members, hours: storeHours[dayType(date, holidays)] }),   // 1日の一覧
+            dayList({ assignments: assignments.filter((shift) => shift.date === date), members, hours: hoursOn(storeHours, date, dayType(date, holidays)) }),   // 1日の一覧
           )
         : createElement("div", { class: "screen-body" }, createElement("div", { class: "card" }, "この店舗には、まだ公開されたシフトはありません")),   // 週がない時の文
     );

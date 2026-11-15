@@ -37,6 +37,7 @@ function shortTime(minutes) {   // 時間を短い文字にする関数
  * @param {object[]} props.elsewhere      ほかの店舗の、この週の勤務（storeShort つき）
  * @param {object[]} props.availabilities この週の希望
  * @param {Set<string>} props.problemDays 守れていないルールがある日
+ * @param {Set<string>} [props.closedDays] お休みの日（店舗の設定で決めた日。2026年11月15日）
  * @param {string|null} props.selectedId  選んでいる店員
  * @param {(date:string, memberId:string|null) => void} props.onPick マスや日付を押した時
  */
@@ -59,7 +60,8 @@ export function weekGrid(props) {   // 1週間のシフト表を作る関数
             createElement("button", { class: "wk__dayBtn", onclick: () => props.onPick(date, null), "aria-label": `${label(date)} を1日の画面で開く` },   // 押すとその日を開く
               createElement("span", { class: `wk__date${dayClass(date)}` }, label(date).replace(/（.）/, "")),   // 「11/16」
               createElement("span", { class: `wk__dow${dayClass(date)}` }, label(date).match(/（(.)）/)?.[1] || ""),   // 「月」
-              props.problemDays.has(date) ? createElement("span", { class: "wk__dot", "aria-label": "守れていないルールあり" }) : null))),   // 問題がある日の赤い点
+              props.problemDays.has(date) ? createElement("span", { class: "wk__dot", "aria-label": "守れていないルールあり" }) : null,   // 問題がある日の赤い点
+              props.closedDays?.has(date) ? createElement("span", { class: "wk__closed" }, "休業") : null))),   // お休みの日の印
           createElement("th", { class: "wk__sum" }, "週"),   // 右はし：週の時間
         ),
       ),
@@ -105,7 +107,10 @@ function dayCell(props, member, date) {   // 1つのマスを作る関数
   const open = () => props.onPick(date, member.id);   // 押したら、その日・その人を開く
 
   let inside;   // マスの中身
-  if (shifts.length) {   // 勤務があれば
+  const closed = props.closedDays?.has(date) && !shifts.length;   // お休みの日で、勤務が入っていない
+  if (closed) {   // お休みの日なら
+    inside = createElement("span", { class: "wk__away" }, "－");   // 灰色の線（お店がお休み）
+  } else if (shifts.length) {   // 勤務があれば
     inside = shifts.map((shift) => createElement("span", { class: `wk__shift wk__shift--${shift.area}${shift.fixed ? " is-fixed" : ""}` },   // 勤務（色は場所）
       createElement("span", null, shortTime(shift.from)), createElement("span", null, shortTime(shift.to))));   // 上に始まり、下に終わり（7日が1画面に入るように2行にする）
   } else if (away.length) {   // ほかの店舗に入っていれば
@@ -119,6 +124,6 @@ function dayCell(props, member, date) {   // 1つのマスを作る関数
   } else {   // 何もなければ
     inside = null;   // 空のマス
   }
-  return createElement("td", { class: "wk__cell" },   // マス
+  return createElement("td", { class: `wk__cell${closed ? " is-closed" : ""}` },   // マス
     createElement("button", { class: "wk__cellBtn", onclick: open, "aria-label": `${member.name} ${label(date)}` }, inside));   // 押せるマス
 }

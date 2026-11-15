@@ -15,6 +15,7 @@ import {   // 見本データの道具を読む
 } from "./mock-store.js";   // 読む元
 import { today, addDays, weekDates, label } from "../lib/date.js";   // 日付の道具を読む
 import { range } from "../lib/time.js";   // 時間の表示の道具を読む
+import { checkStoreHours } from "../lib/store-hours.js";   // 営業時間が正しいか確かめる道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
 import { callsApi } from "./mock-calls.js";   // 人が足りない時の自動連絡
 import { aiApi } from "./mock-ai.js";         // AIの下書き・学び・人の追加
@@ -328,15 +329,14 @@ export const mockApi = {   // テスト版の窓口（Supabase 版と同じ関�
     return reply((data.storeHours || {})[companyStore(data, storeId)] || defaultHours());   // 保存があればそれ、なければはじめの時間
   },
 
-  /** 営業時間を保存（店長） */
-  async saveStoreHours(hours) {   // 営業時間を保存する関数
+  /** 営業時間を保存（店長）。休み・時間の変更（special）もいっしょに。storeId がなければ今の店舗 */
+  async saveStoreHours(hours, storeId) {   // 営業時間を保存する関数
     const data = load();   // 保存してあるデータを読む
     requireManager(data);   // 店長でなければ止める
-    for (const key of ["weekday", "sat", "sun"]) {   // 平日・土曜・日祝ごとに
-      if (hours[key].close <= hours[key].open) return fail("閉店は開店より後にしてください");   // 閉店が開店より前なら止める
-    }
+    const why = checkStoreHours(hours);   // 正しいか確かめる
+    if (why) return fail(why);   // おかしければ止める
     data.storeHours = data.storeHours || {};   // 入れ物がなければ作る
-    data.storeHours[storeOf(data)] = hours;   // 今の店舗の分を変える
+    data.storeHours[companyStore(data, storeId)] = hours;   // その店舗の分を変える（同じ会社の店舗か確かめる）
     save(data);   // 保存
     return reply(true);   // できた
   },
@@ -745,7 +745,7 @@ function copyStoreSettings(data, fromId, toId) {   // 店舗の設定を写す�
     data.requirements.push({ ...req, id: `r-${stamp}-${index}`, positionId: idMap.get(req.positionId) });   // 写す（新しい場所のIDで）
   });
   data.storeHours = data.storeHours || {};   // 入れ物がなければ作る
-  data.storeHours[toId] = JSON.parse(JSON.stringify(data.storeHours[fromId] || defaultHours()));   // 営業時間を写す
+  data.storeHours[toId] = { ...JSON.parse(JSON.stringify(data.storeHours[fromId] || defaultHours())), special: [] };   // 営業時間を写す（休み・時間の変更は店舗ごとにちがうので写さない）
 }
 
 /** 営業時間がまだ決まっていない時の初期値（7:00〜22:00） */

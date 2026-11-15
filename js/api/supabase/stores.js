@@ -10,6 +10,7 @@ import {   // Supabase の道具を読む
   supabaseClient, must, newId, requireMe, requireManager, currentStore, rememberStore,   // 通信・ID・ログインのチェック・今の店舗・店舗を覚える
   storeMap, positionMap, reqMap, companyStores, companyMembers, memberTo,   // 形の変換・会社の店舗と店員
 } from "./core.js";   // 読む元
+import { checkStoreHours } from "../../lib/store-hours.js";   // 営業時間が正しいか確かめる道具を読む
 
 /** 営業時間がまだない時の初期値（7:00〜22:00） */
 const DEFAULT_HOURS = { weekday: { open: 420, close: 1320 }, sat: { open: 420, close: 1320 }, sun: { open: 420, close: 1320 } };   // はじめの営業時間（7:00〜22:00）
@@ -34,7 +35,8 @@ export const storesApi = {   // 店舗の窓口
     if (stores.some((store) => store.short === short.trim())) throw new Error("同じ短い名前の店舗があります");   // 同じ短い名前があれば止める
     const client = await supabaseClient();   // Supabase の道具
     const from = stores.find((store) => store.id === copyFrom);                // 写す元の店舗
-    const hours = from ? must(await client.from("stores").select("hours").eq("id", from.id).single()).hours : DEFAULT_HOURS;   // 営業時間（写す元があればその時間）
+    const copied = from ? must(await client.from("stores").select("hours").eq("id", from.id).single()).hours : DEFAULT_HOURS;   // 営業時間（写す元があればその時間）
+    const hours = { ...copied, special: [] };   // 休み・時間の変更は写さない（店舗ごとにちがうため）
     const row = must(await client.from("stores").insert({   // 足した店舗
       id: newId(), company_id: boss.companyId, name: name.trim(), short: short.trim(), active: true, hours,   // ID・会社・名前・短い名前・使う・営業時間
     }).select().single());                                             // 足した店舗
@@ -112,14 +114,19 @@ export const storesApi = {   // 店舗の窓口
     return row.hours || DEFAULT_HOURS;   // 営業時間を返す（なければはじめの時間）
   },
 
-  /** 営業時間を保存（店長） */
-  async saveStoreHours(hours) {   // 営業時間を保存する関数
+  /**
+   * 営業時間を保存（店長）。休み・時間の変更（special）もいっしょに保存する
+   * @param {object} hours     営業時間（lib/store-hours.js の形）
+   * @param {string} [storeId] 保存する店舗（なければ今の店舗）
+   */
+  async saveStoreHours(hours, storeId) {   // 営業時間を保存する関数
     await requireManager();   // 店長でなければ止める
-    for (const key of ["weekday", "sat", "sun"]) {   // 平日・土曜・日祝ごとに
-      if (hours[key].close <= hours[key].open) throw new Error("閉店は開店より後にしてください");   // 閉店が開店より前なら止める
-    }
+    const why = checkStoreHours(hours);   // 正しいか確かめる
+    if (why) throw new Error(why);   // おかしければ止める
+    const id = storeId || (await currentStore());   // 保存する店舗
+    if (!(await companyStores()).some((store) => store.id === id)) throw new Error("店舗が見つかりません");   // 会社の店舗でなければ止める
     const client = await supabaseClient();   // Supabase の道具
-    must(await client.from("stores").update({ hours }).eq("id", await currentStore()));   // 保存
+    must(await client.from("stores").update({ hours }).eq("id", id));   // 保存
     return true;   // できた
   },
 

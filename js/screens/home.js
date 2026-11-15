@@ -24,6 +24,7 @@ import { STATUS_LABEL, weekLabel, deadlineLabel, openPeriod, workingPeriod, date
 import { findShortages } from "../rules/shift-rules.js";   // 足りない時間を出す道具を読む
 import { label, dayType } from "../lib/date.js";   // 日付の道具を読む
 import { range } from "../lib/time.js";   // 時間の表示の道具を読む
+import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む
 
 /** ホームの画面を描く（店長と店員で中身が変わる） */
 export async function renderHome(app) {   // ホームを描く関数
@@ -212,7 +213,7 @@ async function shortageCard(period) {   // 足りない時間のカードを作�
   const rows = [];   // 足りない時間の行
   for (const date of datesOf(period)) {   // 7日ごとに
     const type = dayType(date, holidays);   // 平日／土曜／日曜祝日
-    const list = findShortages(work.filter((shift) => shift.date === date), requirements, positions, type, storeHours[type]);   // その日の足りない時間
+    const list = findShortages(work.filter((shift) => shift.date === date), requirements, positions, type, hoursOn(storeHours, date, type));   // その日の足りない時間
     for (const shortage of list) {   // 足りない時間ごとに
       rows.push(createElement("li", { class: "is-ng" },   // 1行
         createElement("strong", null, label(date)),   // 日付

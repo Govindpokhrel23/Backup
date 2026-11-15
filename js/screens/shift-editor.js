@@ -44,6 +44,7 @@ import { assignmentPanel } from "../components/assignment-panel.js";   // 右の
 import { dayList } from "../components/day-list.js";   // 1日の一覧の部品を読む
 import { printWeek } from "../components/print-week.js";   // 印刷の道具を読む
 import { laborCost, minutesByMember, hoursText, yen } from "../lib/labor.js";
+import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む（2026年11月15日）
 import { weekGrid } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月10日）   // 時間とお金の計算の道具を読む
 
 /** シフト作成の画面を描く（店長） */
@@ -62,7 +63,9 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
   const ruleOf = (id) => rules.find((rule) => rule.memberId === id)?.text || "なし";   // その人のメモ（なければ「なし」）
   /** 平日／土曜／日曜祝日 */
   const dayTypeOf = (date) => dayType(date, holidays);   // 日の種類（平日・土曜・日祝）
-  const hoursOf = (date) => storeHours[dayTypeOf(date)];          // その日の営業時間（マップ画面で店長が決める）
+  const hoursOf = (date) => hoursOn(storeHours, date, dayTypeOf(date));   // その日の営業時間（店舗の設定の「休み・時間の変更」も入れる）
+  /** お休みの日か（店舗の設定で「休み」にした日） */
+  const isClosed = (date) => hoursOf(date).closed;   // お休みなら true
 
   // ---------- 画面の中で持つ状態 ----------
   let period = workingPeriod(periods);   // 作る週
@@ -207,6 +210,10 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
    * @param {object[]} rows  調べる勤務の一覧（ふつうは今の勤務 work。AIの案を比べる時はその案）
    */
   function dayChecks(date, rows = work) {   // 1日のルールを調べる関数
+    if (isClosed(date)) {   // お休みの日は、ふつうのチェックをしない
+      const count = rows.filter((row) => row.date === date).length;   // その日に入っている勤務の数
+      return [{ ok: count === 0, code: "closed", date, text: count ? `お休みの日に勤務が${count}件入っています` : "お休みの日" }];   // 勤務があればだめ
+    }
     return checkDay({   // 調べる
       date: date,   // 日付
       dayType: dayTypeOf(date),   // 日の種類
@@ -248,7 +255,8 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
   /** AIに渡す情報（ai/draft-service.js の ctx） */
   function aiContext(past = []) {   // AIに渡す中身を作る関数
     return {   // 返す
-      dates: datesOf(period), members: active.map(withLimits), availabilities: hopes, requirements, positions,   // 7日・店員・希望・必要人数など
+      dates: datesOf(period).filter((date) => !isClosed(date)), members: active.map(withLimits),   // お休みの日はAIに作らせない
+      availabilities: hopes, requirements, positions,   // 7日・店員・希望・必要人数など
       fixed: work.filter((shift) => shift.fixed), past, dayTypeOf, hoursOf, elsewhere, rules, learnings,   // 固定した勤務・前の週など
       problemsOf: (rows) => allProblems(rows),   // 問題を調べる関数
     };
@@ -289,7 +297,7 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
     mount(app,   // 画面に入れる
       screenHeader({   // 見出し
         title: "シフト作成",   // タイトル
-        sub: view === "week" ? STATUS_LABEL[period.status] : `${STATUS_LABEL[period.status]} ・ ${label(date)} の営業 ${range(hoursOf(date).open, hoursOf(date).close)}`,   // 状態（日の見方なら営業時間も）
+        sub: view === "week" ? STATUS_LABEL[period.status] : `${STATUS_LABEL[period.status]} ・ ${label(date)} ${isClosed(date) ? "はお休み" : `の営業 ${range(hoursOf(date).open, hoursOf(date).close)}`}`,   // 状態（日の見方なら営業時間も）
         extra: [   // 見出しの下
         // 週の移動（‹ ›）・見方の切りかえ（週／日）・印刷を1行に（2026年11月10日：小さくまとめた）
         createElement("div", { class: "week-nav week-nav--compact" },   // 週を変える行
@@ -352,6 +360,7 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
           elsewhere,   // ほかの店舗の勤務
           availabilities: hopes,   // 希望
           problemDays,   // 問題がある日
+          closedDays: new Set(datesOf(period).filter(isClosed)),   // お休みの日（店舗の設定で決めた日）
           selectedId,   // 選んでいる人
           onPick: pickFromWeek,   // マスを押した時
         }),
@@ -371,8 +380,12 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
 
   /** 「日」の見方：1日のタイムライン＋右の欄（今までの画面） */
   function dayBody(today, checks) {   // 日の見方の中身を作る関数
+    const hrs = hoursOf(date);   // その日の営業時間
     return [   // 日のタブと、左右の入れ物
         dayTabs(),   // 日のタブ
+        // いつもとちがう日（お休み・時間の変更）は、上に知らせる（2026年11月15日）
+        hrs.changed ? createElement("div", { class: `notice ${hrs.closed ? "notice--danger" : "notice--warn"}` },   // 知らせ
+          hrs.closed ? `この日はお休みです${hrs.note ? `（${hrs.note}）` : ""}。店舗の設定で決めた日なので、シフトは作りません` : `この日は営業時間が ${range(hrs.open, hrs.close)} です${hrs.note ? `（${hrs.note}）` : ""}`) : null,   // 文
         createElement("div", { class: "editor" },   // 左右の入れ物
           createElement("section", { class: "card editor__table" },   // 左：タイムライン
             timeline({   // タイムライン
