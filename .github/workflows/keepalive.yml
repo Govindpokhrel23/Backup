@@ -110,3 +110,18 @@ jobs:   # やること
           for n in $(gh issue list --repo "$REPO" --label keepalive --state open --json number --jq '.[].number'); do
             gh issue close "$n" --repo "$REPO" --comment "自動チェックで Supabase が動いているのを確かめました。直りました ✅"   # 閉じる（メールが届く）
           done
+
+      - name: ⑤ 動いていたら「問題なく起動」をメールで知らせる   # ① が成功した時だけ
+        if: steps.ping.outcome == 'success'   # ① が成功した時だけ
+        env:   # 使う値
+          GH_TOKEN: ${{ github.token }}   # この GitHub の中だけで使える使い捨ての鍵
+          REPO: ${{ github.repository }}   # このリポジトリの名前
+        run: |   # 動かすコマンド
+          # 記録用のお知らせ（1つだけ）を探す。なければ作る
+          N=$(gh issue list --repo "$REPO" --label keepalive-ok --state open --json number --jq '.[0].number // empty')
+          if [ -z "$N" ]; then   # まだなければ
+            gh label create keepalive-ok --repo "$REPO" --color 0E8A16 --description "サーバの自動チェックの記録" 2>/dev/null || true   # ラベルを作る
+            gh issue create --repo "$REPO" --label keepalive-ok --title "サーバの自動チェックの記録（3日ごと）" --body "3日ごとに、ここに結果が書かれます（お店の Gmail にも届きます）。"   # 記録用のお知らせを作る
+            N=$(gh issue list --repo "$REPO" --label keepalive-ok --state open --json number --jq '.[0].number')   # 作った番号
+          fi
+          gh issue comment "$N" --repo "$REPO" --body "✅ サーバ問題なく起動（$(TZ=Asia/Tokyo date '+%Y年%m月%d日 %H:%M')）"   # 一言だけ書く → メールが届く
