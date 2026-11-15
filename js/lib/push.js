@@ -21,7 +21,7 @@ import { CONFIG } from "../config.js";   // 設定（通知の鍵など）を読
  */
 export function pushStatus() {   // 通知を使えるか調べる関数
   if (CONFIG.API_MODE !== "supabase") return { ok: false, why: "本物（Supabase）につないだ時に使えます（今は見本データ）" };   // テスト版では使えない
-  if (!CONFIG.VAPID_PUBLIC_KEY) return { ok: false, why: "通知の鍵（config.js の VAPID_PUBLIC_KEY）が入っていません" };   // 通知の鍵がなければ使えない
+  if (!CONFIG.VAPID_PUBLIC_KEY) return { ok: false, why: "通知はまだ準備中です（次のアプリの更新で使えるようになります）" };   // 通知の鍵がなければ使えない（鍵は公開の時に自動で入る）
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {   // ブラウザが通知に対応していなければ
     return { ok: false, why: isIphone() && !isInstalled() ? "iPhone は「ホーム画面に追加」したアプリから開くと使えます" : "このブラウザは通知に対応していません" };   // iPhone でホーム画面から開いていないなら、その説明を出す
   }

@@ -16,9 +16,9 @@
 //   GEMINI_API_KEY        … Google AI Studio の鍵（秘密）
 //   ALLOWED_ORIGIN        … アプリのURL（wrangler.toml に書いてある）
 //   LOGIN_EMAIL_DOMAIN    … アプリの config.js と同じ（login.shiftapp.example.com）
-//   VAPID_PUBLIC_KEY      … 通知の鍵（公開してよい方）。tools/make-vapid.html で作る。アプリの config.js にも同じものを入れる
-//   VAPID_PRIVATE_JWK     … 通知の鍵（秘密の方。JSON の文字のまま貼る）
-//   VAPID_SUBJECT         … 通知を送る人の連絡先（例 mailto:あなたのメール）
+//   VAPID_PUBLIC_KEY      … 通知の鍵（公開してよい方）。はじめての公開の時に GitHub が自動で作って入れる（/vapid で読める）
+//   VAPID_PRIVATE_JWK     … 通知の鍵（秘密の方）。GitHub が自動で作って、Worker にだけ入れる（だれも見ない）
+//   VAPID_SUBJECT         … 通知を送る人の連絡先（mailto:お店のメール）。GitHub が自動で入れる
 // ============================================================
 
 import { sendWebPush } from "./lib/webpush.js";   // 通知を1つ送る道具を読む（暗号の計算は lib/webpush.js）
@@ -46,6 +46,8 @@ export default {   // Worker の本体
     const origin = request.headers.get("Origin") || "";               // どのサイトから来たか
     const cors = corsHeaders(origin, env);                            // ブラウザに返す許可の印
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });   // 確認のお願い（OPTIONS）にはすぐ返す
+    // /vapid：通知の鍵の「公開してよい方」だけを返す（公開の時に GitHub が読んで、アプリの config.js に入れる。2026年11月15日）
+    if (request.method === "GET" && new URL(request.url).pathname.replace(/\/+$/, "").endsWith("/vapid")) return json({ publicKey: env.VAPID_PUBLIC_KEY || "" }, 200, cors);   // 秘密の方は返さない
     if (request.method !== "POST") return json({ error: "POST だけ受け付けます" }, 405, cors);   // POST 以外はことわる
     if (env.ALLOWED_ORIGIN && origin !== env.ALLOWED_ORIGIN) return json({ error: "このサイトからは使えません" }, 403, cors);   // ほかのサイトからはことわる
 

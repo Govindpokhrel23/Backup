@@ -83,3 +83,14 @@ test("AI：ログインした店長だけ Gemini に送れる（鍵は Worker �
   assert.equal((await worker.fetch(req("/ai", { model: "gemini-3-flash-preview", body: {} }, { Authorization: "Bearer bad" }), env, { fetch: boss.fetch })).status, 401);   // ログインしていない人はことわる
   assert.equal((await worker.fetch(req("/ai", { model: "gemini-ultra", body: {} }, { Authorization: "Bearer good" }), env, { fetch: boss.fetch })).status, 404);   // 許していないモデルはことわる
 });
+
+test("/vapid：通知の鍵の公開してよい方だけを返す（秘密の方は返さない）", async () => {   // テスト：通知の鍵（2026年11月15日）
+  const env2 = { VAPID_PUBLIC_KEY: "PUBKEY", VAPID_PRIVATE_JWK: "{\"d\":\"SECRET\"}" };   // 鍵が入っている Worker
+  const res = await worker.fetch(new Request("https://api.example/vapid"), env2);   // GET で聞く
+  assert.equal(res.status, 200);   // 成功
+  const text = await res.text();   // 返事の文字
+  assert.deepEqual(JSON.parse(text), { publicKey: "PUBKEY" });   // 公開してよい方だけ
+  assert.ok(!text.includes("SECRET"));   // 秘密の方は入っていない
+  const empty = await worker.fetch(new Request("https://api.example/vapid"), {});   // 鍵がない Worker
+  assert.deepEqual(await empty.json(), { publicKey: "" });   // 空で返す
+});
