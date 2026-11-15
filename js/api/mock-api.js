@@ -489,10 +489,18 @@ export const mockApi = {   // テスト版の窓口（Supabase 版と同じ関�
     const before = data.assignments.filter((shift) => shift.periodId === periodId);   // 保存する前の勤務（公開後の変更を知らせるため）
     data.assignments = data.assignments.filter((shift) => shift.periodId !== periodId);   // その週の勤務を消して
     rows.forEach((row, index) => data.assignments.push({ ...row, id: row.id || `a${Date.now()}-${index}`, periodId, storeId: period.storeId }));   // 新しく入れる（IDがなければ作る）
-    // 公開したあとに変えた場合は、本人に知らせる（要件で決定）
-    if (period.status === "published") notifyChanges(data, before, rows);   // 公開済みなら変わった人に知らせる
+    // 知らせは送らない（「変更を公開」を押した時だけ notifyShiftChanges で送る。2026年11月15日）
     save(data);   // 保存
     return reply(true);   // できた
+  },
+
+  /** 公開したシフトを直して「変更を公開」した時、変わった人だけに知らせる */
+  async notifyShiftChanges(before, after) {   // 変わった人に知らせる関数
+    const data = load();   // 保存してあるデータを読む
+    requireManager(data);   // 店長でなければ止める
+    const count = notifyChanges(data, before, after);   // 知らせる
+    save(data);   // 保存
+    return reply(count);   // 変わった数
   },
 
   // ---------- お知らせ ----------
@@ -779,4 +787,5 @@ function notifyChanges(data, before, after) {   // 変わった人に知らせ�
     const [memberId, date] = key.split("|");   // 人のIDと日付
     data.notifications.push({ memberId, at: new Date().toISOString(), text: `${label(date)} のシフトが変わりました` });   // お知らせを足す
   }
+  return changed.size;   // 変わった数
 }

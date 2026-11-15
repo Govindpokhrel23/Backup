@@ -317,7 +317,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   /
           // 公開済み：「編集する」を押すまで直せない
           ? createElement("div", { class: "editor-actions" },   // ボタンの行
               createElement("span", { class: "badge badge--hall", style: { alignSelf: "center" } }, "公開済み（見るだけ）"),   // 公開済みの印
-              createElement("button", { class: "btn btn--tiny btn--primary", onclick: () => { unlocked = true; toast("編集できます。直したら「変更を公開」を押してください"); draw(); } }, "✏️ 編集する"),   // 編集するボタン
+              createElement("button", { class: "btn btn--tiny btn--primary", onclick: () => { unlocked = true; saveSnapshot(); toast("編集できます。直したら「変更を公開」を押してください（押すまで通知は送りません）"); draw(); } }, "✏️ 編集する"),   // 編集するボタン
               printButton(),   // 印刷
             )
           // 作っている時：横にスクロールできる1行（よく使う順）
@@ -342,6 +342,22 @@ export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   /
         view === "week" ? weekBody() : dayBody(today, checks),   // 1週間の表か、1日のタイムライン
       ),
     );
+  }
+
+  // ---------- 公開済みの週を直す前の記録（「変更を公開」の時、変わった人だけに知らせるため。2026年11月15日） ----------
+  /** 記録の名前（週ごと） */
+  const snapKey = () => `shiftapp-published-snap-${period.id}`;   // このスマホに覚える名前
+  /** 「編集する」を押した時の勤務を覚える（もう覚えていれば、そのまま＝最初に直す前の形） */
+  function saveSnapshot() {   // 直す前の勤務を覚える関数
+    try { if (!localStorage.getItem(snapKey())) localStorage.setItem(snapKey(), JSON.stringify(work)); } catch { /* 覚えられなくても使える */ }   // 覚える
+  }
+  /** 覚えた勤務を読む（なければ今の勤務＝変わった人なし） */
+  function readSnapshot() {   // 直す前の勤務を読む関数
+    try { return JSON.parse(localStorage.getItem(snapKey()) || "null") || work; } catch { return work; }   // 読む
+  }
+  /** 覚えた勤務を消す */
+  function clearSnapshot() {   // 記録を消す関数
+    try { localStorage.removeItem(snapKey()); } catch { /* 消せなくても使える */ }   // 消す
   }
 
   /** いちばん上の店舗の切りかえ（2026年11月15日） */
@@ -805,9 +821,13 @@ export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   /
       });
       if (!yes) return;   // 「いいえ」なら止める
     }
+    const republish = period.status === "published";   // もう公開してあった週を直したか
     await api.saveAssignments(period.id, work);   // 保存
     await api.setPeriodStatus(period.id, "published");   // 公開
-    await api.notifyPublished(period.id, weekLabel(period));   // みんなに知らせる
+    // 知らせ（2026年11月15日）：はじめての公開 → みんなに。直して公開しなおした時 → 変わった人だけ
+    const changedCount = republish ? await api.notifyShiftChanges(readSnapshot(), work) : null;   // 変わった人に知らせる
+    if (!republish) await api.notifyPublished(period.id, weekLabel(period));   // みんなに知らせる
+    clearSnapshot();   // 直す前の記録を消す
     // 店長の直し方を覚える（AIの下書きと、公開したシフトを比べる）
     const learnedNow = await api.learnFromPublish(period.id);              // 新しく覚えた数
     // 足りない時間が残っていれば、入れそうな人に自動で連絡する
@@ -817,7 +837,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   /
     unlocked = false;                              // 公開したら、また「編集する」を押すまで直せない
     aiResult = null;   // AIの結果を閉じる
     toast([   // お知らせ
-      problems.length ? "警告があるまま公開しました。全員に知らせます" : "公開しました。全員に知らせます",   // 公開した
+      republish ? `変更を公開しました（変わった ${changedCount}件を本人に知らせます）` : problems.length ? "警告があるまま公開しました。全員に知らせます" : "公開しました。全員に知らせます",   // 公開した
       learnedNow ? `AIが店長の直し方を ${learnedNow}件 覚えました` : "",   // 覚えた数
       called?.sent ? `足りない時間を ${called.people}人に自動で連絡しました` : "",   // 自動で連絡した
     ].filter(Boolean).join("。"));   // つなぐ

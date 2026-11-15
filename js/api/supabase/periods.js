@@ -158,7 +158,7 @@ export const periodsApi = {   // シフト（週・希望・勤務）の窓口
     return rows.filter((row) => published.has(row.periodId));   // 公開した週の分だけ返す
   },
 
-  /** 1週間分の勤務を保存（店長）。公開後なら、変わった人に知らせる */
+  /** 1週間分の勤務を保存（店長）。知らせは送らない（「変更を公開」を押した時だけ notifyShiftChanges で送る。2026年11月15日） */
   async saveAssignments(periodId, rows) {   // 週の勤務を保存する関数
     await requireManager();   // 店長でなければ止める
     const client = await supabaseClient();   // Supabase の道具
@@ -174,8 +174,13 @@ export const periodsApi = {   // シフト（週・希望・勤務）の窓口
         requested: !!row.requested, helper: !!row.helper, reason: row.reason || "",   // 希望あり・応援・理由
       })), { onConflict: "id" }));   // 同じIDなら上書き
     }
-    if (period.status === "published") await notifyChanges(before, next);   // 公開済みなら変わった人に知らせる
     return true;   // できた
+  },
+
+  /** 公開したシフトを直して「変更を公開」した時、変わった人だけに知らせる（before：直す前の公開済みの勤務） */
+  async notifyShiftChanges(before, after) {   // 変わった人に知らせる関数
+    await requireManager();   // 店長でなければ止める
+    return notifyChanges(before, after);   // 人と日ごとに知らせる（変わった数を返す）
   },
 };
 
@@ -205,4 +210,5 @@ async function notifyChanges(before, after) {   // 変わった人に知らせ�
     const [memberId, date] = key.split("|");                             // 人と日
     await notify([memberId], `${label(date)} のシフトが変わりました`);   // 知らせる
   }
+  return changed.size;   // 変わった数
 }
