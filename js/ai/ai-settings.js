@@ -19,7 +19,7 @@ const KEY = "shiftapp-ai-settings";   // スマホに保存する時の名前
 
 /** 最初の設定（何も入れていない時） */
 const DEFAULTS = {   // はじめの設定
-  mode: CONFIG.API_MODE === "supabase" && CONFIG.API_WORKER_URL ? "worker" : CONFIG.AI_MODE,   // つなぎ方（本番の準備ができていれば Worker）
+  mode: workerReady() ? "worker" : CONFIG.AI_MODE,   // つなぎ方（本番の準備ができていれば Worker。テストモードでも同じ）
   apiKey: "",                    // Gemini の鍵（mode "gemini" の時だけ使う）
   model: CONFIG.AI_MODEL,        // 使うモデルの名前
 };
@@ -55,7 +55,9 @@ export function aiReady(settings = getAiSettings()) {   // AIを使えるか調�
 
 /** サーバー経由（Worker）を使える準備ができているか（本物につないでいて、Worker のURLがある） */
 export function workerReady() {   // サーバー経由のAIを使えるか調べる関数
-  return CONFIG.API_MODE === "supabase" && !!CONFIG.API_WORKER_URL;   // 本物版で Worker の住所があればOK
+  // テストモードでも、本番でログインした店長・開発者の印で、本物のAIを使える（2026年11月15日）
+  // （AIに送るのはテストの人の情報だけ。名前は番号に置きかえて送る）
+  return (CONFIG.API_MODE === "supabase" || CONFIG.TEST_MODE === true) && !!CONFIG.API_WORKER_URL;   // 本物版かテストモードで、Worker の住所があればOK
 }
 
 /** Worker の /ai の住所 */
@@ -68,7 +70,7 @@ export function workerAiUrl() {   // AIのお願いを送る住所を作る関�
  * 本物（Supabase）の時だけある
  */
 export async function authToken() {   // ログインの証明（トークン）を出す関数
-  if (CONFIG.API_MODE !== "supabase") return "";   // テスト版では空
+  if (CONFIG.API_MODE !== "supabase" && CONFIG.TEST_MODE !== true) return "";   // 見本版では空（テストモードは、本番のログインの印を使う）
   const { supabaseClient } = await import("../api/supabase/core.js");          // Supabase の道具
   const { data } = await (await supabaseClient()).auth.getSession();            // ログインの情報
   return data?.session?.access_token || "";   // トークンを返す（なければ空）

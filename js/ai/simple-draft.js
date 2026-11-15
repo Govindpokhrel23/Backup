@@ -281,6 +281,8 @@ function neededSpan(dayAssignments, props, dayType, area, from, to) {   // 足�
     }
   }
   if (first === null) return null;   // なければ null
+  // 長すぎる勤務は作らない（「いつでもOK」で1日中足りない時など。9時間まで。2026年11月15日）
+  if (last - first > CONFIG.MAX_SHIFT_MINUTES) last = first + CONFIG.MAX_SHIFT_MINUTES;   // 最初の足りない時間から9時間まで
   // 短すぎる勤務は作らない（最低3時間。希望の中に収める）
   if (last - first < 180) {   // 3時間より短ければ
     last = Math.min(to, first + 180);   // 3時間にのばす
