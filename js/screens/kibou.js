@@ -19,7 +19,8 @@
 
 import { createElement, mount, toast } from "../lib/dom.js";   // 画面の部品の道具を読む
 import { api } from "../api/index.js";   // データの窓口を読む
-import { state } from "../store.js";   // アプリの状態を読む
+import { state, isRealManager } from "../store.js";   // アプリの状態・本当に店長か調べる道具を読む
+import { isTestMode } from "../lib/test-mode.js";   // テストモードか調べる道具を読む（2026年11月15日）
 import { CONFIG } from "../config.js";   // 設定を読む
 import { go } from "../router.js";   // 画面を移動する道具を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
@@ -31,7 +32,13 @@ const MONTHS_AHEAD = CONFIG.MONTHS_AHEAD;   // 何か月先まで出せるか
 
 /** 希望入力の画面を描く */
 export async function renderKibou(app) {   // 希望入力の画面を描く関数
-  const isShain = state.user.kind === "shain";   // 社員か（社員は休み希望だけ出す）
+  // ---------- テストモード：店長・開発者が、ほかの人の希望を代わりに入れる（2026年11月15日） ----------
+  const proxyMode = isTestMode() && isRealManager();   // 代わりに入れるか
+  const people = proxyMode ? (await api.testListPeople()).filter((person) => person.role !== "manager") : [];   // 代わりに入れられる人（店長・開発者はのぞく）
+  if (proxyMode && !people.some((person) => person.id === state.proxyMemberId)) state.proxyMemberId = people[0]?.id || null;   // まだ選んでいなければ最初の人
+  const target = proxyMode ? people.find((person) => person.id === state.proxyMemberId) : state.user;   // 希望を入れる人
+  const asId = proxyMode ? target.id : undefined;   // API に渡す「代わりの人」（ふつうは渡さない）
+  const isShain = target.kind === "shain";   // 社員か（社員は休み希望だけ出す）
 
   // ---------- 入れられる週を並べる（来週〜2か月先） ----------
   const limit = (() => { const date = toDate(today()); date.setMonth(date.getMonth() + MONTHS_AHEAD); return toIso(date); })();   // 出せる最後の日（2か月先）
@@ -40,7 +47,7 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
 
   // 週ごとに「入れられるか」と「保存してある希望」を読む
   const locks = await Promise.all(starts.map((start) => api.weekLock(start)));   // 週ごとに出せるか調べる
-  const saved = await api.listMyAvailabilities(starts[0], addDays(starts[starts.length - 1], 6));   // 保存してある自分の希望
+  const saved = await api.listMyAvailabilities(starts[0], addDays(starts[starts.length - 1], 6), asId);   // 保存してある自分の希望（代わりの時はその人の希望）
 
   // ---------- 画面の中で持つ「今の入力」 ----------
   // 週1つ：{ weekStart, lock, days:[{date, kind, from, to}], touched, savedBefore }
@@ -72,6 +79,15 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
   // ============================================================
   // 描く
   // ============================================================
+  /** テストモード：だれの希望を入れるか選ぶ欄（変えると、その人の希望を読みなおす） */
+  function proxyPicker() {   // 人を選ぶ欄を作る関数
+    const groups = [["社員", (person) => person.kind === "shain"], ["バイト・フル", (person) => person.kind !== "shain"]];   // 分け方
+    return createElement("label", { class: "field kibou-proxy" }, "🧪 だれの希望を入れる？（テストモード）",   // 見出し
+      createElement("select", { class: "select", "aria-label": "希望を入れる人", onchange: async (event) => { state.proxyMemberId = event.target.value; await renderKibou(app); } },   // 選ぶ欄（変えたら描きなおす）
+        groups.map(([title, test]) => createElement("optgroup", { label: title },   // まとまりごとに
+          people.filter(test).map((person) => createElement("option", { value: person.id, selected: person.id === target.id }, `${person.name}（ID ${person.loginId}）`))))));   // 1人ずつ
+  }
+
   function draw() {   // 画面を描く関数
     const week = weeks[current];   // 今見ている週
     const offCount = week.days.filter((day) => day.kind === "off" || day.kind === "offx").length;   // この週の休み希望の数（許可待ちも入れる）
@@ -79,10 +95,11 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
 
     mount(app,   // 画面に入れる
       screenHeader({   // 見出し
-        title: "希望入力",   // タイトル
-        right: createElement("span", { class: "badge" }, `${CONFIG.KIND_LABEL[state.user.kind]}（店長が設定）`),   // 立場の印
+        title: proxyMode ? "希望入力（代わりに入れる）" : "希望入力",   // タイトル
+        right: createElement("span", { class: "badge" }, `${CONFIG.KIND_LABEL[target.kind]}（店長が設定）`),   // 立場の印
         sub: `2か月先（${label(limit)}）まで入れられます`,   // いつまで出せるか
         extra: [   // 見出しの下
+          proxyMode ? proxyPicker() : null,   // テストモード：だれの希望か選ぶ
           weekTabs(),   // 週のタブ
           createElement("div", { class: "kibou-deadline" }, `${label(week.weekStart)}〜${label(addDays(week.weekStart, 6))} ／ 締切 ${label(addDays(week.weekStart, -1))} 24:00`),   // 週の日付と締切
           isShain   // 社員なら
@@ -238,11 +255,16 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
           from: day.kind === "time" ? day.from : null,   // 始まり
           to: day.kind === "time" ? day.to : null,   // 終わり
         }));
-        await api.saveMyAvailabilities(period.weekStart, rows);   // 保存
+        await api.saveMyAvailabilities(period.weekStart, rows, asId);   // 保存（代わりの時はその人の分）
         period.touched = false;   // 変えた印を消す
         period.savedBefore = true;   // 保存した印
       }
-      toast(`希望を保存しました（${targets.length}週分）`);   // お知らせ
+      toast(`${proxyMode ? `${target.name}の` : ""}希望を保存しました（${targets.length}週分）`);   // お知らせ
+      if (proxyMode) {   // 代わりに入れている時は、次の人へ進む（続けて入れられるように）
+        const next = people[people.findIndex((person) => person.id === target.id) + 1];   // 次の人
+        if (next) { state.proxyMemberId = next.id; await renderKibou(app); window.scrollTo(0, 0); }   // 次の人の画面にする
+        return;   // 前の画面にはもどらない
+      }
       // 保存できたら前の画面に戻る（前がなければホームへ）
       if (history.length > 1) history.back();   // 前の画面にもどる
       else go("/home");   // なければホームへ

@@ -440,3 +440,4 @@
 .help-list--steps li::marker { font-weight: 700; }   /* 手順の番号は太く */
 .view-banner--test { background: #B45309; }   /* テストモードの帯（オレンジ。本番と見分ける。2026年11月15日） */
 .test-card { border: 2px dashed #B45309; }   /* テストモードのカード（点線でかこむ） */
+.kibou-proxy { margin: 6px 0; padding: 8px; border: 2px dashed #B45309; border-radius: 10px; background: #FFF7ED; color: #7C2D12; font-weight: 700; }   /* テストモードの「だれの希望？」（点線でかこむ） */

@@ -414,9 +414,9 @@ export const mockApi = {   // テスト版の窓口（Supabase 版と同じ関�
   },
 
   /** 自分の希望（from〜to の日付）。希望入力の画面で使う */
-  async listMyAvailabilities(from, to) {   // 自分の希望を出す関数
+  async listMyAvailabilities(from, to, asMemberId) {   // 自分の希望を出す関数（テストモードでは asMemberId の人の分）
     const data = load();   // 保存してあるデータを読む
-    const user = me(data);   // ログイン中の人
+    const user = whoseHopes(data, asMemberId);   // ログイン中の人（テストモードで代わりに入れる時はその人）
     return reply(data.availabilities.filter((hope) => hope.memberId === user.id && hope.date >= from && hope.date <= to));   // 自分の分で日付のはばの中
   },
 
@@ -426,9 +426,9 @@ export const mockApi = {   // テスト版の窓口（Supabase 版と同じ関�
   },
 
   /** 自分の希望を1週間分保存する（ロックされた週は保存できない） */
-  async saveMyAvailabilities(weekStart, rows) {   // 自分の希望を保存する関数
+  async saveMyAvailabilities(weekStart, rows, asMemberId) {   // 自分の希望を保存する関数（テストモードでは asMemberId の人の分）
     const data = load();   // 保存してあるデータを読む
-    const user = me(data);   // ログイン中の人
+    const user = whoseHopes(data, asMemberId);   // ログイン中の人（テストモードで代わりに入れる時はその人）
     const reason = lockReason(data, weekStart);   // 入れられない理由（入れられれば null）
     if (reason) return fail(reason);   // 出せなければ止める
     const dates = new Set(weekDates(weekStart));   // その週の日付
@@ -748,6 +748,19 @@ export const mockApi = {   // テスト版の窓口（Supabase 版と同じ関�
 // ------------------------------------------------------------
 // 内部で使う小さな関数
 // ------------------------------------------------------------
+
+/**
+ * 希望を読む・書く人（2026年11月15日）
+ * ふつうはログイン中の人。テストモードで店長・開発者が「代わりに入れる」時だけ、その人
+ */
+function whoseHopes(data, asMemberId) {   // だれの希望か決める関数
+  const user = me(data);   // ログイン中の人
+  if (!asMemberId || asMemberId === user?.id) return user;   // 代わりでなければ自分
+  if (!CONFIG.TEST_MODE || user?.role !== "manager") throw new Error("代わりに入れられるのは、テストモードの店長・開発者だけです");   // テストモード以外はできない
+  const target = data.members.find((member) => member.id === asMemberId && member.active);   // 代わりに入れる人
+  if (!target) throw new Error("その人がいません");   // いなければ止める
+  return target;   // その人
+}
 
 /**
  * その週に希望を入れられない理由（入れられれば null）

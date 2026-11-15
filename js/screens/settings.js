@@ -51,11 +51,12 @@ function testModeCard() {   // テストモードのカードを作る関数
       try { state.user = await api.testSwitchUser(pick.value); toast(`${state.user.name} として入りました`); location.hash = "/home"; location.reload(); }   // その人で入って、読みなおす
       catch (error) { toast(error.message); }   // 失敗したら理由を出す
     } }, "この人として入る"),   // ボタンの文字
+    createElement("button", { class: "btn btn--primary btn--block", onclick: () => go("/kibou") }, "✍️ 希望を代わりに入れる（1人ずつ）"),   // 希望入力へ（開発者のまま）
     createElement("button", { class: "btn btn--block", onclick: async () => {   // 希望をまとめて入れるボタン
       try { const result = await api.testFillHopes(4); toast(`希望を ${result.count}件 入れました（${result.from}〜${result.to}）`); }   // 入れる
       catch (error) { toast(error.message); }   // 失敗したら理由を出す
     } }, "全員の希望をまとめて入れる（来週から4週間）"),   // ボタンの文字
-    createElement("button", { class: "btn btn--primary btn--block", onclick: () => endTestMode() }, "本番にもどる"),   // 本番にもどるボタン
+    createElement("button", { class: "btn btn--block", onclick: () => endTestMode() }, "本番にもどる"),   // 本番にもどるボタン
   );
 }
 

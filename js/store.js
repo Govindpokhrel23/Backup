@@ -17,6 +17,8 @@ export const state = {   // アプリ全体で使う「今の状態」
   storeId: null,   // 今選んでいる店舗のID
   /** 店長・開発者が「店員の画面」で見ている時 true（2026年11月12日） */
   viewAsStaff: readViewAsStaff(),   // 店員の画面で見ているか
+  /** テストモードで、希望を代わりに入れている人のID（2026年11月15日） */
+  proxyMemberId: null,   // 代わりに入れる人（いなければ null）
 };
 
 /** 「店員の画面で見る」を覚えておく名前 */
