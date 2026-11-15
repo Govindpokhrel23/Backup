@@ -441,3 +441,24 @@
 .view-banner--test { background: #B45309; }   /* テストモードの帯（オレンジ。本番と見分ける。2026年11月15日） */
 .test-card { border: 2px dashed #B45309; }   /* テストモードのカード（点線でかこむ） */
 .kibou-proxy { margin: 6px 0; padding: 8px; border: 2px dashed #B45309; border-radius: 10px; background: #FFF7ED; color: #7C2D12; font-weight: 700; }   /* テストモードの「だれの希望？」（点線でかこむ） */
+
+/* ---------- 希望の一覧（シフト作成のいちばん上。2026年11月15日） ---------- */
+.hope-list { padding: 12px; }   /* カード */
+.hope-list__summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; list-style: none; font-size: 16px; }   /* 見出し（押すと開け閉め） */
+.hope-list__summary::-webkit-details-marker { display: none; }   /* Safari の三角を消す */
+.hope-list__summary::after { content: "▼"; font-size: 12px; color: var(--ink-3); }   /* 開け閉めの印 */
+.hope-list:not([open]) .hope-list__summary::after { content: "▶"; }   /* 閉じている時 */
+.hope-list__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 8px; }   /* 横にスクロール */
+.hope-list__table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 340px; table-layout: fixed; font-size: 11px; }   /* 表（小さい文字） */
+.hope-list__table th, .hope-list__table td { border-bottom: 1px solid var(--line); padding: 4px 2px; text-align: center; white-space: pre-line; }   /* マス */
+.hope-list__table thead th { font-weight: 700; color: var(--ink-3); line-height: 1.2; }   /* 日付の見出し */
+.hope-list__name { width: 6.5em; text-align: left !important; font-weight: 700; position: sticky; left: 0; background: var(--surface); }   /* 名前（横にスクロールしても残る） */
+.hope-list__store th { text-align: left !important; background: var(--surface-2); color: var(--ink); font-size: 13px; padding: 6px 8px !important; }   /* 店舗の見出し（例「福釜（15人）」） */
+.hope-list__miss { display: block; font-size: 9px; color: var(--danger); font-weight: 700; }   /* 未提出の印 */
+.hope-list__cell { cursor: pointer; }   /* 押せるマス */
+.hope-list__cell.is-no { color: var(--ink-3); }   /* 入れない（灰色） */
+.hope-list__cell.is-off { color: var(--danger); font-weight: 700; }   /* 休み希望（赤） */
+.hope-list__cell.is-any { color: #2F7D4F; font-weight: 700; }   /* いつでもOK（緑） */
+.hope-list__cell.is-soft { opacity: 0.45; font-weight: 400; }   /* 社員の希望なし（うすい） */
+.hope-list__cell.is-time { color: #2A62A8; }   /* 時間指定（青） */
+.hope-list__help { font-size: 11px; margin-top: 6px; }   /* 記号の説明 */

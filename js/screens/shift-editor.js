@@ -45,6 +45,7 @@ import { dayList } from "../components/day-list.js";   // 1日の一覧の部品
 import { printWeek } from "../components/print-week.js";   // 印刷の道具を読む
 import { laborCost, minutesByMember, hoursText, yen } from "../lib/labor.js";
 import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む（2026年11月15日）
+import { hopeList } from "../components/hope-list.js";   // 希望の一覧の部品を読む（2026年11月15日）
 import { weekGrid } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月10日）   // 時間とお金の計算の道具を読む
 
 /** シフト作成の画面を描く（店長） */
@@ -333,6 +334,8 @@ export async function renderShiftEditor(app) {   // シフト作成の画面を�
         ],
       }),
       createElement("div", { class: "screen-body" },   // 本文
+        // いちばん上に「希望の一覧」（店舗ごと。2026年11月15日）
+        hopeList({ dates: datesOf(period), members: active, availabilities: hopes, stores: state.stores, storeId: state.storeId, onPick: pickFromWeek }),   // 希望の一覧
         aiResult ? resultCard() : null,   // AIの結果があれば出す
         view === "week" ? weekBody() : dayBody(today, checks),   // 1週間の表か、1日のタイムライン
       ),
