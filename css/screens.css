@@ -22,10 +22,10 @@
 
 /* ---------- 希望入力 ---------- */
 .kibou-deadline { font-size: 13px; color: var(--danger); font-weight: 700; }   /* 締切の文字（赤） */
-.kibou-day__head { display: flex; justify-content: space-between; align-items: center; }   /* 1日のカードの上の行 */
-.kibou-day__date { font-size: 16px; font-weight: 700; }   /* 日付 */
-.kibou-day__state { font-size: 13px; font-weight: 700; color: var(--ink-3); }   /* 今の状態 */
-.kibou-day__state.is-none { color: var(--danger); }   /* 未入力は赤 */
+
+
+
+
 .is-sun { color: var(--danger); }   /* 日曜は赤 */
 .is-sat { color: var(--hall); }   /* 土曜は青 */
 /* 保存ボタンは画面の下（タブバーの上）に固定。幅は本文と同じにそろえる */
@@ -491,3 +491,27 @@
 .quick-time__select { flex: 1; font-size: 18px; }   /* 時刻を選ぶ欄 */
 .quick-time__remove { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--danger); }   /* 消すチェック */
 .tl__track, .tl__name--btn { touch-action: manipulation; }   /* 2回タップで画面が拡大しないように（2回タップで時間を直すため） */
+
+/* ---------- 希望入力を小さく：1週間が1画面に入る（2026年11月16日） ---------- */
+.kibou-head { gap: 6px; }   /* 見出しの中のすきま */
+.kibou-head__row { display: flex; align-items: center; justify-content: space-between; }   /* タイトルと立場の行 */
+.kibou-head__title { font-size: 18px; }   /* 「希望入力」 */
+.kibou-head .week-tab { min-height: 34px; padding: 3px 10px; font-size: 13px; }   /* 週のタブを小さく */
+.kibou-head .week-tab__state { font-size: 9px; }   /* 未入力などの文字 */
+.kibou-deadline { font-size: 12px; }   /* 週の日付と締切（1行） */
+.kibou-body { gap: 4px !important; padding-top: 6px !important; }   /* 1日の行のすきま */
+.kibou-day { display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 6px; background: var(--surface); border-radius: 10px; padding: 5px 6px; border: 1px solid var(--line); }   /* 1日1行（左に日付・右にボタン） */
+.kibou-day.is-none { border-color: #E9B9B0; }   /* 未入力の日は赤っぽい線 */
+.kibou-day__date { display: flex; flex-direction: column; align-items: center; line-height: 1.05; }   /* 日付 */
+.kibou-day__num { font-size: 17px; font-weight: 700; }   /* 日にち「23」 */
+.kibou-day__dow { font-size: 11px; color: var(--ink-3); }   /* 曜日「月」 */
+.kibou-day__date.is-sun span { color: var(--danger); }   /* 日曜は赤 */
+.kibou-day__date.is-sat span { color: var(--hall); }   /* 土曜は青 */
+.kibou-day__chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }   /* 3つのボタン */
+.kibou-day__chips .chip { min-height: 36px; padding: 4px 2px; font-size: 13px; }   /* ボタンを小さく */
+.kibou-footer .btn { min-height: 44px; }   /* 保存ボタン */
+.kibou-footer { padding-top: 6px; padding-bottom: 6px; }   /* 保存の所を低く */
+.screen-body.kibou-body { padding-bottom: 70px; }   /* 保存ボタンの分だけあける */
+.kibou-day.is-time .kibou-day__chips { grid-template-columns: 1fr 1fr 2.4fr; }   /* 時間指定の時：2つのボタン＋時間の欄（1行） */
+.kibou-day__chips .time-range { display: flex; align-items: center; gap: 2px; border: 2px solid var(--hall); border-radius: 999px; padding: 0 4px; min-width: 0; }   /* 時間の欄（青いわく） */
+.kibou-day__chips .time-range .select { min-height: 32px; padding: 0 2px; font-size: 13px; border: none; background: transparent; min-width: 0; flex: 1; text-align: center; }   /* 時間を選ぶ欄（小さく） */

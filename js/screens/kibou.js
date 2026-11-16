@@ -78,19 +78,14 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
     const notYet = week.days.filter((day) => day.kind === "none").length;   // まだ選んでいない日の数
 
     mount(app,   // 画面に入れる
-      screenHeader({   // 見出し
-        title: "希望入力",   // タイトル
-        right: createElement("span", { class: "badge" }, `${CONFIG.KIND_LABEL[state.user.kind]}（店長が設定）`),   // 立場の印
-        sub: `2か月先（${label(limit)}）まで入れられます`,   // いつまで出せるか
-        extra: [   // 見出しの下
-          weekTabs(),   // 週のタブ
-          createElement("div", { class: "kibou-deadline" }, `${label(week.weekStart)}〜${label(addDays(week.weekStart, 6))} ／ 締切 ${label(addDays(week.weekStart, -1))} 24:00`),   // 週の日付と締切
-          isShain   // 社員なら
-            ? createElement("div", { class: "notice notice--warn", style: { fontWeight: 400 } },   // 休み希望の決まり
-                `休み希望を出さないときは、休みは週1日（店長が決めます）。休み希望は週${CONFIG.SHAIN_OFF_MAX}日まで。${CONFIG.SHAIN_OFF_FREE + 1}日目の休みは店長の特別許可が必要です（この週 ${offCount}/${CONFIG.SHAIN_OFF_MAX}）。`)   // 説明
-            : null,   // バイトには出さない
-        ],
-      }),
+      // 見出し（2026年11月16日：小さくした。社員の休みの決まりの注意は外した＝ヘルプにある）
+      createElement("header", { class: "screen-header screen-header--compact kibou-head" },   // 見出しの入れ物
+        createElement("div", { class: "kibou-head__row" },   // 1行目
+          createElement("strong", { class: "kibou-head__title" }, "希望入力"),   // タイトル
+          createElement("span", { class: "badge" }, CONFIG.KIND_LABEL[state.user.kind])),   // 立場の印
+        weekTabs(),   // 週のタブ
+        createElement("div", { class: "kibou-deadline" }, `${shortLabel(week.weekStart)}〜${shortLabel(addDays(week.weekStart, 6))}　締切 ${shortLabel(addDays(week.weekStart, -1))} 24時${isShain ? `　休み ${offCount}/${CONFIG.SHAIN_OFF_MAX}` : ""}`),   // 週の日付と締切（社員は休みの数も）
+      ),
       createElement("div", { class: "screen-body kibou-body" },   // 本文
         current > 0   // 2週目からは
           ? createElement("button", { class: "btn btn--small btn--dashed", onclick: copyPrevWeek }, "前の週と同じにする")   // 前の週と同じにするボタン
@@ -101,7 +96,6 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
       createElement("div", { class: "kibou-footer" },   // 下の保存の所
         createElement("button", { class: "btn btn--primary btn--block", onclick: save },   // 保存ボタン
           notYet ? `保存する（この週の未入力 ${notYet}日）` : "保存する"),   // 未入力の日数を出す
-        createElement("div", { class: "home-muted", style: { textAlign: "center" } }, "入れた週はまとめて保存されます。締切までは何度でも直せます"),   // 説明
       ),
     );
     // 選んでいる週のボタンが見えるように、横にスクロールする
@@ -137,21 +131,27 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
       off: "休み希望", offx: "特別許可を申請中", time: range(day.from, day.to),   // 今の状態の文
     }[day.kind];   // その日の種類の文
 
-    return createElement("section", { class: "card kibou-day" },   // カード
-      createElement("div", { class: "kibou-day__head" },   // 上の行
-        createElement("span", { class: `kibou-day__date ${wd === 0 ? "is-sun" : wd === 6 ? "is-sat" : ""}` }, label(day.date)),   // 日付（土日は色を変える）
-        createElement("span", { class: `kibou-day__state ${day.kind === "none" ? "is-none" : ""}` }, stateText),   // 今の状態
-      ),
-      createElement("div", { class: "chip-grid" },   // 選ぶボタン
+    // 1日1行（左に日付・右に3つのボタン）。1週間が1画面に入るように（2026年11月16日）
+    return createElement("section", { class: `kibou-day ${day.kind === "none" ? "is-none" : ""} ${day.kind === "time" ? "is-time" : ""}` },   // 1日の行
+      createElement("div", { class: `kibou-day__date ${wd === 0 ? "is-sun" : wd === 6 ? "is-sat" : ""}` },   // 日付（土日は色を変える）
+        createElement("span", { class: "kibou-day__num" }, String(Number(day.date.slice(8)))),   // 日にち「23」
+        createElement("span", { class: "kibou-day__dow" }, label(day.date).match(/（(.)）/)?.[1] || "")),   // 曜日「月」
+      createElement("div", { class: "kibou-day__chips", title: stateText },   // 選ぶボタン
         choices.map(([kind, text, color]) =>   // 選べるものごとに
-          createElement("button", {   // ボタン
-            class: `chip chip--${color}`,   // 色
-            "aria-pressed": String(day.kind === kind || (kind === "off" && day.kind === "offx")),   // 選んでいるものに印
-            onclick: () => pick(dayIndex, kind),   // 押したら選ぶ
-          }, text)),   // 文字
+          kind === "time" && day.kind === "time"   // 時間指定を選んでいれば
+            ? timeRange(day)   // ボタンの所に時間の欄を出す（1行のまま）
+            : createElement("button", {   // ボタン
+                class: `chip chip--${color}`,   // 色
+                "aria-pressed": String(day.kind === kind || (kind === "off" && day.kind === "offx")),   // 選んでいるものに印
+                onclick: () => pick(dayIndex, kind),   // 押したら選ぶ
+              }, day.kind === "time" ? shortText(text) : text)),   // 文字（時間の欄がある時は短く）
       ),
-      day.kind === "time" ? timeRange(day) : null,   // 時間指定なら時間の欄
     );
+  }
+
+  /** 時間の欄を出している時の、ボタンの短い文字 */
+  function shortText(text) {   // 短い文字にする関数
+    return { "いつでもOK": "OK", "休み希望": "休み" }[text] || text;   // 長いものだけ短く
   }
 
   /** 時間指定の「から〜まで」 */
