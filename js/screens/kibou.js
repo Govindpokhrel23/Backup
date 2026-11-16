@@ -40,7 +40,7 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
 
   // 週ごとに「入れられるか」と「保存してある希望」を読む
   const locks = await Promise.all(starts.map((start) => api.weekLock(start)));   // 週ごとに出せるか調べる
-  const saved = await api.listMyAvailabilities(starts[0], addDays(starts[starts.length - 1], 6));   // 保存してある自分の希望
+  const saved = await api.listMyAvailabilities(addDays(starts[0], -7), addDays(starts[starts.length - 1], 6));   // 保存してある自分の希望（今週の分も読む＝来週の参考にするため）
 
   // ---------- 画面の中で持つ「今の入力」 ----------
   // 週1つ：{ weekStart, lock, days:[{date, kind, from, to}], touched, savedBefore }
@@ -57,6 +57,25 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
       const savedBefore = weekDates(period.weekStart).some((date) => saved.some((hope) => hope.date === date));   // 前に保存したことがある週か
       return { ...period, days, touched: false, savedBefore };   // 週・7日・変えたか・前に保存したか
     });
+
+  // ---------- まだ出していない週は、前の週の希望を参考に入れておく（2026年11月16日） ----------
+  // 変えなければ、そのまま「保存する」で保存できる（前の週と同じ希望になる）
+  let prevDays = weekDates(addDays(starts[0], -7)).map((date) => saved.find((hope) => hope.date === date) || null);   // 今週の希望（来週の参考）
+  for (const week of weeks) {   // 週ごとに（早い順）
+    if (!week.savedBefore && prevDays.some(Boolean)) {   // まだ出していなくて、前の週に希望があれば
+      week.days.forEach((day, index) => {   // 7日ごとに
+        const prevDay = prevDays[index];   // 前の週の同じ曜日
+        if (prevDay) Object.assign(day, { kind: prevDay.kind === "offx" ? "off" : prevDay.kind, from: prevDay.from ?? 9 * 60, to: prevDay.to ?? 15 * 60 });   // 同じにする（特別許可は休み希望にもどす）
+      });
+      if (isShain) {   // 社員は、休み希望が決まりより多ければ、多い分を「特別許可の申請」にもどす
+        let offs = 0;   // 休み希望の数
+        week.days.forEach((day) => { if (day.kind === "off" && ++offs > CONFIG.SHAIN_OFF_FREE) day.kind = "offx"; });   // 2日目からは特別許可
+      }
+      week.prefilled = true;   // 前の週から入れた印
+      week.touched = true;   // 保存する週に入れる（変えなくても「保存する」で保存される）
+    }
+    prevDays = week.days.map((day) => (day.kind === "none" ? null : day));   // 次の週の参考
+  }
 
   if (!weeks.length) {   // 出せる週がなければ
     mount(app,   // 画面に入れる
@@ -84,6 +103,7 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
           createElement("strong", { class: "kibou-head__title" }, "希望入力"),   // タイトル
           createElement("span", { class: "badge" }, CONFIG.KIND_LABEL[state.user.kind])),   // 立場の印
         weekTabs(),   // 週のタブ
+        week.prefilled ? createElement("div", { class: "kibou-prefill" }, "前の週と同じ希望を入れました。変えなければ、そのまま保存できます") : null,   // 前の週から入れた時の説明
         createElement("div", { class: "kibou-deadline" }, `${shortLabel(week.weekStart)}〜${shortLabel(addDays(week.weekStart, 6))}　締切 ${shortLabel(addDays(week.weekStart, -1))} 24時${isShain ? `　休み ${offCount}/${CONFIG.SHAIN_OFF_MAX}` : ""}`),   // 週の日付と締切（社員は休みの数も）
       ),
       createElement("div", { class: "screen-body kibou-body" },   // 本文
@@ -113,7 +133,7 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
           onclick: () => { current = index; message = ""; draw(); },   // 押したらその週へ
         },
           createElement("span", { class: "num" }, `${shortLabel(period.weekStart)}〜`),   // 週の始まり
-          createElement("span", { class: `week-tab__state ${done ? "is-done" : ""}` }, period.touched ? "未保存" : done ? "入力済み" : "未入力"),   // 未保存・入力済み
+          createElement("span", { class: `week-tab__state ${done ? "is-done" : ""}` }, period.prefilled ? "前の週から" : period.touched ? "未保存" : done ? "入力済み" : "未入力"),   // 前の週から・未保存・入力済み
         );
       }));
   }
@@ -159,7 +179,7 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
     /** 時刻を選ぶセレクト */
     const sel = (value, onChange, aria) => createElement("select", {   // 時間を選ぶ欄を作る
       class: "select num", "aria-label": aria,   // 見た目
-      onchange: (event) => { onChange(Number(event.target.value)); weeks[current].touched = true; draw(); },   // 選んだら変えて描きなおす
+      onchange: (event) => { onChange(Number(event.target.value)); weeks[current].touched = true; weeks[current].prefilled = false; draw(); },   // 選んだら変えて描きなおす
     }, timeOptions().map((timeOption) => createElement("option", { value: timeOption.value, selected: timeOption.value === value }, timeOption.label)));   // 15分ごとの時間
     return createElement("div", { class: "time-range" },   // 時間の行
       sel(day.from, (value) => { day.from = value; }, "から"),   // から
@@ -178,6 +198,7 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
     const week = weeks[current];   // 今見ている週
     const day = week.days[dayIndex];   // 選んだ日
     week.touched = true;   // 変えた印
+    week.prefilled = false;   // 自分で変えたので「前の週から」の印は消す
     // 社員の休み希望（週ごとに数える。2026年11月5日）
     //   1日目 → ふつうの休み希望 ／ 2日目 → 特別許可の申請（offx）／ 3日目 → 出せない
     if (isShain && kind === "off" && day.kind !== "off" && day.kind !== "offx") {   // 社員が休み希望を選んだら
@@ -207,6 +228,7 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
       Object.assign(day, { kind: prevDay.kind === "offx" ? "off" : prevDay.kind, from: prevDay.from, to: prevDay.to });   // 同じにする（特別許可は休み希望にもどす）
     });
     week.touched = true;   // 変えた印
+    week.prefilled = false;   // 自分で写したので「前の週から」の印は消す
     message = "";   // エラーの文を消す
     toast("前の週と同じにしました");   // お知らせ
     draw();   // 描く
@@ -214,7 +236,8 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
 
   /** 保存（さわった週をまとめて保存） */
   async function save() {   // 保存する関数
-    const targets = weeks.filter((week) => week.touched);   // 保存する週（さわった週だけ）
+    // 保存する週：さわった週と、前の週から入れた週（前の週から入れた週に未入力の日が残っていれば、その週はまだ保存しない）
+    const targets = weeks.filter((week) => week.touched && !(week.prefilled && week.days.some((day) => day.kind === "none")));   // 保存する週
     if (!targets.length) {   // 変えた週がなければ
       toast("変えたところはありません");   // お知らせ
       return;   // 止める
@@ -240,6 +263,7 @@ export async function renderKibou(app) {   // 希望入力の画面を描く関�
         }));
         await api.saveMyAvailabilities(period.weekStart, rows);   // 保存
         period.touched = false;   // 変えた印を消す
+        period.prefilled = false;   // 「前の週から」の印も消す
         period.savedBefore = true;   // 保存した印
       }
       toast(`希望を保存しました（${targets.length}週分）`);   // お知らせ

@@ -515,3 +515,4 @@
 .kibou-day.is-time .kibou-day__chips { grid-template-columns: 1fr 1fr 2.4fr; }   /* 時間指定の時：2つのボタン＋時間の欄（1行） */
 .kibou-day__chips .time-range { display: flex; align-items: center; gap: 2px; border: 2px solid var(--hall); border-radius: 999px; padding: 0 4px; min-width: 0; }   /* 時間の欄（青いわく） */
 .kibou-day__chips .time-range .select { min-height: 32px; padding: 0 2px; font-size: 13px; border: none; background: transparent; min-width: 0; flex: 1; text-align: center; }   /* 時間を選ぶ欄（小さく） */
+.kibou-prefill { font-size: 12px; color: #2F7D4F; font-weight: 700; }   /* 前の週から入れた時の説明（緑） */
