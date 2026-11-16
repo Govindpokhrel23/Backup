@@ -14,6 +14,12 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   # 1年間は必ず https で開く
   Strict-Transport-Security: max-age=31536000
+  # 読んでよい場所を決める（ほかのサイトのプログラムを動かされないように。2026年11月16日）
+  #   プログラム … このサイトと、Supabase の道具（cdn.jsdelivr.net）だけ
+  #   通信 … このサイト・Supabase・Cloudflare Worker だけ（Gemini には Worker を通してだけつなぐ）
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.workers.dev https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  # ほかのサイトの窓からは、このアプリを操作させない
+  Cross-Origin-Opener-Policy: same-origin
 
 # サービスワーカーと設定は、毎回新しいものを読む（古いアプリが残らないように）
 # サービスワーカー

@@ -158,30 +158,29 @@ test("店長：時間を直して公開 → 店員に見え、お知らせが届
   assert.equal((await api.listConfirms(ctx.p.id)).length, 1);   // 記録された
 });
 
-test("シフト交代：A が自分の勤務の交代をお願いできる（ほかの人の勤務はできない）", { skip }, async () => {   // テスト：交代のお願い
-  const mine = await api.listMyAssignments();   // 自分の勤務
-  await api.offerShift(mine[0].id, "用事");   // お願いする
-  await assert.rejects(() => api.offerShift(mine[0].id, "もう一回"), /もうお願いしています/);   // 2回目はだめ
-  const all = await api.listAssignments(ctx.p.id);   // その週の勤務全部
-  const others = all.find((shift) => shift.memberId !== ctx.a.id);           // B の勤務
-  await assert.rejects(() => api.offerShift(others.id, ""), /自分の勤務だけ/);   // ほかの人の勤務はだめ
+test("セキュリティ：店員はほかの店員にお知らせを送れない（店長には送れる）。締め切った週の希望は変えられない（2026年11月16日）", { skip }, async () => {   // テスト：セキュリティ
+  const { notify } = await import("../js/api/supabase/core.js");   // お知らせを送る道具
+  await assert.rejects(() => notify([ctx.b.id], "にせのお知らせ"), "店員が店員に送れてしまう");   // A（店員）→ B（店員）はだめ
+  const { companyMembers } = await import("../js/api/supabase/core.js");   // 会社の店員を読む道具
+  const boss = (await companyMembers()).find((member) => member.role === "manager");   // 店長
+  await notify([boss.id], "店長へのれんらく");   // 店長あてはOK
+  const weekStart = ctx.p.weekStart;   // 公開した週（受付が終わっている）
+  await assert.rejects(() => api.saveMyAvailabilities(weekStart, [{ date: weekStart, kind: "any" }]), "公開した週の希望を変えられてしまう");   // 変えられない
+  // アプリを通さず、データベースに直接書いても止まる（見張りの関数）
+  const { supabaseClient } = await import("../js/api/supabase/core.js");   // Supabase の道具
+  const client = await supabaseClient();   // 道具
+  const direct = await client.from("availabilities").insert({ member_id: ctx.a.id, date: weekStart, kind: "any" });   // 直接書く
+  assert.ok(direct.error && /受付が終わっています|締切/.test(direct.error.message), `直接書けてしまう：${JSON.stringify(direct.error)}`);   // 止まった
 });
 
-test("シフト交代：重ならない人なら代われて、店長が承認すると入れ替わる", { skip }, async () => {   // テスト：交代
-  // A の勤務（10:00〜15:00）と B の勤務（15:00〜22:00）は重ならないので、B は代われる
-  await api.logout();   // ログアウト
-  await api.login(ctx.b.loginId, "pass-b");   // Bでログイン
-  const swaps = await api.listSwaps();   // 交代の一覧
-  const open = swaps.find((swap) => swap.status === "open");   // 募集中の交代
-  assert.ok(open, "募集中の交代が見えない");   // 見える
-  await api.takeSwap(open.id);   // 引き受ける
+test("出られない時：店長がシフトを直して、A の勤務を B に入れかえる", { skip }, async () => {   // テスト：店長が直す（交代の機能のかわり）
   await api.logout();   // ログアウト
   await api.login("1000", "boss-pass");   // 店長でログイン
-  const waiting = (await api.listSwaps()).find((swap) => swap.status === "taken");   // 承認待ちの交代
-  assert.equal(waiting.takerName, "スタッフB");   // Bが代わる
-  await api.decideSwap(waiting.id, true);   // 承認
   const work = await api.listAssignments(ctx.p.id);   // その週の勤務
-  assert.equal(work.filter((shift) => shift.memberId === ctx.b.id).length, 2);   // Bの勤務が2つになった
+  const next = work.map((shift) => (shift.memberId === ctx.a.id ? { ...shift, memberId: ctx.b.id } : shift));   // A の分を B に
+  await api.saveAssignments(ctx.p.id, next);   // 保存
+  const after = await api.listAssignments(ctx.p.id);   // 直したあと
+  assert.equal(after.filter((shift) => shift.memberId === ctx.b.id).length, 2);   // Bの勤務が2つになった
 });
 
 test("人が足りない時：入れそうな人に連絡 → 入れます → 店長が決めると勤務に入る", { skip }, async () => {   // テスト：人が足りない時

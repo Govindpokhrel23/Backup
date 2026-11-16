@@ -28,7 +28,10 @@ const DEFAULTS = {   // はじめの設定
 export function getAiSettings() {   // AIの設定を読む関数
   try {   // 読めない時に止まらないように
     const saved = JSON.parse(localStorage.getItem(KEY) || "{}");    // 保存してある設定
-    return { ...DEFAULTS, ...saved };   // はじめの設定に、保存したものを上書きして返す
+    const merged = { ...DEFAULTS, ...saved };   // はじめの設定に、保存したものを上書き
+    // 本番（Worker がある時）は、スマホに Gemini の鍵を置く「直接」を使わせない（2026年11月16日・セキュリティ）
+    if (workerReady() && merged.mode === "gemini") { merged.mode = "worker"; merged.apiKey = ""; }   // Worker にもどして、鍵は使わない
+    return merged;   // 返す
   } catch {   // 読めなかった時
     return { ...DEFAULTS };   // はじめの設定を返す
   }
@@ -37,6 +40,7 @@ export function getAiSettings() {   // AIの設定を読む関数
 /** 設定を保存する（変えたところだけ渡せばよい） */
 export function saveAiSettings(patch) {   // AIの設定を保存する関数
   const next = { ...getAiSettings(), ...patch };                     // 新しい設定
+  if (workerReady() && next.mode === "gemini") { next.mode = "worker"; next.apiKey = ""; }   // 本番では「直接」にしない（鍵をスマホに残さない）
   try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* 保存できない機械（プライベートブラウズ）でも止めない */ }
   return next;   // 保存した設定を返す
 }

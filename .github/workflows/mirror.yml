@@ -16,6 +16,9 @@ on:   # いつ動かすか
     branches: [main]   # main に保存した時だけ
   workflow_dispatch:   # GitHub の画面のボタンからも動かせる
 
+
+permissions:   # GitHub の中でさわってよいもの（安全のため、読むだけ。2026年11月16日）
+  contents: read   # コードを読むだけ
 jobs:   # やること
   mirror:   # コピーする仕事
     if: github.repository == 'Govindpokhrel23/shift-app'   # 個人の GitHub の時だけ動かす（お店の方では何もしない）

@@ -30,7 +30,7 @@ begin   -- 処理の始まり
   on conflict (login_id) do update set developer = true, role = 'manager';   -- もうあれば開発者にする
 
   -- 初回コード（7日で使えなくなる）
-  insert into login_codes(login_id, code) values ('9000', lpad((floor(random() * 900000) + 100000)::int::text, 6, '0'))   -- 6けたのでたらめな数
+  insert into login_codes(login_id, code) values ('9000', secure_code())   -- 6けたのでたらめな数
     on conflict (login_id) do update set code = excluded.code, used = false, attempts = 0, created_at = now();   -- もうあれば作り直す
 end $$;   -- 処理の終わり
 

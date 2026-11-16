@@ -16,6 +16,7 @@ import { go } from "../router.js";   // 画面を移動する道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
 import { pushStatus, isPushOn, turnOnPush, turnOffPush } from "../lib/push.js";   // 通知の道具を読む
+import { clearLocalData } from "../lib/local-data.js";   // ログアウトの時にスマホの中のデータを消す道具を読む（2026年11月16日）
 
 /**
  * プッシュ通知のカード：このスマホで通知を受け取る／受け取らない
@@ -91,7 +92,7 @@ export async function renderSettings(app) {   // 設定の画面を描く関数
         : null,   // 店員には出さない
       createElement("button", {   // ログアウトのボタン
         class: "btn btn--block",   // 見た目
-        onclick: async () => { await api.logout(); state.user = null; go("/login"); },   // ログアウトしてログイン画面へ
+        onclick: async () => { await api.logout(); clearLocalData(); state.user = null; go("/login"); },   // ログアウトして、このスマホに残したシフトなどを消して、ログイン画面へ
       }, "ログアウト"),   // ボタンの文字
       CONFIG.API_MODE === "mock"   // テスト版なら
         ? createElement("button", {   // 見本データをもどすボタン

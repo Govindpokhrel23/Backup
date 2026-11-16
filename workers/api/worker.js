@@ -28,7 +28,7 @@ const CODE_DAYS = 7;   // 初回コードは7日まで
 /** 初回コードを何回まちがえたら使えなくするか（総当たりを防ぐ） */
 const CODE_TRIES = 5;   // まちがいは5回まで
 /** パスワードの一番短い長さ（アプリと同じ） */
-const PASSWORD_MIN = 6;   // パスワードの最低の文字数
+const PASSWORD_MIN = 8;   // パスワードの最低の文字数（2026年11月16日：6 → 8）
 /** 使ってよい Gemini のモデル（ほかの高いモデルを使われないように） */
 const ALLOWED_MODELS = ["gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"];   // 使ってよいモデル
 /** Google の Gemini API の住所 */
@@ -85,7 +85,7 @@ async function activate({ loginId, code, password }, env, http) {   // 初回コ
   if (!row || row.used) throw fail("IDか初回コードが違います", 400);   // コードがない・使用済みならことわる
   if (row.attempts >= CODE_TRIES) throw fail("まちがいが多すぎます。店長に新しい初回コードをもらってください", 429);   // まちがいが多すぎればことわる
   if (Date.now() - new Date(row.created_at).getTime() > CODE_DAYS * 86400000) throw fail("初回コードの期限が切れています。店長に新しいコードをもらってください", 400);   // 期限切れならことわる
-  if (row.code !== String(code)) {   // コードがちがえば
+  if (!sameText(row.code, String(code))) {   // コードがちがえば（時間で見分けられない比べ方。2026年11月16日）
     await db.patch(`login_codes?login_id=eq.${id}`, { attempts: row.attempts + 1 });   // まちがえた回数を足す
     throw fail("IDか初回コードが違います", 400);   // ことわる
   }
@@ -164,9 +164,13 @@ async function push({ memberIds, text }, request, env, http) {   // スマホに
   if (!Array.isArray(memberIds) || !memberIds.length || !text) return { sent: 0, removed: 0 };   // 送る人・文がなければ何もしない
   if (!env.VAPID_PRIVATE_JWK || !env.VAPID_PUBLIC_KEY) throw fail("通知の鍵が Worker に入っていません", 500);   // 通知の鍵がなければエラー
   const db = rest(env, http);                                        // Supabase の表を使う道具
-  const ids = memberIds.slice(0, 200).map((id) => `"${String(id).replace(/"/g, "")}"`).join(",");   // 宛先の人（多すぎないように200人まで）
+  // 宛先のIDは英数字と - _ だけ（変な文字で検索をこわされないように。2026年11月16日）
+  const ids = memberIds.slice(0, 200).map(String).filter((id) => /^[A-Za-z0-9_-]{1,64}$/.test(id)).map((id) => `"${id}"`).join(",");   // 宛先の人（200人まで）
+  if (!ids) return { sent: 0, removed: 0 };   // 正しい宛先がなければ何もしない
   // 同じ会社の人だけに送る（ほかの会社の人には送れない）
-  const people = await db.get(`members?id=in.(${encodeURIComponent(ids)})&company_id=eq.${from.company_id}&select=id`);   // 同じ会社の人だけ
+  // 店員が送れるのは店長あてだけ（店員がほかの店員に、にせのお知らせを送れないように。2026年11月16日）
+  const onlyBoss = from.role === "manager" ? "" : "&role=eq.manager";   // 店員なら店長だけ
+  const people = await db.get(`members?id=in.(${encodeURIComponent(ids)})&company_id=eq.${from.company_id}${onlyBoss}&select=id`);   // 送ってよい人だけ
   if (!people.length) return { sent: 0, removed: 0 };   // いなければ何もしない
   const subs = await db.get(`push_subs?member_id=in.(${encodeURIComponent(people.map((member) => `"${member.id}"`).join(","))})&select=*`);   // スマホの宛先
   const payload = JSON.stringify({ title: "シフト", body: String(text).slice(0, 200), url: "./#/home" });   // 通知の中身
@@ -211,6 +215,14 @@ function rest(env, http) {   // Supabase を管理者として使う道具を作
     auth: async (path, method, data) => read(await http(`${env.SUPABASE_URL}/auth/v1/${path}`, { method, headers, body: JSON.stringify(data) }), "アカウント作成"),   // ログインの人の管理
     del: async (path) => read(await http(`${env.SUPABASE_URL}/rest/v1/${path}`, { method: "DELETE", headers: { ...headers, Prefer: "return=minimal" } }), "削除"),   // 消す
   };
+}
+
+/** 2つの文字が同じか（どこでちがったかを、かかった時間で見分けられない比べ方） */
+function sameText(a, b) {   // 同じか調べる関数
+  const left = String(a ?? ""), right = String(b ?? "");   // 文字にする
+  let diff = left.length ^ right.length;   // 長さがちがえば、ちがう
+  for (let index = 0; index < Math.max(left.length, right.length); index++) diff |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);   // 1文字ずつ全部比べる
+  return diff === 0;   // 全部同じなら true
 }
 
 /** 番号つきのエラーを作る */

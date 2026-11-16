@@ -48,7 +48,7 @@ const now = new Date().toISOString();   // 今の時間
 
 test("はじめての方：コードが合えばログインの人を作り、コードを使用済みにする", async () => {   // テスト：正しいコード
   const server = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 0, created_at: now }, member: { id: "m1", auth_id: null, active: true } });   // にせものの Supabase・Gemini
-  const res = await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdef" }), env, { fetch: server.fetch });   // Worker の返事
+  const res = await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdefgh" }), env, { fetch: server.fetch });   // Worker の返事
   assert.equal(res.status, 200);   // 成功
   const created = server.calls.find((call) => call.url.endsWith("/auth/v1/admin/users"));   // ログインの人を作ったお願い
   assert.equal(created.body.email, "2004@login.test");   // ID がメールの形になっている
@@ -57,19 +57,19 @@ test("はじめての方：コードが合えばログインの人を作り、�
 
 test("はじめての方：コードがちがうと止まり、まちがえた回数が増える。5回で使えなくなる", async () => {   // テスト：まちがったコード
   const server = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 2, created_at: now }, member: { id: "m1", active: true } });   // にせものの Supabase・Gemini
-  const res = await worker.fetch(req("/activate", { loginId: "2004", code: "000000", password: "abcdef" }), env, { fetch: server.fetch });   // Worker の返事
+  const res = await worker.fetch(req("/activate", { loginId: "2004", code: "000000", password: "abcdefgh" }), env, { fetch: server.fetch });   // Worker の返事
   assert.equal(res.status, 400);   // 失敗
   assert.ok(server.calls.some((call) => call.method === "PATCH" && call.body.attempts === 3));   // まちがえた回数が増えた
   const locked = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 5, created_at: now }, member: { id: "m1", active: true } });   // にせものの Supabase・Gemini
-  const res2 = await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdef" }), env, { fetch: locked.fetch });   // Worker の返事
+  const res2 = await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdefgh" }), env, { fetch: locked.fetch });   // Worker の返事
   assert.equal(res2.status, 429);   // 5回で使えない
 });
 
 test("はじめての方：期限切れのコード・ほかのサイトからのお願いは止まる", async () => {   // テスト：期限切れ・ほかのサイト
   const old = new Date(Date.now() - 8 * 86400000).toISOString();   // 8日前（期限切れ）
   const server = fakeServer({ code: { login_id: "2004", code: "123456", used: false, attempts: 0, created_at: old }, member: { id: "m1", active: true } });   // にせものの Supabase・Gemini
-  assert.equal((await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdef" }), env, { fetch: server.fetch })).status, 400);   // 期限切れは失敗
-  const evil = req("/activate", { loginId: "2004", code: "123456", password: "abcdef" }, { Origin: "https://evil.example" });   // ほかのサイトからのお願い
+  assert.equal((await worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdefgh" }), env, { fetch: server.fetch })).status, 400);   // 期限切れは失敗
+  const evil = req("/activate", { loginId: "2004", code: "123456", password: "abcdefgh" }, { Origin: "https://evil.example" });   // ほかのサイトからのお願い
   assert.equal((await worker.fetch(evil, env, { fetch: server.fetch })).status, 403);   // ことわる
 });
 
@@ -93,4 +93,20 @@ test("/vapid：通知の鍵の公開してよい方だけを返す（秘密の�
   assert.ok(!text.includes("SECRET"));   // 秘密の方は入っていない
   const empty = await worker.fetch(new Request("https://api.example/vapid"), {});   // 鍵がない Worker
   assert.deepEqual(await empty.json(), { publicKey: "" });   // 空で返す
+});
+
+test("/push：店員は店長あてにしか送れない・変なIDは捨てる（2026年11月16日）", async () => {   // テスト：通知の宛先をしぼる
+  const asked = [];   // Worker が Supabase に聞いた住所
+  const fakeFetch = async (url) => {   // にせものの Supabase
+    asked.push(String(url));   // 記録
+    if (String(url).includes("/auth/v1/user")) return new Response(JSON.stringify({ id: "u1" }), { status: 200 });   // ログインの人
+    if (String(url).includes("members?auth_id")) return new Response(JSON.stringify([{ id: "m1", role: "staff", active: true, company_id: "c1" }]), { status: 200 });   // 店員
+    return new Response("[]", { status: 200 });   // ほかは空
+  };
+  const env2 = { SUPABASE_URL: "https://db.example", SUPABASE_SERVICE_KEY: "sb_secret_x", VAPID_PUBLIC_KEY: "p", VAPID_PRIVATE_JWK: "{}" };   // Worker の値
+  const request = new Request("https://api.example/push", { method: "POST", headers: { Authorization: "Bearer t", "Content-Type": "application/json" }, body: JSON.stringify({ memberIds: ["m2", "bad\"),id.neq.(x"], text: "にせのお知らせ" }) });   // 店員から
+  await worker.fetch(request, env2, { fetch: fakeFetch });   // 送る
+  const query = decodeURIComponent(asked.find((url) => url.includes("members?id=in.")) || "");   // 宛先をしぼる問い合わせ
+  assert.ok(query.includes("role=eq.manager"), "店員なのに店長以外にも送れる");   // 店長だけ
+  assert.ok(!query.includes("bad"), "変なIDが入っている");   // 変なIDは捨てた
 });

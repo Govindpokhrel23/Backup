@@ -30,7 +30,7 @@ begin   -- 処理の始まり
                             jsonb_build_object('storeId', i_id, 'rank', 3)));   -- 今村3位
 
   -- 店長の初回コード（7日で使えなくなる）
-  insert into login_codes(login_id, code) values ('1000', lpad((floor(random() * 900000) + 100000)::int::text, 6, '0'))   -- 店長の初回コード（6けたのでたらめな数）
+  insert into login_codes(login_id, code) values ('1000', secure_code())   -- 店長の初回コード（6けたのでたらめな数）
     on conflict (login_id) do update set code = excluded.code, used = false, attempts = 0, created_at = now();   -- もうあれば作り直す
 end $$;   -- 処理の終わり
 

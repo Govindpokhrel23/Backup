@@ -28,6 +28,9 @@ concurrency:   # 同時に2つ動かさない
   group: deploy   # 同じグループ
   cancel-in-progress: false   # 動いている途中のものは止めない（最後まで公開する）
 
+
+permissions:   # GitHub の中でさわってよいもの（安全のため、読むだけ。2026年11月16日）
+  contents: read   # コードを読むだけ
 jobs:   # やること
   deploy:   # 公開する仕事
     if: github.repository == 'cafa21sift/shift-app'   # お店の GitHub の時だけ公開する（個人の GitHub では動かさない）

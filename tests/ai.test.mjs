@@ -23,6 +23,8 @@ const { diffDraft, summarize } = await import("../js/ai/learning.js");   // テ�
 const { buildDraftPrompt } = await import("../js/ai/prompt.js");   // テストする関数を prompt.js から読み込む
 const { runAiDraft } = await import("../js/ai/draft-service.js");   // テストする関数を draft-service.js から読み込む
 const { saveAiSettings } = await import("../js/ai/ai-settings.js");   // テストする関数を ai-settings.js から読み込む
+const { CONFIG } = await import("../js/config.js");   // 設定を読む
+CONFIG.API_WORKER_URL = "";   // テストでは Worker なし（「直接 Gemini」の動きを確かめるため。本番では「直接」は使えない）
 const { findCandidates } = await import("../js/rules/candidates.js");   // テストする関数を candidates.js から読み込む
 const { makeDraft } = await import("../js/ai/simple-draft.js");   // テストする関数を simple-draft.js から読み込む
 

@@ -14,7 +14,7 @@ export const CONFIG = {   // アプリの設定をまとめたもの
   // ---------- 本物につなぐ設定 ----------
   SUPABASE_URL: "https://stvaodfduawfbiuvgrji.supabase.co",   // Supabase の住所（空ならテスト版）
   SUPABASE_ANON_KEY: "sb_publishable_dC5LVe6V8gcrHLeoG1OHOg_ye-ZvHrV",   // Supabase の Publishable key（公開してよい鍵だけ）
-  API_WORKER_URL: "https://shiftapp-api.govindpokhrel23.workers.dev",   // Worker の住所
+  API_WORKER_URL: "",   // Worker の住所
   // プッシュ通知の鍵（公開してよい方）。tools/make-vapid.html で作る。空なら通知は使わない（2026年11月6日）
   VAPID_PUBLIC_KEY: "",   // 通知の公開してよい鍵
 
@@ -28,7 +28,7 @@ export const CONFIG = {   // アプリの設定をまとめたもの
   LOGIN_EMAIL_DOMAIN: "login.shiftapp.example.com",   // ログインIDをメールの形にする時の後ろ
 
   // パスワードの一番短い長さ（Supabase の決まりに合わせる）
-  PASSWORD_MIN: 6,   // パスワードの最低の文字数
+  PASSWORD_MIN: 8,   // パスワードの最低の文字数（2026年11月16日：6 → 8。当てられにくくする）
 
   // 営業時間の表示範囲（シフト表の左端と右端）
   DAY_START: 7 * 60,    // 7:00
