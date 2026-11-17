@@ -9,8 +9,8 @@
 //       公開シフトを確認していない人、
 //       人が足りない日と時間、自分のシフト（店長も仕事に入る）
 //       （店舗の設定は「店舗」タブにまとめた。2026年11月15日）
-// 2026年11月17日：見やすく（店長）いちばん上に「今日のまとめ」（今日の人数・未提出・未公開・足りない時間・お知らせ）
-//                       店舗の切りかえは細い1行に。お知らせのカードを足した
+// 2026年11月17日：見やすく（店長）いちばん上に「今日のまとめ」（今日の人数・希望の提出・未公開・足りない時間）
+//                       店舗の切りかえは細い1行に
 //                 （店員）自分のシフトは3件まで。残りは「カレンダーで見る」
 // 2026年11月15日：シフト交代の機能はなくした（店長と本人で直接話して、店長がシフト作成で直す）
 // 2026年11月5日：人が足りない時の自動連絡
@@ -53,7 +53,6 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
   const short = period ? await shortageCard(period) : null;   // 人が足りない時間のカードと件数
   const shortCard = short?.card || null;   // 人が足りない時間のカード
   const calls = await api.listCalls();                     // 人が足りない時の募集（さがし中）
-  const notes = await api.listNotifications().catch(() => []);   // 店長あてのお知らせ（2026年11月17日）
   // 今日の勤務の人数（今日が入っている週の、この店舗の勤務）
   const todayPeriod = periods.find((eachPeriod) => datesOf(eachPeriod).includes(today()));   // 今日が入っている週
   const todayWork = todayPeriod ? (await api.listAssignments(todayPeriod.id)).filter((shift) => shift.date === today()) : [];   // 今日の勤務
@@ -113,12 +112,11 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
         unsettled: period && period.status !== "published" ? STATUS_LABEL[period.status] : null,   // 未公開の週の状態
         short: short?.count ?? 0,   // 足りない時間の件数
         shortNotMade: !short || short.notMade,   // まだシフトを作っていない（件数を出さない）
-        notes: notes.length,   // お知らせの件数
       }),
       statusCard,   // 今の週の状態（やること）
       callsManagerCard(app, calls),   // 人が足りない時の募集
       shortCard,   // 足りない時間
-      notesCard(notes),   // お知らせ
+      // お知らせのカードは出さない（2026年11月17日：店長の希望）
       published ? confirmCard(published, members, confirms) : null,   // 公開シフトの確認
       // 店長も仕事に入るので、自分のシフトも出す
       myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, limit: 3, onMore: () => go("/calendar") }),   // 自分のシフト（3件まで。残りはカレンダー）
@@ -148,17 +146,6 @@ function summaryCard(info) {   // まとめのカードを作る関数
         ? tile("人が足りない", "－", "none", jump("home-short"))   // 数えられない
         : tile("人が足りない", `${info.short}件`, info.short ? "ng" : "ok", jump("home-short")),   // 足りない時間
     ),
-    info.notes ? createElement("button", { class: "sum-notes", onclick: jump("home-notes") }, `お知らせ ${info.notes}件 ›`) : null,   // お知らせがあれば
-  );
-}
-
-/** お知らせ（店長。新しい5件。2026年11月17日） */
-function notesCard(notes) {   // お知らせのカードを作る関数
-  return createElement("section", { class: "card", id: "home-notes" },   // カード
-    createElement("h2", { class: "card__title" }, `お知らせ${notes.length ? `（${notes.length}件）` : ""}`),   // 見出し
-    notes.length   // あれば
-      ? createElement("ul", { class: "check-list" }, notes.slice(0, 5).map((note) => createElement("li", { class: "is-info" }, note.text)))   // 新しい5件
-      : createElement("div", { class: "home-muted" }, "お知らせはありません"),   // なければ
   );
 }
 
