@@ -238,19 +238,20 @@ export async function renderStaff(app) {   // スタッフの登録・設定の�
     if (!developers.length) return null;   // いなければ出さない
     return createElement("section", { class: "card" },   // カード
       createElement("h2", { class: "card__title" }, "開発者（アプリを直す人）"),   // 見出し
-      createElement("div", { class: "home-muted" }, "店長と同じことができます。シフトには出ません。止めると、その人はログインできなくなります。"),   // 説明
+      createElement("div", { class: "home-muted" }, "店長と同じことができます。シフトには出ません。"),   // 説明
       developers.map((developer) => createElement("div", { class: "staff-row" },   // 1人ずつ
         createElement("div", { class: "staff-row__name" },   // 名前の所
           createElement("strong", null, developer.name), ` ID ${developer.loginId}`,   // 名前とID
           developer.active ? null : createElement("span", { class: "badge", style: { marginLeft: "6px" } }, "停止中")),   // 止めていれば印
-        developer.id === state.user.id   // 自分なら
-          ? createElement("span", { class: "home-muted" }, "（自分）")   // 自分は止められない
-          : createElement("button", { class: "btn btn--small btn--danger", onclick: async () => {   // 停止・再開のボタン
-              await api.saveMember({ ...developer, active: !developer.active });   // 保存
+        // 2026年11月17日：「停止する」ボタンは出さない（店長の希望）。前に止めてあった時だけ「再開する」を出す
+        developer.active || developer.id === state.user.id   // 動いている・自分なら
+          ? null   // ボタンなし
+          : createElement("button", { class: "btn btn--small", onclick: async () => {   // 再開のボタン
+              await api.saveMember({ ...developer, active: true });   // 保存
               developers = await api.listDevelopers();   // 読みなおす
-              toast(developer.active ? "停止しました" : "再開しました");   // お知らせ
+              toast("再開しました");   // お知らせ
               draw();   // 描きなおす
-            } }, developer.active ? "停止する" : "再開する"))));   // ボタンの文字
+            } }, "再開する"))));   // ボタンの文字
   }
 
   /** パスワードのリセット／アカウントを作る：新しい初回コードを出して見せる */
