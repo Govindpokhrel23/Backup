@@ -8,7 +8,7 @@
 //   published … 公開（みんなが見られる）
 // ============================================================
 
-import { addDays, label, shortLabel, weekDates } from "./date.js";   // 日付の道具を読む
+import { addDays, label, shortLabel, weekDates, today } from "./date.js";   // 日付の道具を読む
 
 export const STATUS_LABEL = {   // 受付の状態 → 画面に出す名前
   open: "受付中",   // 希望を受け付けている
@@ -37,9 +37,27 @@ export function deadlineLabel(period) {   // 締め切りの日時の文字を�
   return `${label(date)} ${time}`;   // 日付と時間をつなぐ
 }
 
-/** 受付中の週（なければ null） */
+/** その週がもう終わったか（日曜日が今日より前） */
+export function isPast(period) {   // 終わった週か調べる関数
+  return addDays(period.weekStart, 6) < today();   // 日曜日が昨日以前なら終わった週
+}
+
+/** 受付中の週（終わった週はのぞく。なければ null。2026年11月17日：過ぎた週を出さない） */
 export function openPeriod(periods) {   // 受付中の週を探す関数
-  return periods.find((period) => period.status === "open") || null;   // なければ null
+  return byStart(periods).find((period) => period.status === "open" && !isPast(period)) || null;   // なければ null
+}
+
+/**
+ * まだシフトができていない週（ホームに出す。2026年11月17日）
+ * 公開していない週のうち、終わっていない、いちばん近い週。なければ null
+ */
+export function pendingPeriod(periods) {   // できていない週を探す関数
+  return byStart(periods).find((period) => period.status !== "published" && !isPast(period)) || null;   // なければ null
+}
+
+/** 週を始まりの早い順に並べる（元の並びは変えない） */
+function byStart(periods) {   // 早い順に並べる関数
+  return [...periods].sort((first, second) => first.weekStart.localeCompare(second.weekStart));   // 週の始まりで比べる
 }
 
 /** 店長が次に作る週（締切 → 受付中 → いちばん新しい の順で探す） */

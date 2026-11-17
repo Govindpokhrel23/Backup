@@ -24,7 +24,7 @@ import { state, isManager, switchStore, activeStores } from "../store.js";   // 
 import { go } from "../router.js";   // 画面を移動する道具を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
 import { myShifts } from "../components/my-shifts.js";   // 自分のシフトの部品を読む
-import { STATUS_LABEL, weekLabel, deadlineLabel, openPeriod, workingPeriod, datesOf } from "../lib/period.js";   // 週の表示の道具を読む
+import { STATUS_LABEL, weekLabel, deadlineLabel, openPeriod, pendingPeriod, datesOf } from "../lib/period.js";   // 週の表示の道具を読む
 import { findShortages } from "../rules/shift-rules.js";   // 足りない時間を出す道具を読む
 import { label, dayType, today } from "../lib/date.js";   // 日付の道具を読む
 import { range } from "../lib/time.js";   // 時間の表示の道具を読む
@@ -48,7 +48,7 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
   const [periods, members, mine, stores] = await Promise.all([   // 週の一覧・店員・自分の勤務・店舗
     api.listPeriods(), api.listMembers(), api.listMyAssignments(), api.listStores(),   // 週・店員・自分の勤務・店舗を同時に読む
   ]);
-  const period = workingPeriod(periods);   // 作っている週
+  const period = pendingPeriod(periods);   // まだシフトができていない週（過ぎた週は出さない。2026年11月17日）
   const hopes = period ? await api.listAvailabilities(period.id) : [];   // その週の希望
   const short = period ? await shortageCard(period) : null;   // 人が足りない時間のカードと件数
   const shortCard = short?.card || null;   // 人が足りない時間のカード
@@ -98,7 +98,9 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
         : null,   // 公開後は出さない
       createElement("button", { class: "btn btn--primary", onclick: () => go("/shift") }, "シフト作成へ"),   // シフト作成へ
     ),
-  ) : createElement("section", { class: "card" }, "まだ週がありません。「シフト作成」を開くと、来週の受付が始まります");   // 週がない時の文
+  ) : createElement("section", { class: "card", id: "home-status" },   // できていない週がない時
+    createElement("div", { class: "notice notice--ok" }, "これからの週は、全部公開しました"),   // 全部できている
+    createElement("button", { class: "btn btn--primary", onclick: () => go("/shift") }, "シフト作成へ（次の週を始める）"));   // 次の週へ
 
   mount(app,   // 画面に入れる
     screenHeader({ title: "ホーム", sub: `${state.user.name}（店長）`, right: settingsButton() }),   // 見出し
