@@ -1,0 +1,78 @@
+/* ============================================================
+   theme.css — カフェ風の見た目（2026年11月17日）
+   ------------------------------------------------------------
+   このファイルは、アプリ全体を「カフェのアプリ」のような見た目にするファイルです。
+   ・上の見出し：こげ茶の帯（下の角を丸く）＋クリーム色の文字
+   ・本文：クリーム色の背景に、角の大きい白いカード（枠の線なし・うすい影）
+   ・選んでいるもの：こげ茶（文字はクリーム）／ほかはベージュ
+   ・下のメニュー：浮いた丸い帯。今の画面の絵はこげ茶の四角で囲む
+   ・いちばん最後に読む。index.html から外せば、前の見た目にもどる
+   ============================================================ */
+
+:root {   /* 全体の色（base.css の色を上書き） */
+  --bg: #F3ECE1;          /* 画面の背景（クリーム） */
+  --surface: #FFFCF7;     /* カードの白（少しあたたかい白） */
+  --surface-2: #F1E7D9;   /* ベージュ（一覧の行・マスなど） */
+  --line: #E7DACA;        /* 区切り線 */
+  --brown: #3A2A20;       /* こげ茶（見出しの帯・選んでいるもの） */
+  --cream: #FBF4E8;       /* クリーム（こげ茶の上の文字） */
+  --card-radius: 20px;    /* カードの角 */
+}
+html, body { background: var(--bg); }   /* 背景 */
+
+/* ---------- 上の見出し：こげ茶の帯 ---------- */
+.screen-header {   /* 見出し */
+  /* 見出しの中だけ、色の名前の中身を「こげ茶の上で見やすい色」に入れかえる */
+  --ink: var(--cream); --ink-2: #EADBC6; --ink-3: #CDB9A1;   /* 文字はクリーム */
+  --surface: #4E3B2E; --surface-2: #5A4636; --line: #6E5848;   /* ボタンなどは少し明るいこげ茶 */
+  --danger: #FFB4A3; --hall: #9EC2F2;   /* 赤・青も明るく */
+  background: var(--brown); color: var(--ink);   /* 帯の色と文字 */
+  border-bottom: none; border-radius: 0 0 22px 22px;   /* 下の角を丸く */
+  box-shadow: 0 6px 16px rgba(58, 42, 32, 0.18);   /* うすい影 */
+}
+.screen-header__title { letter-spacing: 0.02em; }   /* タイトル */
+/* こげ茶の上で「選んでいる」もの・印は、クリームの地にこげ茶の文字 */
+.screen-header [aria-pressed="true"], .screen-header .btn--primary, .screen-header .badge, .screen-header .store-badge,
+.screen-header [aria-pressed="true"] .week-tab__state { color: var(--brown) !important; }   /* 文字はこげ茶 */
+.screen-header .badge, .screen-header .store-badge { background: var(--cream); }   /* 印はクリームの地 */
+.screen-header .badge--hall { background: #CFE0F7; }   /* 受付中などの青い印は明るく */
+.screen-header .btn { border-color: transparent; }   /* 見出しのボタンは枠なし */
+/* 見出しの中で選んでいる・大事なものは、クリームの地にこげ茶の文字（こげ茶の帯に消えないように） */
+.screen-header [aria-pressed="true"], .screen-header .btn--primary { background: var(--cream) !important; border-color: var(--cream) !important; }   /* クリームの地 */
+.screen-header .week-tab__state { color: var(--ink-3); }   /* 週のタブの小さい文字 */
+.screen-header .select { background: #4E3B2E; color: var(--cream); border-color: #6E5848; }   /* 選ぶ欄 */
+
+/* ---------- カード ---------- */
+.card { border: none; border-radius: var(--card-radius); box-shadow: 0 2px 10px rgba(58, 42, 32, 0.06); }   /* 枠なし・角を大きく */
+.card--tight { border-radius: 16px; }   /* 表のカード */
+.screen-body { padding-top: 18px; }   /* 帯との間を少しあける */
+
+/* ---------- ボタン・選ぶもの ---------- */
+.btn { border-radius: 14px; }   /* 角を丸く */
+.btn--small, .btn--tiny, .chip { border-radius: 999px; }   /* 小さいボタンは丸い形 */
+.btn--primary, .chip:not(.chip--ok):not(.chip--danger):not(.chip--hall):not(.chip--kitchen)[aria-pressed="true"], .seg__btn[aria-pressed="true"], .store-tabs__btn[aria-pressed="true"] { background: var(--brown); border-color: var(--brown); color: var(--cream); }   /* 選んでいる・大事 → こげ茶（入れる＝緑・休み＝赤などの色はそのまま） */
+.btn:not(.btn--primary):not(.btn--danger):not(.btn--blue):not(.btn--dashed) { background: var(--surface); }   /* ふつうのボタンは白 */
+.store-bar .store-switch__btn:not([aria-pressed="true"]), .chip:not([aria-pressed="true"]) { background: var(--surface-2); border-color: transparent; }   /* 選んでいない → ベージュ */
+.store-bar .store-switch__btn { border-radius: 16px; }   /* 店舗のボタン */
+
+/* ---------- ベージュのタイル ---------- */
+.sum-tile { border: none; border-radius: 16px; }   /* まとめのマス */
+.my-shifts__item { border-radius: 16px; }   /* 自分のシフトの1件 */
+.my-shifts__item.is-today { background: var(--brown); color: var(--cream); }   /* 今日はこげ茶 */
+
+/* ---------- 下のメニュー：浮いた丸い帯 ---------- */
+.tabbar {   /* 下のメニュー */
+  left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom));   /* 画面のはしから少しはなす */
+  height: var(--tabbar-h); padding-bottom: 0;   /* 高さ */
+  background: #E9DFCF; border: none; border-radius: 24px;   /* ベージュの丸い帯 */
+  box-shadow: 0 6px 20px rgba(58, 42, 32, 0.18);   /* 浮いて見える影 */
+}
+.tabbar__btn { color: #6B5B4E; }   /* ふだんの色 */
+.tabbar__btn svg { width: 32px; height: 32px; padding: 4px; border-radius: 12px; }   /* 絵（まわりに余白） */
+.tabbar__btn[aria-current="page"] { color: var(--brown); }   /* 今の画面の文字 */
+.tabbar__btn[aria-current="page"] svg { background: var(--brown); color: var(--cream); }   /* 今の画面の絵はこげ茶の四角 */
+.app { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 28px); }   /* 下のメニューにかくれないように */
+.toast { bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 24px); }   /* お知らせはメニューの上 */
+@media (min-width: 800px) {   /* PC・タブレット */
+  .tabbar { left: 50%; right: auto; width: 640px; transform: translateX(-50%); border-radius: 24px; }   /* 真ん中に浮かせる */
+}
