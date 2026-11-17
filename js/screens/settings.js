@@ -15,11 +15,11 @@ import { today } from "../lib/date.js";   // 今日の日付の道具を読む
 import { go } from "../router.js";   // 画面を移動する道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
-import { pushStatus, isPushOn, turnOnPush, turnOffPush } from "../lib/push.js";   // 通知の道具を読む
+import { pushStatus, isPushOn, turnOnPush } from "../lib/push.js";   // 通知の道具を読む
 import { clearLocalData } from "../lib/local-data.js";   // ログアウトの時にスマホの中のデータを消す道具を読む（2026年11月16日）
 
 /**
- * プッシュ通知のカード：このスマホで通知を受け取る／受け取らない
+ * プッシュ通知のカード：このスマホで通知を受け取る（一度オンにしたらずっとオン。2026年11月17日）
  * 使えない時（見本データ・鍵がない・iPhone でホーム画面に追加していない）は理由を出す
  */
 function pushCard() {   // 通知のカードを作る関数
@@ -29,20 +29,21 @@ function pushCard() {   // 通知のカードを作る関数
     box.append(createElement("div", { class: "home-muted" }, status.why));   // 理由を出す
     return box;   // カードを返す
   }
-  /** 今の状態でボタンを描き直す */
+  /** 今の状態で描き直す（2026年11月17日：オンにしたら「受け取らない」ボタンは出さない＝ずっとオン） */
   const paint = async () => {   // カードの中身を描く
     const on = await isPushOn();                                                                   // 今オンか
     box.replaceChildren(   // 中身を入れかえる
       createElement("h2", { class: "card__title" }, "スマホへの通知"),   // 見出し
-      createElement("div", { class: "home-muted" }, on ? "このスマホで通知を受け取っています（シフトの公開・変更・人が足りない時）" : "シフトが公開された時・変わった時などに、スマホに通知が来ます"),   // 今の状態の説明
-      createElement("button", { class: `btn ${on ? "" : "btn--primary"}`, onclick: async () => {   // オン・オフのボタン
+      on   // オンなら
+        ? createElement("div", { class: "notice notice--ok" }, "このスマホで通知を受け取っています（シフトの公開・変更・人が足りない時）")   // 受け取っている（ボタンなし）
+        : createElement("div", { class: "home-muted" }, "シフトが公開された時・変わった時・人が足りない時に、このスマホに通知が届きます。一度オンにすると、ずっと届きます"),   // 説明
+      on ? null : createElement("button", { class: "btn btn--primary", onclick: async () => {   // オンにするボタン
         try {   // 失敗しても止まらないように
-          if (on) await turnOffPush((endpoint) => api.deletePushSubscription(endpoint));   // オンならオフにする
-          else await turnOnPush((sub) => api.savePushSubscription(sub));   // オフならオンにする
-          toast(on ? "通知をオフにしました" : "通知をオンにしました");   // お知らせ
+          await turnOnPush((sub) => api.savePushSubscription(sub));   // オンにする
+          toast("通知をオンにしました");   // お知らせ
         } catch (error) { toast(error.message); }   // 失敗したら理由を出す
         paint();   // 描きなおす
-      } }, on ? "通知を受け取らない" : "通知を受け取る"),   // ボタンの文字
+      } }, "通知を受け取る"),   // ボタンの文字
     );
   };
   paint();   // はじめに描く

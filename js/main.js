@@ -10,6 +10,7 @@
 import { api } from "./api/index.js";   // データのやりとりの窓口を読む
 import { state, loadStoreInfo } from "./store.js";   // アプリ全体の状態と、店舗を読む関数
 import { startRouter } from "./router.js";   // 画面の切り替えの始まりを読む
+import { keepPushOn } from "./lib/push.js";   // 通知をオンのままにする道具を読む（2026年11月17日）
 
 /** アプリを始める（ログインが残っているか確かめて、最初の画面を出す） */
 async function start() {   // アプリを始める関数
@@ -17,6 +18,7 @@ async function start() {   // アプリを始める関数
   state.user = await api.currentUser();   // ログイン中の人を調べる（いなければ null）
   await loadStoreInfo();   // 店舗の情報を読む
   startRouter();   // 今の URL の画面を出す
+  if (state.user) keepPushOn((sub) => api.savePushSubscription(sub));   // 一度オンにした通知は、開くたびに登録をたしかめる（待たない）
 }
 
 start();   // アプリを始める

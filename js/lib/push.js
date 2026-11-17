@@ -59,7 +59,27 @@ export async function turnOnPush(save) {   // 通知をオンにする関数
 }
 
 /**
+ * 一度オンにした通知を、ずっとオンのままにする（2026年11月17日）
+ * アプリを開くたびに呼ぶ。許可がある時だけ動く（「許可しますか？」はもう出さない）
+ *   ・登録があれば、宛先をサーバーにもう一度保存する（サーバー側で消えていても戻る）
+ *   ・許可はあるのに登録が消えていれば（スマホが消した時など）、だまって登録し直す
+ * @param {(sub:object)=>Promise<void>} save 宛先を保存する関数（api.savePushSubscription）
+ */
+export async function keepPushOn(save) {   // 通知をオンのままにする関数
+  try {   // 失敗してもアプリは止めない
+    if (!pushStatus().ok || Notification.permission !== "granted") return;   // 使えない・許可がない時は何もしない
+    const reg = await navigator.serviceWorker.ready;   // サービスワーカー
+    const sub = (await reg.pushManager.getSubscription())   // 今の登録
+      || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(CONFIG.VAPID_PUBLIC_KEY) });   // なければ登録し直す
+    await save(sub.toJSON());   // 宛先をサーバーに保存
+  } catch (error) {   // 失敗した時
+    console.warn("通知の登録をたしかめられませんでした", error);   // 開発者用に残す
+  }
+}
+
+/**
  * 通知を受け取らない（オフ）
+ * ※2026年11月17日から画面にオフのボタンは出さない（一度オンにしたらずっとオン）
  * @param {(endpoint:string)=>Promise<void>} remove 宛先を消す関数（api.deletePushSubscription）
  */
 export async function turnOffPush(remove) {   // 通知をオフにする関数
