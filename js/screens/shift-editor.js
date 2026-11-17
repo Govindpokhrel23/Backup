@@ -47,7 +47,7 @@ import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間�
 import { defaultBreak } from "../lib/breaks.js";   // 休憩の目安の位置を決める道具を読む
 import { openQuickTime } from "../components/quick-time.js";   // 時間をすぐ直す小さい画面を読む（2026年11月15日）
 import { hopeList } from "../components/hope-list.js";   // 希望の一覧の部品を読む（2026年11月15日）
-import { weekGrid } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月10日）   // 時間とお金の計算の道具を読む
+import { weekGrid, weekLegend } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月10日）   // 時間とお金の計算の道具を読む
 
 /** シフト作成の画面を描く（店長） */
 export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   // シフト作成の画面を描く関数（openWeek：開く週。なければ今週）
@@ -415,10 +415,12 @@ export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   /
           availabilities: hopes,   // 希望
           problemDays,   // 問題がある日
           closedDays: new Set(datesOf(period).filter(isClosed)),   // お休みの日（店舗の設定で決めた日）
+          shortDays: weekShortages().reduce((map, need) => map.set(need.date, (map.get(need.date) || 0) + 1), new Map()),   // 人が足りない日（2026年11月17日）
           selectedId,   // 選んでいる人
           onPick: pickFromWeek,   // マスを押した時
         }),
-        createElement("div", { class: "home-muted wk__help" }, "マスを押すと、その日を細かく直せます。○・時間＝入れる希望、休＝休み希望"),   // 使い方
+        weekLegend(),   // 色と記号の説明（2026年11月17日）
+        createElement("div", { class: "home-muted wk__help" }, "マスを押すと、その日を細かく直せます（休憩の時間も1日の画面で）。○・時間＝入れる希望、休＝休み希望"),   // 使い方
       ),
       // 「守れていないルール」のカードは外した（表の日付の赤い点で分かる。2026年11月15日）
       shortageCard(),   // 足りない時間のカード

@@ -9,11 +9,14 @@
 // ・ほかの店舗に入っている日は灰色で「安城」のように出す
 // ・右はしはその人の週の時間、いちばん下はその日の人数
 // ・マスを押すと、その日・その人の「1日」の画面に移って細かく直せる
+// 2026年11月17日：見やすく。文字を12px以上に・今日の列に「今日」・ルールの「!」・人数の行に「不足」
+//   色だけでなく文字でも分かるように、下に記号の説明を出す（weekLegend）
 // ============================================================
 
 import { createElement } from "../lib/dom.js";                 // 画面の部品を作る道具を読む
 import { label, today } from "../lib/date.js";                         // 日付を「11/16（月）」にする道具を読む
 import { workedMinutes, hoursText } from "../lib/labor.js";     // 働いた時間の計算と表示の道具を読む
+import { fmt } from "../lib/time.js";                           // 時刻を「9:00」にする道具を読む
 
 /** 休み希望の種類（入れない日） */
 const OFF_KINDS = ["no", "off", "offx"];   // ×・休み希望・特別許可待ち
@@ -38,6 +41,7 @@ function shortTime(minutes) {   // 時間を短い文字にする関数
  * @param {object[]} props.availabilities この週の希望
  * @param {Set<string>} props.problemDays 守れていないルールがある日
  * @param {Set<string>} [props.closedDays] お休みの日（店舗の設定で決めた日。2026年11月15日）
+ * @param {Map<string,number>} [props.shortDays] 人が足りない時間がある日と件数（2026年11月17日）
  * @param {string|null} props.selectedId  選んでいる店員
  * @param {(date:string, memberId:string|null) => void} props.onPick マスや日付を押した時
  */
@@ -61,7 +65,8 @@ export function weekGrid(props) {   // 1週間のシフト表を作る関数
             createElement("button", { class: "wk__dayBtn", onclick: () => props.onPick(date, null), "aria-label": `${label(date)} を1日の画面で開く` },   // 押すとその日を開く
               createElement("span", { class: `wk__date${dayClass(date)}` }, String(Number(date.slice(8)))),   // 日にち（例「16」。紙のシフト表と同じく月は出さない。2026年11月15日）
               createElement("span", { class: `wk__dow${dayClass(date)}` }, label(date).match(/（(.)）/)?.[1] || ""),   // 「月」
-              props.problemDays.has(date) ? createElement("span", { class: "wk__dot", "aria-label": "守れていないルールあり" }) : null,   // 問題がある日の赤い点
+              date === today() ? createElement("span", { class: "wk__todayMark" }, "今日") : null,   // 今日の列は文字でも（2026年11月17日）
+              props.problemDays.has(date) ? createElement("span", { class: "wk__dot", title: "守れていないルールあり", "aria-label": "守れていないルールあり" }, "!") : null,   // 問題がある日（赤い「!」）
               props.closedDays?.has(date) ? createElement("span", { class: "wk__closed" }, "休業") : null))),   // お休みの日の印
           createElement("th", { class: "wk__sum" }, "週"),   // 右はし：週の時間
         ),
@@ -75,7 +80,12 @@ export function weekGrid(props) {   // 1週間のシフト表を作る関数
       createElement("tfoot", null,   // いちばん下
         createElement("tr", null,   // 人数の行
           createElement("th", { class: "wk__name" }, "人数"),   // 左
-          props.dates.map((date) => createElement("td", { class: "wk__count" }, `${new Set(props.assignments.filter((shift) => shift.date === date).map((shift) => shift.memberId)).size}人`)),   // その日に入る人の数
+          props.dates.map((date) => {   // その日に入る人の数
+            const short = props.shortDays?.get(date) || 0;   // その日の足りない時間の件数
+            return createElement("td", { class: `wk__count${short ? " is-short" : ""}` },   // 足りない日は赤く
+              createElement("span", null, `${new Set(props.assignments.filter((shift) => shift.date === date).map((shift) => shift.memberId)).size}人`),   // 人数
+              short ? createElement("span", { class: "wk__shortMark" }, "不足") : null);   // 文字でも「不足」
+          }),
           createElement("td", { class: "wk__sum" }, ""),   // 右はしは空
         ),
       ),
@@ -112,7 +122,10 @@ function dayCell(props, member, date) {   // 1つのマスを作る関数
   if (closed) {   // お休みの日なら
     inside = createElement("span", { class: "wk__away" }, "－");   // 灰色の線（お店がお休み）
   } else if (shifts.length) {   // 勤務があれば
-    inside = shifts.map((shift) => createElement("span", { class: `wk__shift wk__shift--${shift.area}${shift.fixed ? " is-fixed" : ""}` },   // 勤務（色は場所）
+    inside = shifts.map((shift) => createElement("span", {   // 勤務（色は場所）
+      class: `wk__shift wk__shift--${shift.area}${shift.fixed ? " is-fixed" : ""}${shift.breakAt != null ? " has-break" : ""}`,   // 見た目（休憩ありは右上に印）
+      title: `${shift.area === "hall" ? "ホール" : "キッチン"} ${fmt(shift.from)}〜${fmt(shift.to)}${shift.breakAt != null ? ` 休憩 ${fmt(shift.breakAt)}` : ""}`,   // 色だけでなく文字の説明も
+    },
       createElement("span", null, shortTime(shift.from)), createElement("span", null, shortTime(shift.to))));   // 上に始まり、下に終わり（7日が1画面に入るように2行にする）
   } else if (away.length) {   // ほかの店舗に入っていれば
     inside = away.map((shift) => createElement("span", { class: "wk__away" }, shift.storeShort || "他店"));   // 灰色で店舗の名前
@@ -127,4 +140,14 @@ function dayCell(props, member, date) {   // 1つのマスを作る関数
   }
   return createElement("td", { class: `wk__cell${closed ? " is-closed" : ""}${date === today() ? " is-today" : ""}` },   // 今日の列は塗りつぶす   // マス
     createElement("button", { class: "wk__cellBtn", onclick: open, "aria-label": `${member.name} ${label(date)}` }, inside));   // 押せるマス
+}
+
+/** 表の下の記号の説明（色だけでなく文字で。2026年11月17日） */
+export function weekLegend() {   // 記号の説明を作る関数
+  const item = (cls, text) => createElement("span", { class: "wk-legend__item" }, createElement("span", { class: `wk-legend__mark ${cls}` }), text);   // 色の見本＋文字
+  return createElement("div", { class: "wk-legend" },   // 説明の行
+    item("is-hall", "ホール"), item("is-kitchen", "キッチン"), item("is-fixed", "固定"), item("is-break", "休憩あり"), item("is-away", "ほかの店舗"),   // 色の意味
+    createElement("span", { class: "wk-legend__item" }, createElement("b", { class: "wk-legend__bang" }, "!"), "ルールを確認"),   // 「!」の意味
+    createElement("span", { class: "wk-legend__item" }, createElement("b", { class: "wk-legend__short" }, "不足"), "人が足りない"),   // 「不足」の意味
+  );
 }

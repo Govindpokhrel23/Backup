@@ -18,7 +18,7 @@ import { dayList } from "../components/day-list.js";   // 1日の一覧の部品
 import { weekLabel, datesOf } from "../lib/period.js";   // 週の表示の道具を読む
 import { label, today, dayType } from "../lib/date.js";   // 日付の道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
-import { weekGrid } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月15日：店員も週で見られるように）
+import { weekGrid, weekLegend } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月15日：店員も週で見られるように）
 import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む
 
 /** 公開シフトの画面を描く */
@@ -137,6 +137,7 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
         selectedId: state.user.id,   // 自分の行に色をつける
         onPick: (pickedDate) => { date = pickedDate; view = "day"; saveView("day"); draw(); window.scrollTo(0, 0); },   // マスを押したらその日へ
       }),
+      weekLegend(),   // 色と記号の説明（2026年11月17日）
       createElement("div", { class: "home-muted wk__help" }, "マスを押すと、その日を時間の線で見られます。色の行が自分です"),   // 使い方
     );
   }

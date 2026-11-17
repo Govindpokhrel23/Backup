@@ -19,13 +19,15 @@ import { range, fmt } from "../lib/time.js";   // 時間の表示の道具を読
  * @param {object[]} props.stores       店舗の一覧（店名を出すため）
  * @param {string}   props.myStoreId    自分のいつもの店舗（応援を見分けるため）
  * @param {number}   [props.limit]      いくつまで出すか
+ * @param {()=>void} [props.onMore]     もっと見る（押すとカレンダーへ。2026年11月17日）
  */
 export function myShifts(props) {   // 自分のシフトのカードを作る関数
   const now = today();   // 今日の日付
-  const upcoming = props.assignments   // これからの勤務（今日から、早い順）
+  const all = props.assignments   // これからの勤務（今日から、早い順）
     .filter((shift) => shift.date >= now)                                   // 昨日より前は出さない
-    .sort((shiftA, shiftB) => shiftA.date.localeCompare(shiftB.date) || shiftA.from - shiftB.from)   // 日付と時間の順に並べる
-    .slice(0, props.limit ?? 10);   // はじめの10件まで
+    .sort((shiftA, shiftB) => shiftA.date.localeCompare(shiftB.date) || shiftA.from - shiftB.from);   // 日付と時間の順に並べる
+  const upcoming = all.slice(0, props.limit ?? 10);   // はじめの10件まで
+  const rest = all.length - upcoming.length;   // 出しきれなかった数
 
   // 「今日」「明日」「明後日」の呼び方
   const dayWord = (date) => (date === now ? "今日" : date === addDays(now, 1) ? "明日" : date === addDays(now, 2) ? "明後日" : null);   // 今日・明日・明後日の言葉を出す
@@ -53,5 +55,8 @@ export function myShifts(props) {   // 自分のシフトのカードを作る�
             );
           }))
       : createElement("div", { class: "home-muted" }, "これからの予定はまだありません（公開されると出ます）"),   // 予定がない時の文
+    rest > 0 && props.onMore   // まだ先の勤務があれば
+      ? createElement("button", { class: "btn btn--small btn--block", onclick: props.onMore }, `ほか ${rest}件をカレンダーで見る`)   // もっと見るボタン
+      : null,   // なければ出さない
   );
 }

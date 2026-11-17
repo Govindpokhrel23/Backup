@@ -9,6 +9,9 @@
 //       公開シフトを確認していない人、
 //       人が足りない日と時間、自分のシフト（店長も仕事に入る）
 //       （店舗の設定は「店舗」タブにまとめた。2026年11月15日）
+// 2026年11月17日：見やすく（店長）いちばん上に「今日のまとめ」（今日の人数・未提出・未公開・足りない時間・お知らせ）
+//                       店舗の切りかえは細い1行に。お知らせのカードを足した
+//                 （店員）自分のシフトは3件まで。残りは「カレンダーで見る」
 // 2026年11月15日：シフト交代の機能はなくした（店長と本人で直接話して、店長がシフト作成で直す）
 // 2026年11月5日：人が足りない時の自動連絡
 //   店長 → 「入れます」と返事した人を見て「この人に入ってもらう」
@@ -23,7 +26,7 @@ import { screenHeader } from "../components/header.js";   // 見出しの部品�
 import { myShifts } from "../components/my-shifts.js";   // 自分のシフトの部品を読む
 import { STATUS_LABEL, weekLabel, deadlineLabel, openPeriod, workingPeriod, datesOf } from "../lib/period.js";   // 週の表示の道具を読む
 import { findShortages } from "../rules/shift-rules.js";   // 足りない時間を出す道具を読む
-import { label, dayType } from "../lib/date.js";   // 日付の道具を読む
+import { label, dayType, today } from "../lib/date.js";   // 日付の道具を読む
 import { range } from "../lib/time.js";   // 時間の表示の道具を読む
 import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む
 
@@ -47,8 +50,14 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
   ]);
   const period = workingPeriod(periods);   // 作っている週
   const hopes = period ? await api.listAvailabilities(period.id) : [];   // その週の希望
-  const shortCard = period ? await shortageCard(period) : null;   // 人が足りない時間のカード
+  const short = period ? await shortageCard(period) : null;   // 人が足りない時間のカードと件数
+  const shortCard = short?.card || null;   // 人が足りない時間のカード
   const calls = await api.listCalls();                     // 人が足りない時の募集（さがし中）
+  const notes = await api.listNotifications().catch(() => []);   // 店長あてのお知らせ（2026年11月17日）
+  // 今日の勤務の人数（今日が入っている週の、この店舗の勤務）
+  const todayPeriod = periods.find((eachPeriod) => datesOf(eachPeriod).includes(today()));   // 今日が入っている週
+  const todayWork = todayPeriod ? (await api.listAssignments(todayPeriod.id)).filter((shift) => shift.date === today()) : [];   // 今日の勤務
+  const todayCount = new Set(todayWork.map((shift) => shift.memberId)).size;   // 今日入る人の数
   // 公開済みでいちばん新しい週の「確認しました」
   const published = periods.filter((period) => period.status === "published").pop();   // 一番新しい公開した週
   const confirms = published ? await api.listConfirms(published.id) : [];   // 「確認しました」の一覧
@@ -67,7 +76,7 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
     renderHome(app);   // 描きなおす
   };
 
-  const statusCard = period ? createElement("section", { class: "card" },   // 受付の状態のカード
+  const statusCard = period ? createElement("section", { class: "card", id: "home-status" },   // 受付の状態のカード（まとめから飛べるように id）
     createElement("h2", { class: "card__title" }, weekLabel(period)),   // 週の日付
     createElement("div", { class: "home-status" },   // 状態の行
       createElement("span", { class: `badge ${period.status === "open" ? "badge--hall" : period.status === "closed" ? "badge--warn" : ""}` }, STATUS_LABEL[period.status]),   // 受付中・作成中・公開済みの印
@@ -94,15 +103,59 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
   mount(app,   // 画面に入れる
     screenHeader({ title: "ホーム", sub: `${state.user.name}（店長）`, right: settingsButton() }),   // 見出し
     createElement("div", { class: "screen-body" },   // 本文
-      storeSwitcher(app),   // 店舗の切りかえ
-      statusCard,   // 今の週の状態
+      storeSwitcher(app),   // 店舗の切りかえ（細い1行）
+      summaryCard({   // 今日のまとめ（大事なものをいちばん上に。2026年11月17日）
+        todayCount: todayPeriod?.status === "published" ? todayCount : null,   // 今日の人数（公開した週だけ）
+        notYet: period ? notYet.length : 0,   // 希望の未提出
+        unsettled: period && period.status !== "published" ? STATUS_LABEL[period.status] : null,   // 未公開の週の状態
+        short: short?.count ?? 0,   // 足りない時間の件数
+        shortNotMade: !short || short.notMade,   // まだシフトを作っていない（件数を出さない）
+        notes: notes.length,   // お知らせの件数
+      }),
+      statusCard,   // 今の週の状態（やること）
       callsManagerCard(app, calls),   // 人が足りない時の募集
       shortCard,   // 足りない時間
+      notesCard(notes),   // お知らせ
       published ? confirmCard(published, members, confirms) : null,   // 公開シフトの確認
       // 店長も仕事に入るので、自分のシフトも出す
-      myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, limit: 5 }),   // 自分のシフト
+      myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, limit: 3, onMore: () => go("/calendar") }),   // 自分のシフト（3件まで。残りはカレンダー）
       // 店舗の設定（店員管理・マップなど）は「店舗」タブにまとめた（2026年11月15日）
     ),
+  );
+}
+
+/**
+ * 今日のまとめ（店長のホームのいちばん上。2026年11月17日）
+ * 4つの数字を並べる。押すと、その中身の所へ移る。色だけでなく「OK」「要確認」の文字でも出す
+ */
+function summaryCard(info) {   // まとめのカードを作る関数
+  /** 1つのマス */
+  const tile = (title, value, state, onclick) => createElement("button", { class: `sum-tile is-${state}`, onclick },   // 押せるマス
+    createElement("span", { class: "sum-tile__title" }, title),   // 名前
+    createElement("span", { class: "sum-tile__value num" }, value),   // 数字
+    createElement("span", { class: "sum-tile__state" }, state === "ok" ? "OK" : state === "ng" ? "要確認" : "")); // 状態の文字
+  const jump = (id) => () => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });   // その所へスクロール
+  return createElement("section", { class: "card sum-card", "aria-label": "今日のまとめ" },   // カード
+    createElement("h2", { class: "card__title" }, `今日のまとめ（${label(today())}）`),   // 見出し
+    createElement("div", { class: "sum-grid" },   // 4つ並べる
+      tile("今日の勤務", info.todayCount == null ? "－" : `${info.todayCount}人`, info.todayCount == null ? "none" : "ok", () => go("/shift")),   // 今日の人数
+      tile("希望の未提出", `${info.notYet}人`, info.notYet ? "ng" : "ok", jump("home-status")),   // 未提出
+      tile("未公開の週", info.unsettled || "なし", info.unsettled ? "ng" : "ok", () => go("/shift")),   // 未公開（受付中・作成中）
+      info.shortNotMade   // まだシフトを作っていなければ
+        ? tile("人が足りない", "－", "none", jump("home-short"))   // 数えられない
+        : tile("人が足りない", `${info.short}件`, info.short ? "ng" : "ok", jump("home-short")),   // 足りない時間
+    ),
+    info.notes ? createElement("button", { class: "sum-notes", onclick: jump("home-notes") }, `お知らせ ${info.notes}件 ›`) : null,   // お知らせがあれば
+  );
+}
+
+/** お知らせ（店長。新しい5件。2026年11月17日） */
+function notesCard(notes) {   // お知らせのカードを作る関数
+  return createElement("section", { class: "card", id: "home-notes" },   // カード
+    createElement("h2", { class: "card__title" }, `お知らせ${notes.length ? `（${notes.length}件）` : ""}`),   // 見出し
+    notes.length   // あれば
+      ? createElement("ul", { class: "check-list" }, notes.slice(0, 5).map((note) => createElement("li", { class: "is-info" }, note.text)))   // 新しい5件
+      : createElement("div", { class: "home-muted" }, "お知らせはありません"),   // なければ
   );
 }
 
@@ -111,8 +164,7 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
  * 押すと、シフト作成・マップ・店員管理など全部の画面がその店舗になる
  */
 function storeSwitcher(app) {   // 店舗の切りかえのカードを作る関数
-  return createElement("section", { class: "card" },   // カード
-    createElement("h2", { class: "card__title" }, "見ている店舗"),   // 見出し（店舗の追加・名前変更は「店舗」タブへ移した。2026年11月15日）
+  return createElement("section", { class: "store-bar", "aria-label": "見ている店舗" },   // 細い1行（2026年11月17日：カードから1行にした）
     createElement("div", { class: "store-switch" },   // 店舗のボタン
       activeStores().map((eachStore) => createElement("button", {   // 店舗ごとに
         class: "chip store-switch__btn",   // 見た目
@@ -170,6 +222,7 @@ function confirmCard(period, members, confirms) {   // 公開シフトの確認�
 /**
  * 人が足りない日と時間（作っている週）
  * 例：「11/9（月） ホール 16:00〜17:00 1人足りない」
+ * @returns {Promise<{card:HTMLElement, count:number}>} カードと件数
  */
 async function shortageCard(period) {   // 足りない時間のカードを作る関数
   const [work, positions, requirements, storeHours, holidays] = await Promise.all([   // 勤務・マップ・必要人数・営業時間・祝日
@@ -177,7 +230,7 @@ async function shortageCard(period) {   // 足りない時間のカードを作�
   ]);
   const title = createElement("h2", { class: "card__title" }, `人が足りない時間（${weekLabel(period)}）`);   // カードの見出し
   if (!work.length) {   // 勤務がなければ
-    return createElement("section", { class: "card" }, title, createElement("div", { class: "home-muted" }, "まだこの週のシフトを作っていません"));   // まだ作っていない
+    return { count: 0, notMade: true, card: createElement("section", { class: "card", id: "home-short" }, title, createElement("div", { class: "home-muted" }, "まだこの週のシフトを作っていません")) };   // まだ作っていない
   }
   const rows = [];   // 足りない時間の行
   for (const date of datesOf(period)) {   // 7日ごとに
@@ -189,10 +242,10 @@ async function shortageCard(period) {   // 足りない時間のカードを作�
         `${shortage.area === "hall" ? "ホール" : "キッチン"} ${range(shortage.from, shortage.to)} ${shortage.short}人足りない`));   // 場所・時間・人数
     }
   }
-  return createElement("section", { class: "card" }, title,   // カード
+  return { count: rows.length, card: createElement("section", { class: "card", id: "home-short" }, title,   // 件数とカード（まとめで件数を使う）
     rows.length   // あれば
       ? createElement("ul", { class: "check-list" }, rows)   // 一覧
-      : createElement("div", { class: "notice notice--ok" }, "足りない時間はありません"));   // なければOK
+      : createElement("div", { class: "notice notice--ok" }, "足りない時間はありません")) };   // なければOK
 }
 
 // ------------------------------------------------------------
@@ -213,7 +266,7 @@ async function renderStaffHome(app) {   // 店員のホームを描く関数
         createElement("span", { class: "home-kibou__sub" },   // 小さい説明
           open ? `${weekLabel(open)} の締切 ${deadlineLabel(open)} ・ 2か月先まで入れられます` : "2か月先まで入れられます")),   // 締切
       // ② 自分のシフト（今日 → 明日 → 明後日）
-      myShifts({ assignments: mine, stores, myStoreId: state.user.storeId }),   // 自分のシフト
+      myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, limit: 3, onMore: () => go("/calendar") }),   // 自分のシフト（3件まで。残りはカレンダー）
       // 人が足りない時の募集（自分に届いた分）：「入れます」を押す
       calls.length   // 募集が来ていれば
         ? createElement("section", { class: "card call-card" },   // カード
@@ -236,7 +289,7 @@ async function renderStaffHome(app) {   // 店員のホームを描く関数
       createElement("section", { class: "card" },   // お知らせのカード
         createElement("h2", { class: "card__title" }, "お知らせ"),   // 見出し
         notes.length   // あれば
-          ? createElement("ul", { class: "check-list" }, notes.slice(0, 10).map((note) => createElement("li", { class: "is-ok" }, note.text)))   // 新しい10件
+          ? createElement("ul", { class: "check-list" }, notes.slice(0, 10).map((note) => createElement("li", { class: "is-info" }, note.text)))   // 新しい10件
           : createElement("div", { class: "home-muted" }, "お知らせはありません"),   // なければ
       ),
     ),

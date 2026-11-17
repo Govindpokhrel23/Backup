@@ -65,12 +65,18 @@ function viewCard() {   // 見る画面のカードを作る関数
   );
 }
 
+/** 設定の区切りの見出し（種類ごとにまとめる。2026年11月17日） */
+function group(title) {   // 区切りの見出しを作る関数
+  return createElement("h2", { class: "settings-group" }, title);   // 小さい見出し
+}
+
 export async function renderSettings(app) {   // 設定の画面を描く関数
   mount(app,   // 画面に入れる
     screenHeader({ title: "設定", sub: `${state.user.name}（ID ${state.user.loginId}）` }),   // 見出し（名前とID）
     createElement("div", { class: "screen-body" },   // 本文
       // 使い方（ヘルプ）の入口（2026年11月15日。店員は「店舗」タブがないので、ここから開く）
       createElement("button", { class: "btn btn--block", onclick: () => go("/help") }, "📖 使い方（ヘルプ）"),   // ヘルプへ
+      group("このスマホ"),   // 区切り：通知・見る画面
       // 「ホーム画面に追加」のやり方は、ヘルプの「はじめに」に移した（2026年11月15日）
       // 店長の画面／店員の画面の切りかえ（店長・開発者だけ。2026年11月12日）
       isRealManager() ? viewCard() : null,   // 見る画面のカード
@@ -78,6 +84,7 @@ export async function renderSettings(app) {   // 設定の画面を描く関数
       pushCard(),   // 通知のカード
       // 「スマホに保存している自分のシフト」の説明は、ヘルプの「困った時」に移した（2026年11月15日）
       // バックアップ（店長だけ。2026年11月6日）
+      isManager() ? group("データ（店長）") : null,   // 区切り：バックアップ
       isManager()   // 店長なら
         ? createElement("section", { class: "card" },   // バックアップのカード
             createElement("h2", { class: "card__title" }, "データのバックアップ"),   // 見出し
@@ -90,10 +97,12 @@ export async function renderSettings(app) {   // 設定の画面を描く関数
               } catch (error) { toast(error.message); }   // 失敗したら理由を出す
             } }, "バックアップを保存する"))   // ボタンの文字
         : null,   // 店員には出さない
+      group("アカウント"),   // 区切り：ログアウト
       createElement("button", {   // ログアウトのボタン
         class: "btn btn--block",   // 見た目
         onclick: async () => { await api.logout(); clearLocalData(); state.user = null; go("/login"); },   // ログアウトして、このスマホに残したシフトなどを消して、ログイン画面へ
       }, "ログアウト"),   // ボタンの文字
+      CONFIG.API_MODE === "mock" ? group("開発用") : null,   // 区切り：見本データ
       CONFIG.API_MODE === "mock"   // テスト版なら
         ? createElement("button", {   // 見本データをもどすボタン
             class: "btn btn--danger btn--block",   // 赤いボタン

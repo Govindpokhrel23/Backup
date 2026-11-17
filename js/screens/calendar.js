@@ -95,7 +95,7 @@ export async function renderCalendar(app) {   // カレンダーの画面を描�
       },
         createElement("span", { class: `cal__num ${wd === 6 ? "is-sun" : wd === 5 ? "is-sat" : ""}` }, dayNumber),   // 日の数字（土日は色を変える）
         // 入っている日は「7〜17」のように始まりと終わりを出す
-        work.map((shift) => createElement("span", { class: `cal__chip num ${shift.storeId !== state.user.storeId ? "is-help" : ""}` }, shortRange(shift.from, shift.to))),   // 勤務の時間
+        work.map((shift) => createElement("span", { class: `cal__chip num ${shift.storeId !== state.user.storeId ? "is-help" : ""}` }, shortRange(shift.from, shift.to), shift.storeId !== state.user.storeId ? createElement("span", { class: "cal__helpMark" }, "応援") : null)),   // 勤務の時間（応援は文字でも。2026年11月17日）
       ));
     }
     return createElement("div", { class: "cal" },   // カレンダーの入れ物

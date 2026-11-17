@@ -1,0 +1,154 @@
+/* ============================================================
+   polish.css — 見やすさ・押しやすさをそろえる（2026年11月17日）
+   ------------------------------------------------------------
+   このファイルは、アプリ全体の「文字の大きさ・余白・カード・押す所の大きさ」を
+   そろえて、見やすく・押しやすくするためのファイルです。
+   ・いちばん最後に読むので、ほかのCSSの小さすぎる文字などをここで上書きする
+   ・色はコメダ風のブラウン・白・うすいベージュのまま（base.css の色を使う）
+   ・決まり：文字は 12px より小さくしない／押す所は高さ 36px 以上（大事なボタンは 44px）
+             画面のまわりの余白は 16px／カードの形は全部同じ
+   ・このファイルを index.html から外せば、前の見た目にもどる
+   ============================================================ */
+
+:root {   /* そろえるための値 */
+  --space: 16px;          /* 画面のまわりの余白 */
+  --gap: 12px;            /* カードどうしのすきま */
+  --fs-min: 12px;         /* いちばん小さい文字（これより小さくしない） */
+  --fs-small: 13px;       /* 説明などの小さい文字 */
+  --fs-body: 15px;        /* ふつうの文字 */
+  --tap-min: 36px;        /* 小さいボタンでも、これ以上の高さ */
+  --card-radius: 14px;    /* カードの角の丸み */
+  --card-line: #EEE4D8;   /* カードのうすい枠 */
+}
+
+/* ---------- 画面の枠：余白をそろえる ---------- */
+.screen-body { padding: var(--space); gap: var(--gap); max-width: 1100px; }   /* 本文のまわりは 16px */
+.screen-header { padding-left: var(--space); padding-right: var(--space); }   /* 見出しの左右も 16px */
+.screen-header__title { font-size: 21px; }   /* 画面の名前（いちばん大きい見出し） */
+.screen-header__sub { font-size: var(--fs-small); }   /* 見出しの下の説明 */
+
+/* ---------- カード：形を全部同じに ---------- */
+.card { padding: var(--space); border-radius: var(--card-radius); border: 1px solid var(--card-line); box-shadow: 0 1px 3px rgba(58, 46, 38, 0.06); }   /* 白いカード */
+.card--tight { padding: 8px; }   /* 表のカードは中を少しせまく（表を広く使う） */
+.card__title { font-size: 17px; line-height: 1.35; }   /* カードの見出し（2番目の大きさ） */
+.home-muted { font-size: var(--fs-small); line-height: 1.5; }   /* うすい説明の文字 */
+
+/* ---------- ボタン：押しやすく ---------- */
+.btn--small { min-height: 40px; font-size: 14px; }   /* 小さいボタン（でも押しやすい高さ） */
+.btn--tiny { min-height: var(--tap-min); font-size: 13px; }   /* とても小さいボタン */
+.btn--icon { min-height: 40px; min-width: 40px; }   /* ‹ › のボタン */
+.seg__btn { min-height: var(--tap-min); min-width: 44px; }   /* 週／日の切りかえ */
+.day-tab { min-height: 40px; }   /* 日のタブ */
+.badge { font-size: var(--fs-min); }   /* 小さい印 */
+
+/* ---------- 下のメニュー ---------- */
+.tabbar__btn { font-size: var(--fs-min); }   /* メニューの文字（12px） */
+.tabbar__btn[aria-current="page"] { color: var(--ink); }   /* 今の画面は文字でも太く */
+.tabbar__btn[aria-current="page"] svg { stroke-width: 2.4; }   /* 今の画面の絵も太く */
+@media (min-width: 800px) {   /* PC・タブレットの広い画面 */
+  .tabbar { left: 50%; right: auto; width: 720px; transform: translateX(-50%); border: 1px solid var(--line); border-bottom: none; border-radius: 16px 16px 0 0; }   /* 真ん中に、幅をおさえて置く */
+}
+
+/* ---------- お知らせ・一覧 ---------- */
+.check-list li { font-size: 14px; }   /* 一覧の文字 */
+.check-list .is-info { background: var(--surface-2); color: var(--ink); }   /* お知らせの行（ベージュ） */
+
+/* ---------- 設定の区切り ---------- */
+.settings-group { margin: 8px 2px 0; font-size: var(--fs-small); font-weight: 700; color: var(--ink-3); }   /* 「このスマホ」「アカウント」などの見出し */
+
+/* ---------- ホーム（店長）：店舗の切りかえを細く ---------- */
+.store-bar .store-switch { grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); }   /* 店舗のボタンの並び */
+.store-bar .store-switch__btn { min-height: 44px; border-radius: 10px; font-size: 14px; }   /* 店舗のボタン */
+.store-switch__mine { font-size: var(--fs-min); }   /* 「メイン」の文字 */
+
+/* ---------- ホーム（店長）：今日のまとめ ---------- */
+.sum-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }   /* スマホは2つずつ */
+@media (min-width: 700px) { .sum-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }   /* 広い画面は4つ並べる */
+.sum-tile {   /* 1つのマス（押せる） */
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;   /* 縦に並べる */
+  min-height: 84px; padding: 10px 12px; text-align: left;   /* 大きさ */
+  border: 1px solid var(--card-line); border-left: 5px solid var(--line); border-radius: 12px; background: var(--surface-2);   /* 形 */
+}
+.sum-tile__title { font-size: var(--fs-small); color: var(--ink-3); font-weight: 700; }   /* 名前 */
+.sum-tile__value { font-size: 22px; font-weight: 700; line-height: 1.2; color: var(--ink); }   /* 数字（大きく） */
+.sum-tile__state { font-size: var(--fs-min); font-weight: 700; }   /* 状態の文字（OK・要確認） */
+.sum-tile.is-ok { border-left-color: var(--ok); }   /* OK は緑の線 */
+.sum-tile.is-ok .sum-tile__state { color: var(--ok); }   /* OK の文字は緑 */
+.sum-tile.is-ng { border-left-color: var(--danger); background: #FDF1EE; }   /* 要確認は赤の線 */
+.sum-tile.is-ng .sum-tile__state { color: var(--danger); }   /* 要確認の文字は赤 */
+.sum-notes { min-height: 40px; border: none; border-radius: 10px; background: var(--warn-bg); color: var(--warn); font-weight: 700; font-size: 14px; text-align: left; padding: 0 12px; }   /* お知らせの件数 */
+
+/* ---------- 1週間の表（シフト作成・公開シフト） ---------- */
+.wk__table { font-size: var(--fs-min); min-width: 340px; }   /* 表の文字は 12px 以上 */
+.wk__corner, .wk__name { width: 56px; max-width: 56px; font-size: var(--fs-min) !important; font-weight: 700; line-height: 1.2; padding: 0 4px !important; }   /* 名前は 12px・太く */
+.wk__date { font-size: 14px; }   /* 日にち「16」 */
+.wk__dow { font-size: var(--fs-min); font-weight: 700; }   /* 曜日「月」 */
+.wk__todayMark { margin-top: 1px; padding: 0 4px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 11px; font-weight: 700; line-height: 1.5; }   /* 今日の印（塗りつぶし＋文字） */
+.wk__dot { top: 0; right: 1px; width: 16px; height: 16px; display: grid; place-items: center; color: #fff; font-size: var(--fs-min); font-weight: 700; line-height: 1; }   /* ルールを確認する日の「!」 */
+.wk__group td { font-size: var(--fs-min); color: var(--ink-2); padding: 4px 4px 2px !important; }   /* 社員・バイト・応援の見出し */
+.wk__cell { height: 40px; }   /* マスの高さ（押しやすく） */
+.wk__cellBtn { min-height: 38px; }   /* 押せるマス */
+.wk__shift { font-size: var(--fs-min); line-height: 1.15; padding: 2px 0; border-radius: 4px; }   /* 勤務の時間 */
+.wk__shift.has-break { box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.8); }   /* 休憩がある勤務は下に白い線 */
+.wk__away, .wk__hope { font-size: var(--fs-min); }   /* ほかの店舗・希望 */
+.wk__off { font-size: var(--fs-min); }   /* 休み希望 */
+.wk__sum { width: 34px; font-size: var(--fs-min); }   /* 週の時間 */
+.wk__count { font-size: var(--fs-min); line-height: 1.2; padding: 3px 0 !important; }   /* その日の人数 */
+.wk__count span { display: block; }   /* 人数と「不足」を縦に */
+.wk__count.is-short { background: var(--danger-bg); color: var(--danger); font-weight: 700; }   /* 人が足りない日は赤 */
+.wk__shortMark { font-size: var(--fs-min); }   /* 「不足」の文字 */
+.wk__closed { font-size: var(--fs-min); }   /* 「休業」 */
+.wk__help { font-size: var(--fs-min); }   /* 使い方の文 */
+
+/* 表の下の記号の説明 */
+.wk-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--fs-min); color: var(--ink-2); padding: 2px 4px; }   /* 説明の行 */
+.wk-legend__item { display: inline-flex; align-items: center; gap: 4px; }   /* 1つの説明 */
+.wk-legend__mark { width: 14px; height: 12px; border-radius: 3px; display: inline-block; }   /* 色の見本 */
+.wk-legend__mark.is-hall { background: var(--hall); }   /* ホールの見本 */
+.wk-legend__mark.is-kitchen { background: var(--kitchen); }   /* キッチンの見本 */
+.wk-legend__mark.is-fixed { outline: 2px dashed var(--ink); outline-offset: -2px; }   /* 固定の見本 */
+.wk-legend__mark.is-break { background: var(--hall); box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.8); }   /* 休憩ありの見本 */
+.wk-legend__mark.is-away { background: #D8D0C6; }   /* ほかの店舗の見本 */
+.wk-legend__bang { width: 16px; height: 16px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--danger); color: #fff; }   /* 「!」の見本 */
+.wk-legend__short { padding: 0 4px; border-radius: 4px; background: var(--danger-bg); color: var(--danger); }   /* 「不足」の見本 */
+
+/* ---------- 希望の一覧 ---------- */
+.hope-list__table { font-size: var(--fs-min); }   /* 表の文字 */
+.hope-list__name { width: 60px; max-width: 60px; font-size: var(--fs-min); }   /* 名前 */
+.hope-list__date { font-size: 14px; }   /* 日にち */
+.hope-list__dow { font-size: var(--fs-min); }   /* 曜日 */
+.hope-list__store th { font-size: var(--fs-small); }   /* 店舗の見出し */
+.hope-list__miss { display: inline-block; margin-top: 1px; padding: 0 3px; border-radius: 4px; background: var(--danger-bg); font-size: 11px; line-height: 1.4; }   /* 「未提出」の印（色と文字） */
+.hope-list__table td { height: 30px; }   /* マスの高さ */
+.hope-list__help { font-size: var(--fs-min); }   /* 記号の説明 */
+
+/* ---------- カレンダー ---------- */
+.cal__wd { font-size: var(--fs-min); }   /* 曜日 */
+.cal__num { font-size: 14px; }   /* 日の数字 */
+.cal__chip { font-size: 12px; line-height: 1.2; padding: 1px 2px; text-align: center; }   /* 勤務の時間（マスに入る大きさ） */
+.cal__helpMark { display: block; font-size: 11px; font-weight: 700; }   /* 「応援」の文字（色だけでなく文字でも） */
+.cal__cell.is-today { border-color: var(--ink-3); }   /* 今日は枠でも分かるように */
+
+/* ---------- 1日の線（タイムライン）・マップ ---------- */
+.tl__kind, .tl__hour, .tl__need, .tl__person { font-size: var(--fs-min); }   /* 立場・時間・必要人数・名前 */
+.tl__role { font-size: 11px; }   /* 立・締の印 */
+.tl__break { display: grid; place-items: center; width: 18px; height: 18px; margin-left: -9px; top: 2px; font-size: 11px; font-weight: 700; line-height: 1; color: var(--ink); }   /* 休憩の印（「休」の文字入り） */
+.tl__break.is-editable { width: 22px; height: 22px; margin-left: -11px; top: 0; }   /* 動かせる時は大きく */
+.marker__bubble { font-size: 11px; }   /* マップの吹き出し */
+.marker__name, .floor__door { font-size: var(--fs-min); }   /* マップの名前・入口 */
+
+/* ---------- 小さい文字だった所 ---------- */
+.editor-status, .week-tab__state, .kibou-head .week-tab__state, .kibou-day__dow { font-size: var(--fs-min); }   /* 状態・曜日の文字 */
+.home-kibou__sub { font-size: var(--fs-small); }   /* 希望ボタンの説明 */
+
+/* ---------- シフト作成の見出し・表の日付：押す所を 36px 以上に ---------- */
+.store-tabs__btn { min-height: 40px; }   /* 店舗の切りかえ */
+.screen-header--compact .btn--icon { width: 40px; height: 40px; min-height: 40px; }   /* ‹ › */
+.hope-list__summary { min-height: 40px; }   /* 希望の一覧の開け閉め */
+.wk__dayBtn { min-height: 40px; justify-content: center; }   /* 表の日付（押すとその日へ） */
+
+/* 「!」は日付に重ならないよう、曜日の下に置く */
+.wk__dot { position: static; margin-top: 1px; }   /* 日付の下の行に出す */
+
+/* PC：見出しの中身も本文と同じ幅にそろえる */
+@media (min-width: 1132px) { .screen-header { padding-left: calc((100% - 1100px) / 2 + var(--space)); padding-right: calc((100% - 1100px) / 2 + var(--space)); } }   /* 広い画面では真ん中の幅に */

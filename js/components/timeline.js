@@ -253,7 +253,8 @@ function breakDot(props, shift, barEl) {   // 休憩の丸を作る関数
     class: `tl__break ${props.editable ? "is-editable" : ""}`,   // 見た目
     style: { left: pos(shift.breakAt) },   // 位置
     title: `休憩の目安 ${fmt(shift.breakAt)}`,   // 説明
-  });
+    "aria-label": `休憩の目安 ${fmt(shift.breakAt)}`,   // 読み上げ
+  }, "休");   // 色だけでなく「休」の文字でも出す（2026年11月17日）
   if (!props.editable) return dot;   // 動かせないならそのまま返す
 
   dot.addEventListener("pointerdown", (event) => {   // 指を置いた時
