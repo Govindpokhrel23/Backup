@@ -6,7 +6,6 @@
 //       ②その下に自分のシフト（今日 → 明日 → 明後日 の順。昨日のものは消える）
 //       ③お知らせ
 // 店長：店舗の切り替え（3店舗）、受付の状態（締め切る／再開する・未提出の人に催促）、
-//       公開シフトを確認していない人、
 //       人が足りない日と時間、自分のシフト（店長も仕事に入る）
 //       （店舗の設定は「店舗」タブにまとめた。2026年11月15日）
 // 2026年11月17日：見やすく（店長）いちばん上に「今日のまとめ」（今日の人数・希望の提出・未公開・足りない時間）
@@ -57,9 +56,6 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
   const todayPeriod = periods.find((eachPeriod) => datesOf(eachPeriod).includes(today()));   // 今日が入っている週
   const todayWork = todayPeriod ? (await api.listAssignments(todayPeriod.id)).filter((shift) => shift.date === today()) : [];   // 今日の勤務
   const todayCount = new Set(todayWork.map((shift) => shift.memberId)).size;   // 今日入る人の数
-  // 公開済みでいちばん新しい週の「確認しました」
-  const published = periods.filter((period) => period.status === "published").pop();   // 一番新しい公開した週
-  const confirms = published ? await api.listConfirms(published.id) : [];   // 「確認しました」の一覧
 
   // 希望を出した人（社員は出さなくても休み週1日の扱いなので数えない）
   const needSubmit = members.filter((member) => member.active && member.kind !== "shain");   // 希望を出す人（バイト）
@@ -117,7 +113,7 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
       callsManagerCard(app, calls),   // 人が足りない時の募集
       shortCard,   // 足りない時間
       // お知らせのカードは出さない（2026年11月17日：店長の希望）
-      published ? confirmCard(published, members, confirms) : null,   // 公開シフトの確認
+      // 「公開シフトの確認」のカードは出さない（2026年11月17日：店長の希望）
       // 店長も仕事に入るので、自分のシフトも出す
       myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, limit: 3, onMore: () => go("/calendar") }),   // 自分のシフト（3件まで。残りはカレンダー）
       // 店舗の設定（店員管理・マップなど）は「店舗」タブにまとめた（2026年11月15日）
@@ -203,19 +199,6 @@ function callsManagerCard(app, allCalls) {   // 募集のカードを作る関�
           createElement("summary", null, `ほか ${rest.length}件を見る`),   // 押すと開く
           createElement("ul", { class: "call-list" }, rest.map(row)))   // 残り
       : null,   // なければ出さない
-  );
-}
-
-/** 公開したシフトを「確認しました」と押していない人 */
-function confirmCard(period, members, confirms) {   // 公開シフトの確認のカードを作る関数
-  const seen = new Set(confirms.map((confirm) => confirm.memberId));   // 確認した人のID
-  const people = members.filter((member) => member.active && (member.rankHere ?? 1) === 1 && member.role !== "manager");   // 確認してほしい人（メインの店員）
-  const notSeen = people.filter((member) => !seen.has(member.id));   // まだ見ていない人
-  return createElement("section", { class: "card" },   // カード
-    createElement("h2", { class: "card__title" }, `公開シフトの確認（${weekLabel(period)}）`),   // 見出し
-    createElement("div", null, `確認した人：${people.length - notSeen.length} / ${people.length}人`),   // 見た人数
-    // 「まだ見ていない人」の名前の一覧は出さない（人数だけ。2026年11月17日）
-    notSeen.length ? null : createElement("div", { class: "notice notice--ok" }, "全員が確認しました"),   // 全員見た
   );
 }
 
