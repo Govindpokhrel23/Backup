@@ -83,7 +83,7 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
       createElement("span", null, `締切：${deadlineLabel(period)}`),   // 締切
     ),
     createElement("div", null, `希望の提出：${needSubmit.length - notYet.length} / ${needSubmit.length}人`),   // 希望を出した人数
-    notYet.length ? createElement("div", { class: "home-muted" }, `まだの人：${notYet.map((member) => member.name).join("、")}`) : null,   // まだの人
+    // 「まだの人」の名前の一覧は出さない（人数だけ。2026年11月17日）
     // 希望をまだ出していない人に、まとめて催促を送る
     notYet.length && period.status === "open"   // まだの人がいて受付中なら
       ? createElement("button", { class: "btn btn--small", onclick: async () => {   // 催促ボタン
@@ -107,6 +107,7 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
       summaryCard({   // 今日のまとめ（大事なものをいちばん上に。2026年11月17日）
         todayCount: todayPeriod?.status === "published" ? todayCount : null,   // 今日の人数（公開した週だけ）
         notYet: period ? notYet.length : 0,   // 希望の未提出
+        need: period ? needSubmit.length : 0,   // 希望を出す人の数
         unsettled: period && period.status !== "published" ? STATUS_LABEL[period.status] : null,   // 未公開の週の状態
         short: short?.count ?? 0,   // 足りない時間の件数
         shortNotMade: !short || short.notMade,   // まだシフトを作っていない（件数を出さない）
@@ -139,7 +140,7 @@ function summaryCard(info) {   // まとめのカードを作る関数
     createElement("h2", { class: "card__title" }, `今日のまとめ（${label(today())}）`),   // 見出し
     createElement("div", { class: "sum-grid" },   // 4つ並べる
       tile("今日の勤務", info.todayCount == null ? "－" : `${info.todayCount}人`, info.todayCount == null ? "none" : "ok", () => go("/shift")),   // 今日の人数
-      tile("希望の未提出", `${info.notYet}人`, info.notYet ? "ng" : "ok", jump("home-status")),   // 未提出
+      tile("希望の提出", `${info.need - info.notYet}/${info.need}人`, info.notYet ? "ng" : "ok", jump("home-status")),   // 出した人／全員（例「1/13人」）
       tile("未公開の週", info.unsettled || "なし", info.unsettled ? "ng" : "ok", () => go("/shift")),   // 未公開（受付中・作成中）
       info.shortNotMade   // まだシフトを作っていなければ
         ? tile("人が足りない", "－", "none", jump("home-short"))   // 数えられない
@@ -213,9 +214,8 @@ function confirmCard(period, members, confirms) {   // 公開シフトの確認�
   return createElement("section", { class: "card" },   // カード
     createElement("h2", { class: "card__title" }, `公開シフトの確認（${weekLabel(period)}）`),   // 見出し
     createElement("div", null, `確認した人：${people.length - notSeen.length} / ${people.length}人`),   // 見た人数
-    notSeen.length   // まだの人がいれば
-      ? createElement("div", { class: "home-muted" }, `まだ見ていない人：${notSeen.map((member) => member.name).join("、")}`)   // まだの人の名前
-      : createElement("div", { class: "notice notice--ok" }, "全員が確認しました"),   // 全員見た
+    // 「まだ見ていない人」の名前の一覧は出さない（人数だけ。2026年11月17日）
+    notSeen.length ? null : createElement("div", { class: "notice notice--ok" }, "全員が確認しました"),   // 全員見た
   );
 }
 
