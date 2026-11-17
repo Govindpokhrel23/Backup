@@ -186,25 +186,36 @@ function storeSwitcher(app) {   // 店舗の切りかえのカードを作る関
  * 人が足りない時の募集（店長）
  * 「入れます」と返事した人がいれば「この人に入ってもらう」で勤務に入る
  */
-function callsManagerCard(app, calls) {   // 募集のカードを作る関数
+function callsManagerCard(app, allCalls) {   // 募集のカードを作る関数
+  // 2026年11月17日：小さくした（1件1行・やめるは右の小さいボタン）。過ぎた日の募集は出さない。4件目からは「ほか○件」で開く
+  const calls = allCalls.filter((call) => call.date >= today());   // 今日より前の募集は出さない
   if (!calls.length) return null;   // なければ出さない
   const area = (call) => (call.area === "hall" ? "ホール" : "キッチン");      // 場所の名前
+  /** 1件の行 */
+  const row = (call) => createElement("li", { class: "call-row" },   // 1行
+    createElement("div", { class: "call-row__main" },   // 左側
+      createElement("div", { class: "call-row__what num" }, `${label(call.date)} ${area(call)} ${range(call.from, call.to)}`),   // 日付・場所・時間
+      createElement("div", { class: "call-row__sub" }, `${call.auto ? "自動・" : ""}${call.candidateCount}人に連絡・返事 ${call.answers.length}人`),   // 連絡した人数・返事の数
+      call.answers.length   // 返事があれば
+        ? createElement("div", { class: "chip-row" }, call.answers.map((answer) => createElement("button", { class: "btn btn--small btn--primary", onclick: async () => {   // 返事した人ごとのボタン
+            await api.fillCall(call.id, answer.memberId);   // その人に決める
+            toast(`${answer.name}さんに入ってもらいます。本人に知らせました`);   // お知らせ
+            renderHome(app);   // 描きなおす
+          } }, `${answer.name}さんに決める`)))   // ボタンの文字
+        : null),   // なければ出さない
+    createElement("button", { class: "btn btn--tiny call-row__stop", onclick: async () => { await api.closeCall(call.id); toast("募集をやめました"); renderHome(app); } }, "やめる"));   // 募集をやめる（小さく右に）
+  // 返事がある募集を上に、次に日付の早い順
+  const sorted = [...calls].sort((callA, callB) => callB.answers.length - callA.answers.length || callA.date.localeCompare(callB.date));   // 並べかえ
+  const first = sorted.slice(0, 3);   // はじめの3件
+  const rest = sorted.slice(3);   // 残り
   return createElement("section", { class: "card" },   // カード
     createElement("h2", { class: "card__title" }, `人が足りない時の募集（${calls.length}件）`),   // 見出し
-    // 返事がある募集を上に。多い時は5件まで出して、残りは数だけ
-    [...calls].sort((callA, callB) => callB.answers.length - callA.answers.length || callA.date.localeCompare(callB.date)).slice(0, 5).map((call) => createElement("div", { class: "swap-row" },   // 返事が多い順に5件
-      createElement("div", null,   // 左側
-        createElement("strong", null, `${label(call.date)} ${area(call)} ${range(call.from, call.to)}`),   // 日付・場所・時間
-        createElement("div", { class: "home-muted" }, `${call.auto ? "自動で" : ""}${call.candidateCount}人に連絡済み・返事 ${call.answers.length}人`),   // 連絡した人数・返事の数
-        call.answers.length   // 返事があれば
-          ? createElement("div", { class: "chip-row" }, call.answers.map((answer) => createElement("button", { class: "btn btn--small btn--primary", onclick: async () => {   // 返事した人ごとのボタン
-              await api.fillCall(call.id, answer.memberId);   // その人に決める
-              toast(`${answer.name}さんに入ってもらいます。本人に知らせました`);   // お知らせ
-              renderHome(app);   // 描きなおす
-            } }, `${answer.name}さんに入ってもらう`)))   // ボタンの文字
-          : null),   // なければ出さない
-      createElement("button", { class: "btn btn--small", onclick: async () => { await api.closeCall(call.id); toast("募集をやめました"); renderHome(app); } }, "やめる"))),   // 募集をやめる
-    calls.length > 5 ? createElement("div", { class: "home-muted" }, `ほか ${calls.length - 5}件（返事が来たら上に出ます）`) : null,   // ほかの件数
+    createElement("ul", { class: "call-list" }, first.map(row)),   // 3件
+    rest.length   // 残りがあれば
+      ? createElement("details", { class: "call-more" },   // 開け閉めできる
+          createElement("summary", null, `ほか ${rest.length}件を見る`),   // 押すと開く
+          createElement("ul", { class: "call-list" }, rest.map(row)))   // 残り
+      : null,   // なければ出さない
   );
 }
 
