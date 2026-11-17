@@ -9,6 +9,9 @@
 // ・ほかの店舗に入っている日は灰色で「安城」のように出す
 // ・右はしはその人の週の時間、いちばん下はその日の人数
 // ・マスを押すと、その日・その人の「1日」の画面に移って細かく直せる
+// 2026年11月17日（夜）：見た目を新しくした（css/week-grid.css）
+//   ・勤務はうすい色の箱＋左に濃い線。PC では「時間／場所／休憩」の3行、iPhone では1週間が1画面に入るよう2行
+//   ・名前の左に丸い印（名前の1文字）、名前の下にその人の週の時間（右はしの「週」の列はなくした）
 // 2026年11月17日：見やすく。文字を12px以上に・今日の列に「今日」・ルールの「!」・人数の行に「不足」
 //   色だけでなく文字でも分かるように、下に記号の説明を出す（weekLegend）
 // ============================================================
@@ -68,12 +71,11 @@ export function weekGrid(props) {   // 1週間のシフト表を作る関数
               date === today() ? createElement("span", { class: "wk__todayMark" }, "今日") : null,   // 今日の列は文字でも（2026年11月17日）
               props.problemDays.has(date) ? createElement("span", { class: "wk__dot", title: "守れていないルールあり", "aria-label": "守れていないルールあり" }, "!") : null,   // 問題がある日（赤い「!」）
               props.closedDays?.has(date) ? createElement("span", { class: "wk__closed" }, "休業") : null))),   // お休みの日の印
-          createElement("th", { class: "wk__sum" }, "週"),   // 右はし：週の時間
         ),
       ),
       createElement("tbody", null,   // 本体
         groups.map(([title, list]) => [   // まとまりごとに
-          createElement("tr", { class: "wk__group" }, createElement("td", { colspan: props.dates.length + 2 }, title)),   // まとまりの見出し
+          createElement("tr", { class: "wk__group" }, createElement("td", { colspan: props.dates.length + 1 }, title)),   // まとまりの見出し
           list.map((member) => memberRow(props, member)),   // 1人1行
         ]),
       ),
@@ -86,7 +88,6 @@ export function weekGrid(props) {   // 1週間のシフト表を作る関数
               createElement("span", null, `${new Set(props.assignments.filter((shift) => shift.date === date).map((shift) => shift.memberId)).size}人`),   // 人数
               short ? createElement("span", { class: "wk__shortMark" }, "不足") : null);   // 文字でも「不足」
           }),
-          createElement("td", { class: "wk__sum" }, ""),   // 右はしは空
         ),
       ),
     ),
@@ -104,9 +105,12 @@ function memberRow(props, member) {   // 1人の行を作る関数
   const mine = props.assignments.filter((shift) => shift.memberId === member.id);   // その人のこの週の勤務
   const minutes = mine.reduce((sum, shift) => sum + workedMinutes(shift), 0);      // その人の週の働く時間（休憩を引く）
   return createElement("tr", { class: props.selectedId === member.id ? "is-selected" : "" },   // 行（選んでいれば色を変える）
-    createElement("th", { class: "wk__name", scope: "row" }, member.name),   // 名前
+    createElement("th", { class: "wk__name", scope: "row" },   // 名前のマス
+      createElement("span", { class: "wk__avatar", "aria-hidden": "true" }, [...member.name][0] || ""),   // 丸い印（名前の1文字。写真は使わない）
+      createElement("span", { class: "wk__who" },   // 名前と時間
+        createElement("span", { class: "wk__nameText" }, member.name),   // 名前
+        createElement("span", { class: "wk__hours num" }, minutes ? hoursText(minutes).replace("時間", "h").replace("分", "") : "0h"))),   // 週の時間（例「32h30」）
     props.dates.map((date) => dayCell(props, member, date)),   // 7日のマス
-    createElement("td", { class: "wk__sum" }, minutes ? hoursText(minutes).replace("時間", "h").replace("分", "") : ""),   // 週の時間（例「32h30」）
   );
 }
 
@@ -123,10 +127,13 @@ function dayCell(props, member, date) {   // 1つのマスを作る関数
     inside = createElement("span", { class: "wk__away" }, "－");   // 灰色の線（お店がお休み）
   } else if (shifts.length) {   // 勤務があれば
     inside = shifts.map((shift) => createElement("span", {   // 勤務（色は場所）
-      class: `wk__shift wk__shift--${shift.area}${shift.fixed ? " is-fixed" : ""}${shift.breakAt != null ? " has-break" : ""}`,   // 見た目（休憩ありは右上に印）
+      class: `wk__shift wk__shift--${shift.area}${shift.fixed ? " is-fixed" : ""}${shift.breakAt != null ? " has-break" : ""}`,   // 見た目（休憩ありはスマホで下に点線）
       title: `${shift.area === "hall" ? "ホール" : "キッチン"} ${fmt(shift.from)}〜${fmt(shift.to)}${shift.breakAt != null ? ` 休憩 ${fmt(shift.breakAt)}` : ""}`,   // 色だけでなく文字の説明も
     },
-      createElement("span", null, shortTime(shift.from)), createElement("span", null, shortTime(shift.to))));   // 上に始まり、下に終わり（7日が1画面に入るように2行にする）
+      createElement("span", { class: "wk__t2" }, createElement("span", null, shortTime(shift.from)), createElement("span", null, shortTime(shift.to))),   // スマホ：上に始まり、下に終わり（7日が1画面に入るように2行）
+      createElement("span", { class: "wk__t1 num" }, `${fmt(shift.from)}〜${fmt(shift.to)}`),   // PC：「9:00〜18:00」
+      createElement("span", { class: "wk__area" }, shift.area === "hall" ? "ホール" : "キッチン"),   // PC：場所
+      shift.breakAt != null ? createElement("span", { class: "wk__brk" }, `休憩 ${fmt(shift.breakAt)}`) : null));   // PC：休憩
   } else if (away.length) {   // ほかの店舗に入っていれば
     inside = away.map((shift) => createElement("span", { class: "wk__away" }, shift.storeShort || "他店"));   // 灰色で店舗の名前
   } else if (hope && OFF_KINDS.includes(hope.kind)) {   // 休み希望なら
@@ -144,9 +151,9 @@ function dayCell(props, member, date) {   // 1つのマスを作る関数
 
 /** 表の下の記号の説明（色だけでなく文字で。2026年11月17日） */
 export function weekLegend() {   // 記号の説明を作る関数
-  const item = (cls, text) => createElement("span", { class: "wk-legend__item" }, createElement("span", { class: `wk-legend__mark ${cls}` }), text);   // 色の見本＋文字
+  const item = (cls, text, extra = "") => createElement("span", { class: `wk-legend__item ${extra}` }, createElement("span", { class: `wk-legend__mark ${cls}` }), text);   // 色の見本＋文字
   return createElement("div", { class: "wk-legend" },   // 説明の行
-    item("is-hall", "ホール"), item("is-kitchen", "キッチン"), item("is-fixed", "固定"), item("is-break", "休憩あり"), item("is-away", "ほかの店舗"),   // 色の意味
+    item("is-hall", "ホール"), item("is-kitchen", "キッチン"), item("is-fixed", "固定"), item("is-break", "下に点線＝休憩あり", "is-phone-only"), item("is-away", "ほかの店舗"),   // 色の意味
     createElement("span", { class: "wk-legend__item" }, createElement("b", { class: "wk-legend__bang" }, "!"), "ルールを確認"),   // 「!」の意味
     createElement("span", { class: "wk-legend__item" }, createElement("b", { class: "wk-legend__short" }, "不足"), "人が足りない"),   // 「不足」の意味
   );

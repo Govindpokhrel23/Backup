@@ -1,0 +1,78 @@
+/* ============================================================
+   week-grid.css — 1週間のシフト表の見た目（2026年11月17日）
+   ------------------------------------------------------------
+   このファイルは、シフト作成・公開シフトの「週」の表の見た目のファイルです。
+   ・勤務は「うすい色の箱＋左に濃い線」（ホール＝青、キッチン＝オレンジ）
+   ・名前の左に丸い印（名前の1文字）、名前の下に週の時間
+   ・スマホ（幅が600pxまで）：1週間が1画面に入るように、時間は2行（例 9 / 18）
+   ・PC・iPad：1つの箱に「9:00〜18:00／ホール／休憩 13:00」の3行
+   ・polish.css のあとに読む（同じ名前の決まりはこちらが勝つ）
+   ============================================================ */
+
+:root {   /* 表で使う色 */
+  --wk-hall-bg: #EAF1FA;      /* ホールの箱の背景（うすい青） */
+  --wk-hall-ink: #1F4C85;     /* ホールの箱の文字（こい青） */
+  --wk-kitchen-bg: #FBEDE4;   /* キッチンの箱の背景（うすいオレンジ） */
+  --wk-kitchen-ink: #8A3E10;  /* キッチンの箱の文字（こい茶色） */
+  --wk-line: #F0E8DE;         /* 表のうすい線 */
+}
+
+/* ---------- 表の全体 ---------- */
+.wk__table { border-spacing: 0; }   /* マスの間をあけない */
+.wk__table th, .wk__table td { border-bottom: 1px solid var(--wk-line); }   /* 横の線はうすく */
+.wk__table td + td, .wk__table th + td { border-left: 1px solid var(--wk-line); }   /* 日と日の間にうすい縦線 */
+.wk__table thead th { background: var(--surface-2); }   /* 見出しの行はベージュ */
+.wk__table thead th:first-child { border-top-left-radius: 10px; }   /* 左上の角を丸く */
+.wk__table thead th:last-child { border-top-right-radius: 10px; }   /* 右上の角を丸く */
+.wk__corner { color: var(--ink-2); font-weight: 700; }   /* 「名前」の見出し */
+.wk__group td { background: var(--surface); border-left: none !important; }   /* 社員・バイト・応援の見出し */
+
+/* ---------- 名前のマス ---------- */
+.wk__name { vertical-align: middle; }   /* たての真ん中 */
+.wk__name[scope="row"] { display: table-cell; }   /* 表のマスのまま */
+.wk__avatar { display: none; }   /* スマホでは丸い印を出さない（はばをとるので） */
+.wk__who { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }   /* 名前と時間を縦に */
+.wk__nameText { font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }   /* 名前 */
+.wk__hours { font-size: 11px; font-weight: 400; color: var(--ink-3); }   /* 週の時間（名前の下） */
+
+/* ---------- 勤務の箱 ---------- */
+.wk__cell { padding: 2px !important; vertical-align: middle; }   /* マスの中のすきま */
+.wk__shift { border-radius: 6px; border-left: 3px solid; text-align: center; font-weight: 700; padding: 3px 1px; box-shadow: none; }   /* 箱の形 */
+.wk__shift--hall { background: var(--wk-hall-bg); border-left-color: var(--hall); color: var(--wk-hall-ink); }   /* ホールの箱 */
+.wk__shift--kitchen { background: var(--wk-kitchen-bg); border-left-color: var(--kitchen); color: var(--wk-kitchen-ink); }   /* キッチンの箱 */
+.wk__shift.is-fixed { outline: 1.5px dashed currentColor; outline-offset: -2px; }   /* 固定は点線の枠 */
+.wk__shift.has-break { box-shadow: none; }   /* 前の白い線はやめる */
+.wk__t2 { display: flex; flex-direction: column; align-items: center; }   /* スマホ用：2行の時間 */
+.wk__t1, .wk__area, .wk__brk { display: none; }   /* スマホでは出さない */
+.wk__shift.has-break .wk__t2 span:last-child { text-decoration: underline dotted 1.5px; text-underline-offset: 2px; }   /* スマホ：休憩ありは下に点線 */
+.wk__away { border-radius: 6px; border-left: 3px solid #B9AEA2; background: #EFEAE4; color: var(--ink-2); padding: 3px 0; }   /* ほかの店舗 */
+.wk__hope { color: #4E7A3E; }   /* 入れる希望（うすい緑の文字） */
+
+/* 説明の見本も新しい形に */
+.wk-legend__mark.is-hall { background: var(--wk-hall-bg); border-left: 3px solid var(--hall); }   /* ホールの見本 */
+.wk-legend__mark.is-kitchen { background: var(--wk-kitchen-bg); border-left: 3px solid var(--kitchen); }   /* キッチンの見本 */
+.wk-legend__mark.is-break { background: none; box-shadow: none; border-bottom: 2px dotted var(--ink-2); border-radius: 0; height: 8px; }   /* 休憩ありの見本 */
+.wk-legend__mark.is-away { background: #EFEAE4; border-left: 3px solid #B9AEA2; }   /* ほかの店舗の見本 */
+
+/* ---------- PC・iPad（幅が600pxより広い） ---------- */
+@media (min-width: 601px) {   /* 広い画面 */
+  .wk__table { font-size: 13px; }   /* 文字を少し大きく */
+  .wk__corner, .wk__name { width: 190px; max-width: 190px; padding: 6px 12px !important; }   /* 名前の列を広く */
+  .wk__name[scope="row"] .wk__avatar { display: grid; }   /* 丸い印を出す */
+  .wk__name[scope="row"] { white-space: nowrap; }   /* 名前は1行 */
+  .wk__name[scope="row"] > * { vertical-align: middle; }   /* 中を縦の真ん中に */
+  .wk__avatar { place-items: center; float: left; width: 34px; height: 34px; margin-right: 10px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); font-size: 15px; font-weight: 700; }   /* 丸い印 */
+  .wk__nameText { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }   /* 名前 */
+  .wk__hours { font-size: 12px; }   /* 週の時間 */
+  .wk__day { padding: 8px 0 !important; }   /* 日付のマス */
+  .wk__cell { height: 72px; padding: 4px !important; }   /* マスを高く */
+  .wk__cellBtn { align-items: stretch; justify-content: center; }   /* 箱をマスいっぱいに */
+  .wk__shift { align-items: flex-start; text-align: left; gap: 2px; padding: 6px 8px; border-left-width: 4px; font-size: 13px; }   /* 箱（左よせ・3行） */
+  .wk__t2 { display: none; }   /* 2行の時間は出さない */
+  .wk__t1 { display: block; font-weight: 700; white-space: nowrap; }   /* 「9:00〜18:00」 */
+  .wk__area, .wk__brk { display: block; font-size: 12px; font-weight: 400; opacity: 0.9; white-space: nowrap; }   /* 場所・休憩 */
+  .wk__brk::before { content: "Ⅱ "; font-weight: 700; }   /* 休憩の印 */
+  .wk__away, .wk__hope, .wk__off { font-size: 13px; }   /* ほかの店舗・希望 */
+  .wk__away { padding: 8px 6px; text-align: left; }   /* ほかの店舗の箱 */
+  .wk-legend .is-phone-only { display: none; }   /* PCでは休憩の文字が出るので、点線の説明はいらない */
+}
