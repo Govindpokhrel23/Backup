@@ -50,7 +50,9 @@ import { hopeList } from "../components/hope-list.js";   // 希望の一覧の�
 import { weekGrid, weekLegend } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月10日）   // 時間とお金の計算の道具を読む
 
 /** シフト作成の画面を描く（店長） */
-export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   // シフト作成の画面を描く関数（openWeek：開く週。なければ今週）
+export async function renderShiftEditor(app, { weekStart: openWeek, batch = null, batchSummary = null } = {}) {   // シフト作成の画面を描く関数（openWeek：開く週。なければ今週）
+  // batch：全店舗まとめてAIで作る途中（2026年11月17日）{ queue:[次の店舗ID], home:はじめの店舗ID, results:[] }
+  // batchSummary：全店舗まとめて作り終わった時の結果（いちばん上にカードで出す）
   // ---------- 最初に全部読む ----------
   // periods＝週の一覧 / baseMembers＝この店舗で働ける人 / positions・requirements＝マップと必要人数 /
   // holidays＝祝日 / rules＝人ごとのルール / storeHours＝営業時間 / wages＝時給 / learnings＝店長の直し方
@@ -100,7 +102,9 @@ export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   /
     periods.sort((periodA, periodB) => periodA.weekStart.localeCompare(periodB.weekStart));   // 日付順
   }
   await loadPeriod();   // 週の中身を読む
+  let summary = batchSummary;   // 全店舗まとめて作った結果（閉じたら null）
   draw();   // 描く
+  if (batch) await continueBatch();   // 全店舗まとめて作っている途中なら、この店舗を作って次へ
 
   /**
    * AIに渡す店員に、働き方のルールをつける（2026年11月6日）
@@ -358,6 +362,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   /
       createElement("div", { class: "screen-body" },   // 本文
         // いちばん上に「希望の一覧」（店舗ごと。2026年11月15日）
         hopeList({ dates: datesOf(period), members: active, availabilities: hopes, stores: state.stores, storeId: state.storeId, onPick: pickFromWeek }),   // 希望の一覧
+        summary ? batchCard() : null,   // 全店舗まとめて作った結果
         aiResult ? resultCard() : null,   // AIの結果があれば出す
         view === "week" ? weekBody() : dayBody(today, checks),   // 1週間の表か、1日のタイムライン
       ),
@@ -670,30 +675,86 @@ export async function renderShiftEditor(app, { weekStart: openWeek } = {}) {   /
    * 「AIで作成」：Gemini が下書きを作る（固定した勤務は残す）
    * AIがつながらない時は簡易版で作る。結果は一番上の「AIの結果」に出る
    */
-  async function runDraft() {   // AIで下書きを作る関数
-    const hasWork = work.some((shift) => !shift.fixed);                        // もう勤務が入っているか
-    if (hasWork) {   // もう勤務があれば
-      const ok = await confirmDialog({   // 作り直すか聞く
-        title: "下書きを作り直しますか？",   // タイトル
-        body: createElement("p", { style: { margin: 0 } }, "今の勤務（固定したもの以外）は消えて、新しい下書きになります。「AIの前に戻す」で戻せます。"),   // 説明
-        yes: "作り直す", no: "やめる",   // ボタンの文字
-      });
-      if (!ok) return;   // 「やめる」なら止める
+  async function runDraft() {   // 「AIで作成」を押した時の関数
+    // 2026年11月17日：「この店舗だけ」か「全店舗まとめて」かを選べる（はじめは全店舗）
+    const stores = activeStores();   // 営業中の店舗
+    let all = stores.length > 1;   // 全店舗まとめて作るか
+    const pick = (value) => createElement("button", {   // 選ぶボタン
+      class: "chip", "aria-pressed": String(all === value),   // 選んでいる方に色
+      onclick: (event) => { all = value; event.currentTarget.parentElement.querySelectorAll(".chip").forEach((chip, index) => chip.setAttribute("aria-pressed", String((index === 0) === all))); },   // 切りかえ
+    }, value ? `全店舗（${stores.length}店舗）` : `この店舗だけ（${state.stores.find((store) => store.id === state.storeId)?.short || ""}）`);   // ボタンの文字
+    const ok = await confirmDialog({   // どこを作るか聞く
+      title: `AIで作成（${weekShort(period)}）`,   // タイトル
+      body: createElement("div", { style: { display: "grid", gap: "10px" } },   // 中身
+        stores.length > 1 ? createElement("div", { class: "chip-row" }, pick(true), pick(false)) : null,   // 選ぶボタン（店舗が1つなら出さない）
+        createElement("p", { class: "home-muted", style: { margin: 0 } }, "今の勤務（固定したもの以外）は消えて、新しい下書きになります。公開済みの店舗は作りません。全店舗の時は、店舗をまたいで同じ人が重ならないように順番に作ります。")),   // 説明
+      yes: "作成する", no: "やめる",   // ボタンの文字
+    });
+    if (!ok) return;   // 「やめる」なら止める
+    if (!all) { await draftHere(); return; }   // この店舗だけ
+    // 全店舗：今の店舗から始めて、ほかの店舗へ順番に（店舗をまたいで重ならないように、前に作った店舗の勤務を見ながら作る）
+    const order = [state.storeId, ...stores.map((store) => store.id).filter((id) => id !== state.storeId)];   // 作る順番
+    batch = { queue: order.slice(1), home: state.storeId, results: [], total: order.length };   // まとめて作る状態
+    await continueBatch();   // 1店舗目から
+  }
+
+  /** 全店舗まとめて：この店舗を作って、次の店舗へ（最後ははじめの店舗にもどって結果を出す） */
+  async function continueBatch() {   // まとめて作る続きの関数
+    const storeName = state.stores.find((store) => store.id === state.storeId)?.name || "";   // 今の店舗の名前
+    const step = batch.total - batch.queue.length;   // 何店舗目か
+    if (period.status === "published") {   // 公開済みなら作らない
+      batch.results.push({ name: storeName, text: "公開済みなので作りませんでした" });   // 結果
+    } else {   // 公開前なら
+      const result = await draftHere(`${storeName}（${step}/${batch.total}）`);   // この店舗を作る
+      batch.results.push({ name: storeName, text: result ? `${result.source === "gemini" ? "AIで作成" : "簡易版で作成"}・守れていないルール ${allProblems().length}件` : "作れませんでした" });   // 結果
     }
-    const wait = busy("準備しています");                                // 待っている間の画面
+    const next = batch.queue[0];   // 次の店舗
+    if (next) {   // まだあれば
+      await switchStore(next);   // 次の店舗へ
+      await renderShiftEditor(app, { weekStart: period.weekStart, batch: { ...batch, queue: batch.queue.slice(1) } });   // 次の店舗で続ける
+      return;   // ここで終わり
+    }
+    await switchStore(batch.home);   // 最後ははじめの店舗にもどる
+    await renderShiftEditor(app, { weekStart: period.weekStart, batchSummary: batch.results });   // 結果を出して描く
+    toast(`${batch.total}店舗の下書きを作りました`);   // お知らせ
+  }
+
+  /** 全店舗まとめて作った結果のカード */
+  function batchCard() {   // 結果のカードを作る関数
+    return createElement("section", { class: "card" },   // カード
+      createElement("div", { class: "store-sec__head" },   // 見出しの行
+        createElement("h2", { class: "card__title" }, `全店舗のAI作成（${weekShort(period)}）`),   // 見出し
+        createElement("button", { class: "btn btn--tiny", onclick: () => { summary = null; draw(); } }, "閉じる")),   // 閉じる
+      createElement("ul", { class: "check-list" }, summary.map((row) => createElement("li", { class: "is-info" }, createElement("strong", null, row.name), row.text))),   // 店舗ごとの結果
+      createElement("div", { class: "home-muted" }, "上の店舗のボタンで切りかえて、それぞれ確認・公開してください（公開するまでスタッフには見えません）"),   // 次にやること
+    );
+  }
+
+  /**
+   * この店舗の下書きをAIで作る（今までの「AIで作成」の中身）
+   * @param {string} [where] 待っている間の画面に出す店舗の名前（全店舗まとめての時）
+   * @returns {Promise<object|null>} AIの結果
+   */
+  async function draftHere(where = "") {   // この店舗の下書きを作る関数
+    if (locked()) { toast("公開済みです。直す時は「編集する」を押してください"); return null; }   // 公開済みは作らない
+    const wait = busy(where ? `${where}：準備しています` : "準備しています");                                // 待っている間の画面
     try {   // 成功でも失敗でも「考えています」を消す
       // 過去の勤務：前の週の分を「よく入っている人」の参考にする
       const prev = periods.find((eachPeriod) => eachPeriod.weekStart === addDays(period.weekStart, -7));   // 前の週
       const past = prev ? await api.listAssignments(prev.id) : [];   // 前の週の勤務
       const before = work.map((shift) => ({ ...shift }));                       // AIの前（「変わった所」を出すため）
-      const result = await runAiDraft(aiContext(past), { onStep: wait.update });   // AIの結果
+      const result = await runAiDraft(aiContext(past), { onStep: (text) => wait.update(where ? `${where}：${text}` : text) });   // AIの結果（全店舗の時は店舗の名前つき）
       history.push(work);   // 今の状態を記録
       work = result.rows;   // 下書きにする
       await api.saveAiDraft(period.id, work);                           // 公開の時に「店長がどう直したか」を比べるため
       aiResult = { result, kind: "draft", before };   // 結果のカード用に覚える
       await persist();   // 保存して描く
       window.scrollTo(0, 0);   // 一番上へ
-      toast(result.source === "gemini" ? "AIが下書きを作りました" : "簡易版で下書きを作りました");   // お知らせ
+      if (!where) toast(result.source === "gemini" ? "AIが下書きを作りました" : "簡易版で下書きを作りました");   // お知らせ（全店舗の時は最後にまとめて）
+      return result;   // 結果を返す
+    } catch (error) {   // 失敗した時
+      toast(error.message);   // 理由を出す
+      return null;   // 作れなかった
     } finally {   // 最後に
       wait.done();   // 「考えています」を消す
     }
