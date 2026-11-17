@@ -20,6 +20,7 @@
 import { createElement } from "../lib/dom.js";   // 画面の部品の道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
 import { fmt, snap, range } from "../lib/time.js";   // 時間の道具を読む
+import { startTime, endTime } from "../lib/shift-time.js";   // 時刻を1時間ごとにそろえる道具を読む（2026年11月17日）
 import { clampBreak } from "../lib/breaks.js";   // 休憩の道具を読む
 import { roleMarks } from "../lib/roles.js";   // 立・締の印の道具を読む
 
@@ -208,13 +209,15 @@ function bar(props, barShift) {   // 勤務の棒を作る関数
       const movedPx = moveEvent.clientX - startX;   // 動いたはば（ピクセル）
       if (Math.abs(movedPx) > 3) moved = true;   // 少しでも動いたら覚える
       const movedMinutes = snap((movedPx / trackWidth) * SPAN);       // 動いた分を分に直して15分刻みに
+      // 2026年11月17日：時刻は1時間ごと（分は入れない）。立ち上げの人だけ開店30分前（6:30など）に合わせられる
       if (mode === "move") {   // 全体を動かすなら
-        const moveMinutes = Math.max(START - barShift.from, Math.min(END - barShift.to, movedMinutes));   // 表からはみ出さない動かし量
+        const hourMoved = Math.round(movedMinutes / 60) * 60;   // 1時間ごとに動かす
+        const moveMinutes = Math.max(START - barShift.from, Math.min(END - barShift.to, hourMoved));   // 表からはみ出さない動かし量
         from = barShift.from + moveMinutes; to = barShift.to + moveMinutes;   // 始まりと終わりを動かす
       } else if (mode === "start") {   // 始まりを動かすなら
-        from = Math.max(START, Math.min(barShift.to - 60, barShift.from + movedMinutes));   // 最低1時間は残す
+        from = Math.max(START, Math.min(barShift.to - 60, startTime(barShift.from + movedMinutes, props.hours || null, "near")));   // ちょうどの時刻（か立ち上げの時刻）。最低1時間は残す
       } else {   // 終わりを動かすなら
-        to = Math.min(END, Math.max(barShift.from + 60, barShift.to + movedMinutes));   // 最低1時間は残す
+        to = Math.min(END, Math.max(barShift.from + 60, endTime(barShift.to + movedMinutes, barShift.from, "near")));   // ちょうどの時刻（立ち上げの人は始まりから○時間）。最低1時間は残す
       }
       // 見た目だけすぐ動かす（保存はドラッグが終わってから）
       el.style.left = `${pct(from)}%`;   // 棒の位置

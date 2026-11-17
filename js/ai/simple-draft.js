@@ -27,8 +27,9 @@
 import { CONFIG } from "../config.js";   // 設定を読む
 import { requiredAt, assignedAt } from "../rules/shift-rules.js";   // 必要人数・入っている人数を出す道具を読む
 import { STEP, overlaps } from "../lib/time.js";   // 時間の道具を読む
-import { defaultBreak } from "../lib/breaks.js";   // 休憩の道具を読む
+import { defaultBreak, clampBreak } from "../lib/breaks.js";   // 休憩の道具を読む（clampBreak：時刻をそろえた時に休憩を中に入れ直す）
 import { openerOf, openStart } from "../lib/roles.js";   // 立ち上げの道具を読む
+import { hourlyRows } from "../lib/shift-time.js";   // 時刻を1時間ごとにそろえる道具を読む（2026年11月17日）
 import { weekdayOf } from "./learning.js";   // 曜日の道具を読む
 import { clipForMinor } from "../rules/labor-rules.js";   // 18歳未満の時間を縮める道具を読む
 
@@ -240,7 +241,7 @@ export function makeDraft(props) {   // AIなしで1週間のたたき台を作�
     }
   }
 
-  return result;   // たたき台を返す
+  return hourlyRows(result, props.hoursOf, clampBreak);   // たたき台を返す（時刻は1時間ごと。立ち上げの人だけ開店30分前から。2026年11月17日）
 }
 
 /** 締めの人は、キッチンができればキッチン（閉店作業が多いため） */

@@ -14,6 +14,7 @@
 import { createElement, confirmDialog, toast } from "../lib/dom.js";   // 画面の部品・小さい画面・お知らせの道具を読む
 import { fmt, EDIT_MIN, EDIT_MAX } from "../lib/time.js";   // 時刻を文字にする道具・選べる時間のはばを読む
 import { label } from "../lib/date.js";   // 日付を「11/16（月）」にする道具を読む
+import { openStart } from "../lib/roles.js";   // 立ち上げの人が入る時刻を読む（2026年11月17日）
 
 /** 1時間ごとの時刻の一覧（5:00〜翌2:00） */
 const HOURS = Array.from({ length: (EDIT_MAX - EDIT_MIN) / 60 + 1 }, (_, index) => EDIT_MIN + index * 60);   // 300, 360, … 1560
@@ -34,10 +35,11 @@ function toHour(minutes) {   // 1時間ごとに丸める関数
   return Math.min(EDIT_MAX, Math.max(EDIT_MIN, Math.floor(minutes / 60) * 60));   // 下の時刻にそろえる
 }
 
-/** 時刻を選ぶ欄（1時間ごと） */
-function hourSelect(value, aria) {   // 時刻を選ぶ欄を作る関数
+/** 時刻を選ぶ欄（1時間ごと。extra があれば、その時刻も足す＝立ち上げの 6:30 など） */
+function hourSelect(value, aria, extra = []) {   // 時刻を選ぶ欄を作る関数
+  const list = [...new Set([...HOURS, ...extra])].sort((first, second) => first - second);   // 選べる時刻
   return createElement("select", { class: "select num quick-time__select", "aria-label": aria },   // 選ぶ欄
-    HOURS.map((minutes) => createElement("option", { value: minutes, selected: minutes === value }, fmt(minutes))));   // 1時間ごと
+    list.map((minutes) => createElement("option", { value: minutes, selected: minutes === value }, fmt(minutes))));   // 1時間ごと
 }
 
 /**
@@ -47,14 +49,19 @@ function hourSelect(value, aria) {   // 時刻を選ぶ欄を作る関数
  * @param {string} props.date   日付
  * @param {object|null} props.shift 今の勤務（なければ null＝足す）
  * @param {object|null} props.hope  その日の希望
+ * @param {{open:number,close:number}} [props.hours] その日の営業時間（立ち上げの 6:30 を選べるように）
  * @param {({from:number,to:number}|{remove:true}) => void} props.onSave 保存した時
  */
-export async function openQuickTime({ member, date, shift, hope, onSave }) {   // 小さい画面を出す関数
+export async function openQuickTime({ member, date, shift, hope, hours, onSave }) {   // 小さい画面を出す関数
+  const opener = hours ? openStart(hours) : null;   // 立ち上げの時刻（例 6:30）。始まりだけ選べる
+  const isOpener = (minutes) => opener != null && minutes === opener;   // 立ち上げの時刻か
   // はじめの時間：勤務があればその時間、なければ希望の時間、なければ 9:00〜17:00
   const start = shift ? shift.from : hope?.kind === "time" ? hope.from : 9 * 60;   // 始まり
   const end = shift ? shift.to : hope?.kind === "time" ? hope.to : 17 * 60;   // 終わり
-  const fromBox = hourSelect(toHour(start), "始まり");   // 始まりを選ぶ欄
-  const toBox = hourSelect(Math.max(toHour(end), toHour(start) + 60), "終わり");   // 終わりを選ぶ欄
+  const fromValue = isOpener(start) ? start : toHour(start);   // 始まり（立ち上げの時刻はそのまま）
+  const fromBox = hourSelect(fromValue, "始まり", opener != null ? [opener] : []);   // 始まりを選ぶ欄（立ち上げの時刻も選べる）
+  const endExtra = isOpener(start) && end % 60 ? [end] : [];   // 立ち上げの人の今の終わり（15:30 など）は残す
+  const toBox = hourSelect(endExtra.length ? end : Math.max(toHour(end), toHour(start) + 60), "終わり", endExtra);   // 終わりを選ぶ欄
   const removeBox = createElement("input", { type: "checkbox" });   // 消すチェック
   const ok = await confirmDialog({   // 小さい画面
     title: `${member.name}　${label(date)}`,   // タイトル（名前と日付）

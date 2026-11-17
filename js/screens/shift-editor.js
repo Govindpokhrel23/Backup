@@ -199,7 +199,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
     if (!member) return;   // いなければ何もしない
     const shift = work.find((each) => each.memberId === id && each.date === date) || null;   // その日の勤務（1つめ）
     const hope = hopes.find((each) => each.memberId === id && each.date === date) || null;   // その日の希望
-    openQuickTime({ member, date, shift, hope, onSave: (result) => {   // 小さい画面を出す
+    openQuickTime({ member, date, shift, hope, hours: hoursOf(date), onSave: (result) => {   // 小さい画面を出す（営業時間＝立ち上げの 6:30 を選べるように）
       selectedId = id;   // その人を選ぶ
       if (result.remove) { edit(() => { work = work.filter((each) => !(each.memberId === id && each.date === date)); }); return; }   // 消す
       edit(() => {   // 変える

@@ -21,6 +21,7 @@ import { clampBreak, defaultBreak } from "../lib/breaks.js";   // 休憩の道�
 import { CONFIG } from "../config.js";   // 設定を読む
 import { label } from "../lib/date.js";   // 日付の表示の道具を読む
 import { clipForMinor } from "../rules/labor-rules.js";   // 18歳未満の時間を縮める道具を読む
+import { startTime, endTime } from "../lib/shift-time.js";   // 時刻を1時間ごとにそろえる道具を読む（2026年11月17日）
 
 /** "06:30" → 390（分）。形がおかしければ null */
 export function toMinutes(text) {   // 「9:30」を分にする関数
@@ -75,6 +76,9 @@ export function cleanShifts(raw, ctx, toId) {   // AIの答えを確かめて、
     }
     // 18歳未満の人は 5:00〜22:00 に縮める（法律の決まり。rules/labor-rules.js）
     if (member.minor) ({ from, to } = clipForMinor(from, to));   // 18歳未満なら5時〜22時に縮める
+    // 時刻は1時間ごと（分は入れない）。立ち上げの人だけ開店30分前から（2026年11月17日・lib/shift-time.js）
+    from = startTime(from, ctx.hoursOf ? ctx.hoursOf(aiShift.date) : null);   // 始まりをちょうどの時刻に（後ろへ）
+    to = endTime(to, from);   // 終わりをちょうどの時刻に（前へ）
     if (to - from < 60) { dropped.push(`${where}：短すぎる（または希望・18歳未満の時間の外）ので外しました`); continue; }   // 短すぎたら外す
     // 月・年の上限：この週に入れてよい残りの時間をこえたら外す
     if (member.leftMinutes != null) {   // 月・年の上限がある人なら
