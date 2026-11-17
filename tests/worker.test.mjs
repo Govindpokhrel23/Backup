@@ -26,6 +26,13 @@ function fakeServer(state) {   // にせもののサーバーを作る関数
     fetch: async (url, init = {}) => {   // にせものの通信
       calls.push({ url, method: init.method || "GET", body: init.body ? JSON.parse(init.body) : null });   // 送られたお願いを記録する
       if (url.includes("/rest/v1/login_codes") && (init.method || "GET") === "GET") return ok(state.code ? [state.code] : []);   // 初回コードを読む時
+      if (url.includes("/rest/v1/login_codes") && init.method === "PATCH" && state.code) {   // 初回コードを変える時（本物の Supabase のように、条件に合う時だけ変える）
+        const query = new URL(url).searchParams;   // 条件
+        const fits = [...query.entries()].every(([key, value]) => key === "login_id" || String(state.code[key]) === value.replace(/^eq\./, ""));   // 条件に合うか
+        if (!fits) return ok([]);   // 合わなければ何も変えない
+        Object.assign(state.code, JSON.parse(init.body));   // 変える
+        return ok([{ ...state.code }]);   // 変えた行
+      }
       if (url.includes("/rest/v1/members?login_id")) return ok(state.member ? [state.member] : []);   // ログインIDで店員を読む時
       if (url.includes("/rest/v1/members?auth_id")) return ok([{ role: state.role, active: true }]);   // ログインした人で店員を読む時
       if (url.includes("/rest/v1/")) return ok(null, 204);   // それ以外の表の操作はOK
@@ -109,4 +116,24 @@ test("/push：店員は店長あてにしか送れない・変なIDは捨てる�
   const query = decodeURIComponent(asked.find((url) => url.includes("members?id=in.")) || "");   // 宛先をしぼる問い合わせ
   assert.ok(query.includes("role=eq.manager"), "店員なのに店長以外にも送れる");   // 店長だけ
   assert.ok(!query.includes("bad"), "変なIDが入っている");   // 変なIDは捨てた
+});
+
+test("はじめての方：同じ正しいコードを同時に2回送っても、通るのは1回だけ（2026年11月17日）", async () => {   // テスト：同時に使う
+  const state = { code: { login_id: "2004", code: "123456", used: false, attempts: 0, created_at: now }, member: { id: "m1", active: true } };   // 1つのデータベース
+  const server = fakeServer(state);   // にせものの Supabase
+  const send = () => worker.fetch(req("/activate", { loginId: "2004", code: "123456", password: "abcdefgh" }, { "CF-Connecting-IP": "10.0.0.9" }), env, { fetch: server.fetch });   // 送る
+  const results = await Promise.all([send(), send()]);   // 同時に2回
+  assert.equal(results.filter((res) => res.status === 200).length, 1, "2回とも通ってしまった");   // 通るのは1回だけ
+  assert.equal(state.code.used, true);   // 使用済み
+});
+
+test("はじめての方：同じ場所から1分に10回をこえると止まる・予想外のエラーは中身を見せない（2026年11月17日）", async () => {   // テスト：回数の制限・エラー
+  const server = fakeServer({ code: null, member: null });   // コードがない
+  let last;   // 最後の返事
+  for (let index = 0; index < 11; index++) last = await worker.fetch(req("/activate", { loginId: "2004", code: "000000", password: "abcdefgh" }, { "CF-Connecting-IP": "10.0.0.77" }), env, { fetch: server.fetch });   // 11回送る
+  assert.equal(last.status, 429);   // 11回目は止まる
+  const broken = async () => { throw new TypeError("secret internal detail"); };   // こわれた通信
+  const res = await worker.fetch(req("/activate", { loginId: "2004", code: "000000", password: "abcdefgh" }, { "CF-Connecting-IP": "10.0.0.78" }), env, { fetch: broken });   // 送る
+  assert.equal(res.status, 500);   // エラー
+  assert.ok(!(await res.text()).includes("secret internal detail"), "中の文が見えている");   // 中身は見せない
 });

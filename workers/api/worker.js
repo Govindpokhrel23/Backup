@@ -52,6 +52,9 @@ export default {   // Worker の本体
     if (env.ALLOWED_ORIGIN && origin !== env.ALLOWED_ORIGIN) return json({ error: "このサイトからは使えません" }, 403, cors);   // ほかのサイトからはことわる
 
     const path = new URL(request.url).pathname.replace(/\/+$/, "");  // 入口（/activate・/ai）
+    // 回数の制限（同じ場所から短い時間にたくさん送られたら止める。2026年11月17日）
+    const who = request.headers.get("CF-Connecting-IP") || "unknown";   // 送ってきた場所（IPアドレス）
+    if (!allowed(`${path}:${who}`, path.endsWith("/activate") ? 10 : 60)) return json({ error: "回数が多すぎます。1分ほど待ってからためしてください" }, 429, cors);   // 1分に：初回コードは10回・ほかは60回まで
     let body;                                                         // 送られてきた中身
     try { body = await request.json(); } catch { return json({ error: "中身の形がちがいます" }, 400, cors); }   // 中身を読む（JSON でなければことわる）
 
@@ -61,7 +64,9 @@ export default {   // Worker の本体
       if (path.endsWith("/push")) return json(await push(body, request, env, http), 200, cors);   // /push：スマホに通知を送る
       return json({ error: "この住所はありません" }, 404, cors);   // それ以外は「ない」
     } catch (error) {   // エラーの時
-      return json({ error: error.message }, error.status || 500, cors);   // エラーの文を返す
+      // 自分で決めたエラー（fail で作ったもの）だけ文を返す。予想外のエラーは中身を見せない（2026年11月17日）
+      if (error.status) return json({ error: error.message }, error.status, cors);   // 決めたエラーの文
+      return json({ error: "サーバーでエラーがありました。少し待ってからもう一度ためしてください" }, 500, cors);   // 予想外のエラー
     }
   },
 };
@@ -85,10 +90,23 @@ async function activate({ loginId, code, password }, env, http) {   // 初回コ
   if (!row || row.used) throw fail("IDか初回コードが違います", 400);   // コードがない・使用済みならことわる
   if (row.attempts >= CODE_TRIES) throw fail("まちがいが多すぎます。店長に新しい初回コードをもらってください", 429);   // まちがいが多すぎればことわる
   if (Date.now() - new Date(row.created_at).getTime() > CODE_DAYS * 86400000) throw fail("初回コードの期限が切れています。店長に新しいコードをもらってください", 400);   // 期限切れならことわる
-  if (!sameText(row.code, String(code))) {   // コードがちがえば（時間で見分けられない比べ方。2026年11月16日）
-    await db.patch(`login_codes?login_id=eq.${id}`, { attempts: row.attempts + 1 });   // まちがえた回数を足す
-    throw fail("IDか初回コードが違います", 400);   // ことわる
+  // ためした回数を先に1つ足す（同時にたくさん送っても5回をこえないように、前の回数が同じ時だけ足す。2026年11月17日）
+  const counted = await db.patchBack(`login_codes?login_id=eq.${id}&attempts=eq.${row.attempts}&used=eq.false`, { attempts: row.attempts + 1 });   // 足せた行
+  if (!counted.length) throw fail("同時に送られました。少し待ってからもう一度ためしてください", 409);   // ほかのお願いが先に足した
+  if (!sameText(row.code, String(code))) throw fail("IDか初回コードが違います", 400);   // コードがちがえばことわる（時間で見分けられない比べ方）
+  // コードを「使用済み」にする（まだ使っていない時だけ＝同じコードを2回使えない）
+  const claimed = await db.patchBack(`login_codes?login_id=eq.${id}&used=eq.false&code=eq.${row.code}`, { used: true });   // 使用済みにできた行
+  if (!claimed.length) throw fail("IDか初回コードが違います", 400);   // もう使われていた
+  try {   // ここから先で失敗したら、コードを元にもどす（もう一度ためせるように）
+    return await finishActivate(id, password, env, db);   // パスワードを決める
+  } catch (error) {   // 失敗した時
+    await db.patch(`login_codes?login_id=eq.${id}`, { used: false }).catch(() => {});   // コードを使えるようにもどす
+    throw error;   // エラーを返す
   }
+}
+
+/** 初回コードが正しかった後：店員を確かめて、ログインの人を作る（またはパスワードを変える） */
+async function finishActivate(id, password, env, db) {   // パスワードを決める関数
 
   // ② 店員
   const [member] = await db.get(`members?login_id=eq.${id}&select=id,auth_id,active`);   // その店員
@@ -103,8 +121,7 @@ async function activate({ loginId, code, password }, env, http) {   // 初回コ
     await db.patch(`members?id=eq.${member.id}`, { auth_id: user.id });   // 店員とつなぐ
   }
   await db.patch(`members?id=eq.${member.id}`, { account: "active" });   // アカウントを使える状態にする
-  await db.patch(`login_codes?login_id=eq.${id}`, { used: true });   // コードを使用済みにする
-  return { ok: true };   // 成功
+  return { ok: true };   // 成功（コードはもう使用済みにしてある）
 }
 
 // ------------------------------------------------------------
@@ -212,9 +229,25 @@ function rest(env, http) {   // Supabase を管理者として使う道具を作
   return {   // 使える操作を返す
     get: async (path) => read(await http(`${env.SUPABASE_URL}/rest/v1/${path}`, { headers }), "読み込み"),   // 読む
     patch: async (path, data) => read(await http(`${env.SUPABASE_URL}/rest/v1/${path}`, { method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify(data) }), "保存"),   // 変える
+    patchBack: async (path, data) => (await read(await http(`${env.SUPABASE_URL}/rest/v1/${path}`, { method: "PATCH", headers: { ...headers, Prefer: "return=representation" }, body: JSON.stringify(data) }), "保存")) || [],   // 変えて、変えた行を返す（条件に合う行がなければ空）
     auth: async (path, method, data) => read(await http(`${env.SUPABASE_URL}/auth/v1/${path}`, { method, headers, body: JSON.stringify(data) }), "アカウント作成"),   // ログインの人の管理
     del: async (path) => read(await http(`${env.SUPABASE_URL}/rest/v1/${path}`, { method: "DELETE", headers: { ...headers, Prefer: "return=minimal" } }), "削除"),   // 消す
   };
+}
+
+/**
+ * 回数の制限（2026年11月17日）
+ * 1分の中で、同じ鍵（入口＋IPアドレス）のお願いが max 回をこえたら false
+ * Worker の1つの入れ物の中だけで数える（完全ではないが、大量に送られた時の歯止めになる）
+ */
+const hits = new Map();   // 鍵ごとの { 数え始めた時刻, 回数 }
+function allowed(key, max) {   // 送ってよいか調べる関数
+  const now = Date.now();   // 今の時刻
+  const hit = hits.get(key);   // 前の記録
+  if (!hit || now - hit.start > 60_000) { hits.set(key, { start: now, count: 1 }); }   // 1分すぎたら数えなおす
+  else hit.count++;   // 1分の中なら足す
+  if (hits.size > 5000) for (const [old, value] of hits) if (now - value.start > 60_000) hits.delete(old);   // 古い記録を消す（ふえすぎないように）
+  return hits.get(key).count <= max;   // max 回までOK
 }
 
 /** 2つの文字が同じか（どこでちがったかを、かかった時間で見分けられない比べ方） */
