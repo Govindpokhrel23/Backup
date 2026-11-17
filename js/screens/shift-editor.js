@@ -56,7 +56,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
   // ---------- 最初に全部読む ----------
   // periods＝週の一覧 / baseMembers＝この店舗で働ける人 / positions・requirements＝マップと必要人数 /
   // holidays＝祝日 / rules＝人ごとのルール / storeHours＝営業時間 / wages＝時給 / learnings＝店長の直し方
-  const [periods, baseMembers, positions, requirements, holidays, rules, storeHours, wages, learnings] = await Promise.all([   // はじめに同時に読むもの
+  let [periods, baseMembers, positions, requirements, holidays, rules, storeHours, wages, learnings] = await Promise.all([   // learnings は下書きを作るたびに読みなおすので let（2026年11月17日）
     api.listPeriods(), api.listMembers(), api.listPositions(), api.listRequirements(),   // 週・店員・場所・必要人数
     api.listHolidays(), api.listMemberRules(), api.getStoreHours(), api.listWages(), api.listLearnings(),   // 祝日・メモ・営業時間・時給・覚えたこと
   ]);
@@ -743,6 +743,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
       const prev = periods.find((eachPeriod) => eachPeriod.weekStart === addDays(period.weekStart, -7));   // 前の週
       const past = prev ? await api.listAssignments(prev.id) : [];   // 前の週の勤務
       const before = work.map((shift) => ({ ...shift }));                       // AIの前（「変わった所」を出すため）
+      learnings = await api.listLearnings();   // 覚えたことを読みなおす（同じ画面で前の週を公開して覚えた分も使う。2026年11月17日）
       const result = await runAiDraft(aiContext(past), { onStep: (text) => wait.update(where ? `${where}：${text}` : text) });   // AIの結果（全店舗の時は店舗の名前つき）
       history.push(work);   // 今の状態を記録
       work = result.rows;   // 下書きにする
@@ -774,6 +775,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
       const prev = periods.find((eachPeriod) => eachPeriod.weekStart === addDays(period.weekStart, -7));   // 前の週
       const past = prev ? await api.listAssignments(prev.id) : [];   // 前の週の勤務
       const before = work.map((shift) => ({ ...shift }));   // AIの前の勤務
+      learnings = await api.listLearnings();   // 覚えたことを読みなおす（2026年11月17日）
       const result = await fixWithAi(aiContext(past), work, problems, { onStep: wait.update });   // AIが直した結果
       if (!result.applied) {   // 直せなかったら
         toast(result.error ? `AIで直せませんでした：${result.error}` : `AIの案は問題が減らなかったので使いませんでした（${result.before}件 → ${result.after}件）`);   // お知らせ

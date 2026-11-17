@@ -9,6 +9,7 @@
 //   ② 簡易版で「たたき台」を作る（学びも使う）           … simple-draft.js
 //   ③ Gemini に、たたき台をもっとよくしてもらう           … prompt.js → gemini.js
 //   ④ AIの答えを確かめる（おかしいものは外す）           … validate.js
+//      覚えた直し方（2回以上同じ直し）は、AIの答えにも必ず入れる … apply-learned.js（2026年11月17日）
 //   ⑤ AI と たたき台 の「守れていないルールの数」を比べて、よい方を使う
 //   ⑥ 結果のまとめ（AIのひとこと・理由・外したもの）を返す → 画面の「AIの結果」に出る
 // AIがつながっていない・エラーの時は、たたき台をそのまま使う（止まらない）。
@@ -25,6 +26,7 @@ import { summarize } from "./learning.js";   // 覚えたことをまとめる�
 import { buildDraftPrompt, buildFixPrompt } from "./prompt.js";   // AIに送る文を作る関数を読む
 import { askGemini } from "./gemini.js";   // Gemini に送る関数を読む
 import { cleanShifts } from "./validate.js";   // AIの答えを確かめて直す関数を読む
+import { applyLearned } from "./apply-learned.js";   // 覚えた直し方をAIの答えにも入れる関数を読む（2026年11月17日）
 import { getAiSettings, aiReady } from "./ai-settings.js";   // AIの設定を読む関数
 
 /** AIの案が たたき台 より何個まで多く問題があっても AI を使うか（AIは理由もつくので少しは許す） */
@@ -83,7 +85,9 @@ export async function runAiDraft(ctx, opt = {}) {   // AIで1週間の下書き�
 
     // ④ 確かめる
     step("AIの答えを確かめています");   // 進み具合を画面に出す
-    const { rows, dropped } = cleanShifts(answer.shifts, ctx, toId);   // 使える勤務と、外した理由
+    const cleaned = cleanShifts(answer.shifts, ctx, toId);   // 使える勤務と、外した理由
+    const dropped = cleaned.dropped;   // 外した理由
+    const rows = applyLearned(cleaned.rows, learned, ctx).rows;   // 覚えた直し方を必ず入れる（AIが守らなかった時も。2026年11月17日）
     const aiProblems = ctx.problemsOf(rows);                            // AIの案の問題
 
     // ⑤ よい方を使う

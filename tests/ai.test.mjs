@@ -160,6 +160,29 @@ test("AIで作成：Gemini がエラーでも止まらず、簡易版で作る",
   assert.ok(result.rows.length > 0);   // 勤務はある
 });
 
+// ---------- 覚えた直し方（2026年11月17日） ----------
+
+test("覚えた直し方：AI（Gemini）が守らなくても、2回覚えた時間は必ず入る", async () => {   // テスト：学びを必ず使う
+  CONFIG.API_MODE = "mock";   // 見本版として動かす
+  saveAiSettings({ mode: "gemini", apiKey: "test-key", model: "gemini-3-flash-preview" });   // AIの設定
+  // 店長が2回「Bの月曜は 10:00〜14:00」に直した（希望 9〜15 の中）
+  const learnings = [1, 2].map((index) => ({ id: `l${index}`, kind: "time", memberId: "b", date: "2026-11-02", weekday: 1, from: hoursToMin(10), to: hoursToMin(14), at: `2026-11-0${index}` }));   // 覚えたこと
+  /** にせものの Gemini：覚えたことを守らず 9:00〜15:00 を返す */
+  const fakeFetch = async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ shifts: [{ staff: "S2", date: "2026-11-09", start: "09:00", end: "15:00", area: "hall", reason: "希望どおり" }], summary: "" }) }] } }] }) });   // AIの答え
+  const result = await runAiDraft({ ...ctx, learnings }, { fetchImpl: fakeFetch });   // 「AIで作成」
+  const monday = result.rows.find((row) => row.memberId === "b" && row.date === "2026-11-09");   // Bの月曜
+  assert.equal(result.source, "gemini");   // AIの案を使った
+  assert.deepEqual([monday.from, monday.to], [hoursToMin(10), hoursToMin(14)]);   // 覚えた時間になっている
+});
+
+test("覚えた直し方：1回だけの直しは、まだ使わない（たまたまかもしれない）", async () => {   // テスト：1回はまだ
+  const learnings = [{ id: "l1", kind: "time", memberId: "b", date: "2026-11-02", weekday: 1, from: hoursToMin(10), to: hoursToMin(14), at: "2026-11-01" }];   // 1回だけ
+  const fakeFetch = async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ shifts: [{ staff: "S2", date: "2026-11-09", start: "09:00", end: "15:00", area: "hall", reason: "" }], summary: "" }) }] } }] }) });   // AIの答え
+  const result = await runAiDraft({ ...ctx, learnings }, { fetchImpl: fakeFetch });   // 「AIで作成」
+  const monday = result.rows.find((row) => row.memberId === "b" && row.date === "2026-11-09");   // Bの月曜
+  assert.deepEqual([monday.from, monday.to], [hoursToMin(9), hoursToMin(15)]);   // AIの時間のまま
+});
+
 // ---------- セキュリティ（2026年11月17日） ----------
 
 test("セキュリティ：本番では、前に保存した Gemini の鍵をこの機械から消し、直接 Gemini にしない", () => {   // テスト：鍵を残さない
