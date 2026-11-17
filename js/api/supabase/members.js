@@ -26,7 +26,7 @@ export const membersApi = {   // 店員の窓口
   },
 
   /** 会社の店員みんな（店長。「人を追加」で使う）。mainShort・canHere つき */
-  /** 開発者アカウントの一覧（店長。店員管理で止めたり再開したりする。2026年11月12日） */
+  /** 開発者アカウントの一覧（店長。スタッフの登録・設定で止めたり再開したりする。2026年11月12日） */
   async listDevelopers() {   // 開発者の一覧を出す関数
     await requireManager();   // 店長でなければ止める
     return (await companyMembers()).filter((member) => member.developer);   // 開発者だけ

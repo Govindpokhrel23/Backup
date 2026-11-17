@@ -1,7 +1,7 @@
 // ============================================================
-// screens/staff.js — 店員管理（店長）
+// screens/staff.js — スタッフの登録・設定（店長）
 // ------------------------------------------------------------
-// このファイルは、店員管理（店長）のファイルです。
+// このファイルは、スタッフの登録・設定（店長）のファイルです。
 // アカウントを作る時に、店長がこれを決める（あとで変えられる）：
 //   ・立場：社員／バイト／フルで入るバイト（F-45）
 //   ・できること：ホール・キッチン・立ち上げ・締め を 0〜100％（F-46）
@@ -20,8 +20,8 @@ import { screenHeader } from "../components/header.js";   // 見出しの部品�
 /** 順番の呼び方 */
 const rankWord = (rank) => ({ 1: "メイン", 2: "2nd", 3: "3rd" }[rank] || "");   // 順位の文字（1→メイン）
 
-/** 店員管理の画面を描く（店長） */
-export async function renderStaff(app) {   // 店員管理の画面を描く関数
+/** スタッフの登録・設定の画面を描く（店長） */
+export async function renderStaff(app) {   // スタッフの登録・設定の画面を描く関数
   let members = await api.listMembers();   // この店舗で働ける人
   let rules = await api.listMemberRules();   // 人ごとのルール
   let wages = await api.listWages();          // 時給・交通費（店長だけ。人件費の目安に使う）
@@ -36,7 +36,7 @@ export async function renderStaff(app) {   // 店員管理の画面を描く関�
   function draw() {   // 画面を描く関数
     mount(app,   // 画面に入れる
       screenHeader({   // 見出し
-        title: "店員管理",   // タイトル
+        title: "スタッフの登録・設定",   // タイトル
         sub: `${members.filter((member) => member.active).length}人`,   // 人数
         right: createElement("button", { class: "btn btn--small btn--primary", onclick: () => { editing = "new"; draw(); } }, "＋ アカウント作成"),   // アカウントを作るボタン
       }),

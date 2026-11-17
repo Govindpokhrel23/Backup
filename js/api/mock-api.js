@@ -198,7 +198,7 @@ export const mockApi = {   // テスト版の窓口（Supabase 版と同じ関�
    * 店員を作る（店長）
    * 立場（社員／バイト／フル）とできること％は、ここで店長が決める
    * account:false の時は、アカウント（ログイン）はまだ作らない（シフト作成の「人を追加」から。2026年11月5日）
-   *   → あとで店員管理の「アカウントを作る」で初回コードを出す
+   *   → あとでスタッフの登録・設定の「アカウントを作る」で初回コードを出す
    * @returns {{member, code}} code＝本人に渡す初回コード（6桁。アカウントなしの時は null）
    */
   async createMember({ name, kind, skills, everyday, stores, account = true }) {   // 店員を作る関数

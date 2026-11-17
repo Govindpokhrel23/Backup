@@ -601,7 +601,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
         createElement("div", null, createElement("span", { class: "home-muted" }, label(date)), createElement("strong", { class: "num" }, yen(day))),   // その日
         createElement("div", null, createElement("span", { class: "home-muted" }, "この週"), createElement("strong", { class: "num" }, yen(week))),   // この週
       ),
-      createElement("div", { class: "home-muted" }, "時給と交通費は「店員管理」で入れます。休憩（6時間をこえたら45分・8時間をこえたら60分）を引いて計算"),   // 説明
+      createElement("div", { class: "home-muted" }, "時給と交通費は「スタッフの登録・設定」で入れます。休憩（6時間をこえたら45分・8時間をこえたら60分）を引いて計算"),   // 説明
     );
   }
 
@@ -860,7 +860,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
         await loadGuests();   // 足した人を読む
         selectedId = member.id;   // 選ぶ
         draw();   // 描く
-        toast(`${member.name} を登録しました。名前を押して勤務を足せます（アカウントはあとで店員管理から）`);   // お知らせ
+        toast(`${member.name} を登録しました。名前を押して勤務を足せます（アカウントはあとでスタッフの登録・設定から）`);   // お知らせ
       },
     });
   }

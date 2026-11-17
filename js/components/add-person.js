@@ -8,7 +8,7 @@
 //        ・「この週だけ応援」→ この週の表にだけ出る（行ける店舗の登録は変えない）
 //        ・「この店舗にも行けるようにする」→ その人の行ける店舗のいちばん後ろに足す（次の週からも出る）
 //   ② まだアカウントがない人 … 名前・立場・できることを入れて登録する
-//        → アカウント（ログイン）はまだ作らない。あとで店員管理の「アカウントを作る」で初回コードを出す
+//        → アカウント（ログイン）はまだ作らない。あとでスタッフの登録・設定の「アカウントを作る」で初回コードを出す
 // ============================================================
 
 import { createElement, toast } from "../lib/dom.js";   // 画面の部品・お知らせの道具を読む
@@ -77,7 +77,7 @@ export function openAddPerson(props) {   // 「人を追加」の小さい画面
         createElement("label", { class: "field" }, "名前", name),   // 名前の欄
         createElement("label", { class: "field" }, "立場", kind),   // 立場の欄
         createElement("div", { class: "add-person__skills" }, skillRow),   // できること％の欄
-        createElement("div", { class: "home-muted" }, "アカウント（ログイン）はまだ作りません。あとで「店員管理」の「アカウントを作る」で初回コードを出します。"),   // 説明
+        createElement("div", { class: "home-muted" }, "アカウント（ログイン）はまだ作りません。あとで「スタッフの登録・設定」の「アカウントを作る」で初回コードを出します。"),   // 説明
         createElement("button", { class: "btn btn--primary btn--block", onclick: async () => {   // 登録ボタン
           if (!name.value.trim()) { toast("名前を入れてください"); return; }   // 名前がなければ止める
           const skills = Object.fromEntries(CONFIG.SKILLS.map((skill) => [skill.key, Number(skillSel[skill.key].value)]));   // 入れたできること％（数字にする）

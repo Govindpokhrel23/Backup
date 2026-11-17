@@ -258,7 +258,7 @@ export async function renderStores(app) {   // 店舗の設定の画面を描く
       createElement("div", { class: "step" }, createElement("strong", { class: "step__no" }, "2"), "営業時間・マップ・必要人数"),   // 手順2
       copyFrom,   // 写す店舗
       createElement("div", { class: "home-muted" }, "似ている店舗から写すと、あとで少し直すだけで使えます"),   // 説明
-      createElement("div", { class: "step" }, createElement("strong", { class: "step__no" }, "3"), "この店舗にも行ける人（あとで店員管理でも変えられます）"),   // 手順3
+      createElement("div", { class: "step" }, createElement("strong", { class: "step__no" }, "3"), "この店舗にも行ける人（あとでスタッフの登録・設定でも変えられます）"),   // 手順3
       createElement("div", { class: "pick-list" },   // 人のチェックの一覧
         checks.map(({ member, box }) => createElement("label", { class: "pick-list__item" }, box, `${member.name}`, createElement("span", { class: "home-muted" }, `（${member.mainShort}）`)))),   // 1人ずつ
       createElement("button", { class: "btn btn--primary btn--block", onclick: async () => {   // 増やすボタン
@@ -288,7 +288,7 @@ export async function renderStores(app) {   // 店舗の設定の画面を描く
         createElement("li", null, copied ? "マップと営業時間を確認する（写したものが入っています）" : "マップに人のマークを置いて、営業時間を決める",   // マップの確認
           createElement("button", { class: "btn btn--small", onclick: () => open("/map") }, "マップへ")),   // マップへ
         createElement("li", null, people ? `行ける人 ${people}人 の順番を確認する` : "この店舗で働く人を決める",   // 働く人の確認
-          createElement("button", { class: "btn btn--small", onclick: () => open("/staff") }, "店員管理へ")),   // 店員管理へ
+          createElement("button", { class: "btn btn--small", onclick: () => open("/staff") }, "スタッフの登録・設定へ")),   // スタッフの登録・設定へ
         createElement("li", null, "シフトを作る",   // シフトを作る
           createElement("button", { class: "btn btn--small btn--primary", onclick: () => open("/shift") }, "シフト作成へ")),   // シフト作成へ
       ),

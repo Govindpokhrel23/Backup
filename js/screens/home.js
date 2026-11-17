@@ -116,7 +116,7 @@ async function renderManagerHome(app) {   // 店長のホームを描く関数
       // 「公開シフトの確認」のカードは出さない（2026年11月17日：店長の希望）
       // 店長も仕事に入るので、自分のシフトも出す
       myShifts({ assignments: mine, stores, myStoreId: state.user.storeId, limit: 3, onMore: () => go("/calendar") }),   // 自分のシフト（3件まで。残りはカレンダー）
-      // 店舗の設定（店員管理・マップなど）は「店舗」タブにまとめた（2026年11月15日）
+      // 店舗の設定（スタッフの登録・設定・マップなど）は「店舗」タブにまとめた（2026年11月15日）
     ),
   );
 }
@@ -147,7 +147,7 @@ function summaryCard(info) {   // まとめのカードを作る関数
 
 /**
  * 店舗の切り替え（3店舗）
- * 押すと、シフト作成・マップ・店員管理など全部の画面がその店舗になる
+ * 押すと、シフト作成・マップ・スタッフの登録・設定など全部の画面がその店舗になる
  */
 function storeSwitcher(app) {   // 店舗の切りかえのカードを作る関数
   return createElement("section", { class: "store-bar", "aria-label": "見ている店舗" },   // 細い1行（2026年11月17日：カードから1行にした）

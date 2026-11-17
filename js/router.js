@@ -18,7 +18,7 @@ import { renderCalendar } from "./screens/calendar.js";   // カレンダー
 import { renderPublished } from "./screens/published.js";   // 公開シフト
 import { renderShiftEditor } from "./screens/shift-editor.js";   // シフト作成
 import { renderStoreMenu } from "./screens/store-menu.js";   // 店舗メニュー
-import { renderStaff } from "./screens/staff.js";   // 店員管理
+import { renderStaff } from "./screens/staff.js";   // スタッフの登録・設定
 import { renderMap } from "./screens/map.js";   // マップ
 import { renderSettings } from "./screens/settings.js";   // 設定
 import { renderStores } from "./screens/stores.js";   // 店舗の管理
@@ -40,7 +40,7 @@ const ROUTES = [   // 画面の表
   { path: "/published", render: renderPublished, who: "all" },   // 公開したシフト（お店全員の分）
   { path: "/shift", render: renderShiftEditor, who: "manager" },   // シフト作成（店長だけ）
   { path: "/store", render: renderStoreMenu, who: "manager" },   // 店舗メニュー（店長だけ）
-  { path: "/staff", render: renderStaff, who: "manager" },   // 店員管理（追加・時給・働き方のルール）
+  { path: "/staff", render: renderStaff, who: "manager" },   // スタッフの登録・設定（追加・時給・働き方のルール）
   { path: "/map", render: renderMap, who: "manager" },   // お店の地図（人の配置）
   { path: "/settings", render: renderSettings, who: "all" },   // 設定（通知・パスワード・バックアップ）
   { path: "/stores", render: renderStores, who: "manager" },   // 店舗の追加・編集（4店舗目から）
@@ -55,7 +55,7 @@ const TABS = {   // 下のタブ
     { path: "/home", label: "ホーム", icon: "home" },                  // 今日の様子・お知らせ・やること
     { path: "/shift", label: "シフト作成", icon: "edit" },             // 週のシフトを作る・AIに下書きを頼む・公開する
     { path: "/calendar", label: "自分の勤務", icon: "calendar" },      // 店長も仕事に入るので、自分の勤務を見るタブ
-    { path: "/store", label: "店舗", icon: "store" },                  // 店員管理・地図・集計・店舗の追加などのメニュー
+    { path: "/store", label: "店舗", icon: "store" },                  // スタッフの登録・設定・地図・集計・店舗の追加などのメニュー
   ],
   staff: [                                                            // 店員のタブ（4つ）
     { path: "/home", label: "ホーム", icon: "home" },                  // 次のシフト・お知らせ
@@ -118,7 +118,7 @@ function renderTabbar(path) {   // 下のタブを描く関数
   const bar = document.getElementById("tabbar");   // 下のタブバー
   if (!state.user) { bar.hidden = true; return; }   // ログインしていなければ隠す
   const tabs = TABS[isManager() ? "manager" : "staff"];   // 店長か店員かで変わるタブ
-  // 店舗メニューの中の画面（店員管理・マップ）も「店舗」タブを光らせる
+  // 店舗メニューの中の画面（スタッフの登録・設定・マップ）も「店舗」タブを光らせる
   const current = ["/staff", "/map", "/stores", "/ai", "/report"].includes(path) || (path === "/help" && isManager()) ? "/store" : path;   // 店舗メニューの中の画面なら「店舗」タブを光らせる
   mount(bar, tabs.map((tab) =>   // タブを入れる
     createElement("button", {   // タブのボタン
