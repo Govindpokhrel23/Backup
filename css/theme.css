@@ -58,8 +58,13 @@ html, body { background: var(--bg); }   /* 背景 */
 /* ---------- ベージュのタイル ---------- */
 .sum-tile { border: none; border-radius: 16px; }   /* まとめのマス */
 .my-shifts__item { border-radius: 16px; }   /* 自分のシフトの1件 */
-.my-shifts__item.is-today { background: var(--brown); color: var(--cream); }   /* 今日はこげ茶 */
-
+/* 今日のシフトは緑（2026年11月17日：ひと目で「今日」と分かるように） */
+.my-shifts__item.is-today {   /* 今日の1件 */
+  background: linear-gradient(135deg, #2F6B4F 0%, #3F8A63 100%);   /* 深い緑 → 少し明るい緑 */
+  color: #F4FBF6;   /* 文字はやさしい白 */
+  box-shadow: 0 6px 16px rgba(47, 107, 79, 0.28);   /* 緑のうすい影で浮かせる */
+}
+.my-shifts__item.is-today .home-muted { color: rgba(244, 251, 246, 0.85); }   /* 小さい文字も読みやすく */
 /* ---------- 下のメニュー：浮いた丸い帯 ---------- */
 .tabbar {   /* 下のメニュー（2026年11月17日：下にすきまを作らない＝メニューの下に画面が見えないように） */
   left: 0; right: 0; bottom: 0;   /* 画面の下にぴったり */
