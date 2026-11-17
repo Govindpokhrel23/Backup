@@ -22,8 +22,10 @@ const { cleanShifts, toMinutes } = await import("../js/ai/validate.js");   // �
 const { diffDraft, summarize } = await import("../js/ai/learning.js");   // テストする関数を learning.js から読み込む
 const { buildDraftPrompt } = await import("../js/ai/prompt.js");   // テストする関数を prompt.js から読み込む
 const { runAiDraft } = await import("../js/ai/draft-service.js");   // テストする関数を draft-service.js から読み込む
-const { saveAiSettings } = await import("../js/ai/ai-settings.js");   // テストする関数を ai-settings.js から読み込む
+const { saveAiSettings, getAiSettings } = await import("../js/ai/ai-settings.js");   // テストする関数を ai-settings.js から読み込む
+const { askGemini } = await import("../js/ai/gemini.js");   // テストする関数を gemini.js から読み込む
 const { CONFIG } = await import("../js/config.js");   // 設定を読む
+CONFIG.API_MODE = "mock";   // 下の Gemini のテストは見本版として動かす（本番では「直接」は止まる。下のセキュリティのテストで確かめる）
 CONFIG.API_WORKER_URL = "";   // テストでは Worker なし（「直接 Gemini」の動きを確かめるため。本番では「直接」は使えない）
 const { findCandidates } = await import("../js/rules/candidates.js");   // テストする関数を candidates.js から読み込む
 const { makeDraft } = await import("../js/ai/simple-draft.js");   // テストする関数を simple-draft.js から読み込む
@@ -156,6 +158,32 @@ test("AIで作成：Gemini がエラーでも止まらず、簡易版で作る",
   assert.equal(result.source, "local");   // たたき台を使った
   assert.match(result.error, /回数をこえました/);   // エラーの文
   assert.ok(result.rows.length > 0);   // 勤務はある
+});
+
+// ---------- セキュリティ（2026年11月17日） ----------
+
+test("セキュリティ：本番では、前に保存した Gemini の鍵をこの機械から消し、直接 Gemini にしない", () => {   // テスト：鍵を残さない
+  CONFIG.API_MODE = "mock";   // まず見本版で
+  saveAiSettings({ mode: "gemini", apiKey: "AIza-old-key", model: "gemini-3-flash-preview" });   // 鍵を保存した状態にする
+  assert.match(localStorage.getItem("shiftapp-ai-settings"), /AIza-old-key/);   // 見本版では保存されている
+  CONFIG.API_MODE = "supabase"; CONFIG.API_WORKER_URL = "";   // 本番にする（Worker の住所が入らなかった時も）
+  const settings = getAiSettings();   // 設定を読む
+  assert.equal(settings.mode, "worker");   // 直接ではなく Worker
+  assert.equal(settings.apiKey, "");   // 鍵は使わない
+  assert.doesNotMatch(localStorage.getItem("shiftapp-ai-settings"), /AIza/);   // 保存からも消えた
+  saveAiSettings({ mode: "gemini", apiKey: "AIza-new-key" });   // 本番で鍵を保存しようとしても
+  assert.doesNotMatch(localStorage.getItem("shiftapp-ai-settings"), /AIza/);   // 保存されない
+  assert.equal(getAiSettings().mode, "worker");   // 直接にならない
+  CONFIG.API_MODE = "mock";   // もどす
+});
+
+test("セキュリティ：本番では、直接 Gemini（Google）に送ろうとしても止まり、通信もしない", async () => {   // テスト：直接送らない
+  CONFIG.API_MODE = "supabase";   // 本番にする
+  let called = false;   // 通信したか
+  const fakeFetch = async () => { called = true; return { ok: true, json: async () => ({}) }; };   // にせものの通信
+  await assert.rejects(askGemini({ settings: { mode: "gemini", apiKey: "AIza-x", model: "m" }, prompt: "p", schema: {}, fetchImpl: fakeFetch }), /本番では、スマホから直接 Gemini は使えません/);   // 止まる
+  assert.equal(called, false);   // Google に送っていない
+  CONFIG.API_MODE = "mock";   // もどす
 });
 
 // ---------- candidates ----------

@@ -18,3 +18,9 @@ do $$ begin   -- 役割を作る処理の始まり
 end $$;   -- 処理の終わり
 grant usage on schema auth to authenticated, anon;   -- 両方の役割に auth を使わせる
 grant execute on function auth.uid() to authenticated, anon;   -- 両方の役割に auth.uid() を使わせる
+-- 本物の Supabase と同じく、はじめは anon（ログイン前の人）にも表と関数の権限がある形にする（2026年11月17日）
+-- → schema.sql の最後でそれを取り消せているかを、テストで確かめる
+grant usage on schema public to anon;   -- ログイン前の人も public を見られる（Supabase のはじめの形）
+alter default privileges in schema public grant all on tables to anon;   -- これから作る表を anon も使える（Supabase のはじめの形）
+alter default privileges in schema public grant all on sequences to anon;   -- これから作る番号を anon も使える（Supabase のはじめの形）
+alter default privileges in schema public grant execute on functions to anon;   -- これから作る関数を anon も使える（Supabase のはじめの形）

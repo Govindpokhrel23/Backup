@@ -12,7 +12,7 @@
 // ============================================================
 
 import { CONFIG } from "../config.js";   // 設定を読む
-import { authToken, workerAiUrl } from "./ai-settings.js";   // ログインの証明・Worker の住所の関数を読む
+import { authToken, workerAiUrl, isProduction } from "./ai-settings.js";   // ログインの証明・Worker の住所・本番か調べる関数を読む
 
 /** Google の Gemini API の住所（モデル名の所はあとで入れる） */
 const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models";   // Google の Gemini の住所
@@ -53,6 +53,8 @@ export async function askGemini({ settings, prompt, schema, fetchImpl = fetch })
         signal: stop.signal,   // 時間切れで止められるように
       });
     } else {   // 直接 Gemini に送るなら
+      // 本番（Supabase）では直接送らない。鍵をスマホに置かないため（2026年11月17日・セキュリティ）
+      if (isProduction()) throw new Error("PRODUCTION_DIRECT");   // 本番では止める（下で分かる文にする）
       // Google へ直接：鍵はヘッダーで送る（URL に鍵を入れない＝履歴に残らない）
       res = await fetchImpl(`${GOOGLE_URL}/${encodeURIComponent(settings.model)}:generateContent`, {   // Google に直接送る
         method: "POST",   // 送る方法
@@ -62,6 +64,7 @@ export async function askGemini({ settings, prompt, schema, fetchImpl = fetch })
       });
     }
   } catch (error) {   // 通信が失敗した時
+    if (error.message === "PRODUCTION_DIRECT") throw new Error("本番では、スマホから直接 Gemini は使えません（サーバー経由にしてください）");   // 本番で直接を使おうとした時
     throw new Error(error.name === "AbortError" ? "AIの返事が遅すぎたので止めました（もう一度押してください）" : "AIにつながりません（電波・URLを確認してください）");   // 時間切れか、つながらないかで文を変える
   } finally {   // 成功でも失敗でも
     clearTimeout(timer);   // 時間切れのタイマーを止める

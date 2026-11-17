@@ -19,7 +19,7 @@ const KEY = "shiftapp-ai-settings";   // スマホに保存する時の名前
 
 /** 最初の設定（何も入れていない時） */
 const DEFAULTS = {   // はじめの設定
-  mode: CONFIG.API_MODE === "supabase" && CONFIG.API_WORKER_URL ? "worker" : CONFIG.AI_MODE,   // つなぎ方（本番の準備ができていれば Worker）
+  mode: CONFIG.API_MODE === "supabase" ? "worker" : CONFIG.AI_MODE,   // つなぎ方（本番はいつも Worker。2026年11月17日）
   apiKey: "",                    // Gemini の鍵（mode "gemini" の時だけ使う）
   model: CONFIG.AI_MODEL,        // 使うモデルの名前
 };
@@ -29,8 +29,13 @@ export function getAiSettings() {   // AIの設定を読む関数
   try {   // 読めない時に止まらないように
     const saved = JSON.parse(localStorage.getItem(KEY) || "{}");    // 保存してある設定
     const merged = { ...DEFAULTS, ...saved };   // はじめの設定に、保存したものを上書き
-    // 本番（Worker がある時）は、スマホに Gemini の鍵を置く「直接」を使わせない（2026年11月16日・セキュリティ）
-    if (workerReady() && merged.mode === "gemini") { merged.mode = "worker"; merged.apiKey = ""; }   // Worker にもどして、鍵は使わない
+    // 本番（Supabase）では、スマホに Gemini の鍵を置く「直接」を使わせない（2026年11月16日・セキュリティ）
+    // 2026年11月17日：Worker の住所の有無ではなく「本番かどうか」で決める。前に保存した鍵も、この機械から消す
+    if (isProduction()) {   // 本番なら
+      if (merged.mode === "gemini") merged.mode = "worker";   // 直接はやめて Worker にする
+      merged.apiKey = "";   // 鍵は使わない
+      if ("apiKey" in saved || saved.mode === "gemini") localStorage.setItem(KEY, JSON.stringify({ ...saved, mode: merged.mode, apiKey: undefined }));   // 前に保存した鍵をこの機械から消す
+    }
     return merged;   // 返す
   } catch {   // 読めなかった時
     return { ...DEFAULTS };   // はじめの設定を返す
@@ -40,8 +45,9 @@ export function getAiSettings() {   // AIの設定を読む関数
 /** 設定を保存する（変えたところだけ渡せばよい） */
 export function saveAiSettings(patch) {   // AIの設定を保存する関数
   const next = { ...getAiSettings(), ...patch };                     // 新しい設定
-  if (workerReady() && next.mode === "gemini") { next.mode = "worker"; next.apiKey = ""; }   // 本番では「直接」にしない（鍵をスマホに残さない）
-  try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* 保存できない機械（プライベートブラウズ）でも止めない */ }
+  if (isProduction()) { if (next.mode === "gemini") next.mode = "worker"; next.apiKey = ""; }   // 本番では「直接」にしない（鍵をスマホに残さない）
+  const stored = isProduction() ? { ...next, apiKey: undefined } : next;   // 本番では鍵を保存しない（JSON にすると消える）
+  try { localStorage.setItem(KEY, JSON.stringify(stored)); } catch { /* 保存できない機械（プライベートブラウズ）でも止めない */ }
   return next;   // 保存した設定を返す
 }
 
@@ -55,6 +61,11 @@ export function aiReady(settings = getAiSettings()) {   // AIを使えるか調�
   if (settings.mode === "worker" && !workerReady()) return { ok: false, why: "サーバー（Supabase と Worker）がまだつながっていません" };   // サーバーがつながっていない
   if (!settings.model) return { ok: false, why: "モデルの名前が入っていません" };   // モデルの名前がない
   return { ok: true };   // 使える
+}
+
+/** 本番（本物の Supabase につないでいる）か。本番では「スマホから直接 Gemini」を使わせない（2026年11月17日） */
+export function isProduction() {   // 本番か調べる関数
+  return CONFIG.API_MODE === "supabase";   // Supabase につないでいれば本番
 }
 
 /** サーバー経由（Worker）を使える準備ができているか（本物につないでいて、Worker のURLがある） */

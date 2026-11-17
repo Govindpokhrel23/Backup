@@ -228,3 +228,30 @@ test("プッシュ通知の宛先：自分のスマホの分だけ登録でき�
   await api.login(ctx.b.loginId, "pass-b");   // Bでログイン
   assert.equal((await fake.client.from("push_subs").select("*")).data.length, 0);   // B から A の宛先は見えない
 });
+
+test("セキュリティ：ログインしていない人は、表も関数も使えない（2026年11月17日）", { skip }, async () => {   // テスト：ログイン前
+  await api.logout().catch(() => {});   // ログアウトした状態にする
+  for (const table of ["members", "assignments", "availabilities", "wages", "member_rules", "notifications", "login_codes", "stores"]) {   // 大事な表
+    const res = await fake.client.from(table).select("*");   // 読んでみる
+    assert.ok(res.error && /permission denied/.test(res.error.message), `${table} が読めてしまう：${JSON.stringify(res)}`);   // ことわられる
+  }
+  const ins = await fake.client.from("members").insert({ id: "x", name: "x" });   // 書いてみる
+  assert.ok(ins.error, "ログイン前に書けてしまう");   // ことわられる
+  for (const [fn, args] of [["issue_login_code", { p_member_id: "m1" }], ["answer_call", { p_call_id: "c", p_yes: true }], ["i_am_manager", {}], ["my_company", {}]]) {   // 関数
+    const res = await fake.client.rpc(fn, args);   // 呼んでみる
+    assert.ok(res.error && /permission denied/.test(res.error.message), `${fn} を呼べてしまう：${JSON.stringify(res)}`);   // ことわられる
+  }
+});
+
+test("セキュリティ：店員は、店長の操作（初回コード・時給）を関数や表から直接できない", { skip }, async () => {   // テスト：店長の権限はサーバーで決まる
+  await api.login(ctx.a.loginId, "pass-a");   // 店員Aでログイン
+  const code = await fake.client.rpc("issue_login_code", { p_member_id: ctx.b.id });   // ほかの人の初回コードを出そうとする
+  assert.ok(code.error && /店長だけ/.test(code.error.message), "店員が初回コードを出せてしまう");   // ことわられる
+  const wage = await fake.client.from("wages").upsert({ company_id: ctx.a.companyId || "c1", member_id: ctx.a.id, hourly: 9999 }, { onConflict: "member_id" });   // 自分の時給を書こうとする
+  assert.ok(wage.error && /row-level security|permission/.test(wage.error.message), `店員が時給を書けてしまう：${JSON.stringify(wage.error)}`);   // ことわられる（決まり RLS で）
+  const promote = await fake.client.from("members").update({ role: "manager" }).eq("id", ctx.a.id).select();   // 自分を店長にしようとする
+  assert.ok(promote.error || (promote.data || []).length === 0, "店員が自分を店長にできてしまう");   // 変わらない
+  const me = (await fake.admin.sql("select role from members where id = $1", [ctx.a.id])).rows[0];   // データベースの中身
+  assert.notEqual(me.role, "manager");   // 店長になっていない
+  await api.logout();   // ログアウト
+});

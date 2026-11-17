@@ -13,16 +13,16 @@
 // ============================================================
 
 import { CONFIG } from "../config.js";   // 設定（どちらの版を使うか）を読む
-import { mockApi } from "./mock-api.js";   // テスト版（スマホの中だけ）の窓口を読む
 import { readCache, writeCache } from "../lib/offline-cache.js";   // 自分のシフトをスマホにしまう道具を読む
 
 /**
  * 見本か本物（Supabase）かを選ぶ
  * 本物の時だけ supabase-api.js を読む（見本の時は読まないので軽い）
+ * 見本の時だけ mock-api.js を読む（本番では読まない＝見本のパスワード 1234 は本番に入らない。2026年11月17日）
  */
 async function pickApi() {   // 使う窓口を選ぶ関数
   if (CONFIG.API_MODE === "supabase") return (await import("./supabase-api.js")).supabaseApi;   // Supabase の設定があれば本物版を読んで使う
-  return mockApi;   // なければテスト版
+  return (await import("./mock-api.js")).mockApi;   // なければテスト版を読んで使う
 }
 
 const base = await pickApi();   // 選んだ方のAPI

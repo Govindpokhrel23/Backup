@@ -489,3 +489,16 @@ end $$;   -- 終わり
 grant execute on function issue_login_code(text), take_swap(text), answer_call(text, boolean),   -- ログインした人が関数を使えるように
   my_member_id(), my_company(), i_am_manager(), store_in_my_company(text), member_in_my_company(text), period_published(text)   -- 使える関数
   to authenticated;   -- ログインした人に
+
+-- ------------------------------------------------------------
+-- 5. ログインしていない人（anon）には何も使わせない（2026年11月17日・セキュリティ）
+--    RLS でも中身は見えないが、念のため「表も関数も使えない」ようにする
+--    （ログインは Supabase の Auth、初回コードは Worker なので、ログイン前に表は使わない）
+-- ------------------------------------------------------------
+revoke all on all tables in schema public from anon;   -- ログイン前の人は表を読めない・書けない
+revoke all on all sequences in schema public from anon;   -- ログイン前の人は番号も使えない
+revoke execute on all functions in schema public from public, anon;   -- 関数は「だれでも使える」をやめる
+grant execute on all functions in schema public to authenticated, service_role;   -- ログインした人と Worker だけ関数を使える
+alter default privileges in schema public revoke all on tables from anon;   -- これから作る表も、ログイン前の人には使わせない
+alter default privileges in schema public revoke all on sequences from anon;   -- これから作る番号も同じ
+alter default privileges in schema public revoke execute on functions from public, anon;   -- これから作る関数も同じ

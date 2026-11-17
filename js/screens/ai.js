@@ -14,7 +14,7 @@
 import { createElement, mount, toast, confirmDialog } from "../lib/dom.js";   // 画面の部品の道具を読む
 import { api } from "../api/index.js";   // データの窓口を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
-import { getAiSettings, saveAiSettings, aiReady, workerReady } from "../ai/ai-settings.js";   // AIの設定の道具を読む
+import { getAiSettings, saveAiSettings, aiReady, workerReady, isProduction } from "../ai/ai-settings.js";   // AIの設定の道具を読む
 import { testGemini } from "../ai/gemini.js";   // つながるか試す道具を読む
 import { summarize, LEARN_MIN_COUNT } from "../ai/learning.js";   // 覚えたことをまとめる道具を読む
 import { CONFIG } from "../config.js";   // 設定を読む
@@ -92,7 +92,7 @@ export async function renderAi(app) {   // AIの設定の画面を描く関数
     return createElement("section", { class: "card" },   // カード
       createElement("h2", { class: "card__title" }, "つなぎ方"),   // 見出し
       createElement("div", { class: "mode-list" },   // つなぎ方のボタン
-        workerReady() ? null : modeBtn("gemini", "今すぐ試す", "この機械から直接 Gemini を使う。鍵はこの機械にだけ保存"),   // 直接 Gemini（本番では出さない。鍵をスマホに置かないため）
+        isProduction() ? null : modeBtn("gemini", "今すぐ試す", "この機械から直接 Gemini を使う。鍵はこの機械にだけ保存"),   // 直接 Gemini（本番では出さない。鍵をスマホに置かないため）
         modeBtn("worker", "本番（おすすめ）", "Cloudflare Worker を通す。鍵はサーバーにだけ置くので安全"),   // Worker を通す
         modeBtn("local", "AIを使わない", "簡易版だけで下書きを作る")),   // AIを使わない
       settings.mode === "gemini"   // 直接 Gemini なら

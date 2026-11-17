@@ -12,4 +12,10 @@ rm -rf dist && mkdir dist                # 前の dist を消して作り直す
 cp index.html manifest.webmanifest sw.js _headers dist/   # 入口・ホーム画面の設定・電波なしの仕組み・安全の設定
 cp -R css js dist/                       # 見た目とプログラム
 cp -R icons dist/                        # アイコン（ホーム画面・通知）
+# 本番（config.js に SUPABASE_URL がある）なら、見本版のファイル（見本のパスワード 1234 など）は入れない（2026年11月17日）
+if grep -q 'SUPABASE_URL: "https' dist/js/config.js; then   # 本番の設定なら
+  rm -f dist/js/api/mock-*.js            # 見本版のファイルを消す
+  if ls dist/js/api/mock-*.js >/dev/null 2>&1; then echo "見本版のファイルが残っています"; exit 1; fi   # 残っていたら止める
+  echo "本番なので、見本版のファイルは入れませんでした"   # 結果を出す
+fi
 echo "dist ができました（$(find dist -type f | wc -l | tr -d ' ') ファイル）"   # できたファイルの数を出す
