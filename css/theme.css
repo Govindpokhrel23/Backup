@@ -5,7 +5,7 @@
    ・上の見出し：こげ茶の帯（下の角を丸く）＋クリーム色の文字
    ・本文：クリーム色の背景に、角の大きい白いカード（枠の線なし・うすい影）
    ・選んでいるもの：こげ茶（文字はクリーム）／ほかはベージュ
-   ・下のメニュー：浮いた丸い帯。今の画面の絵はこげ茶の四角で囲む
+   ・下のメニュー：上の角が丸い帯（画面の下にぴったり）。今の画面の絵はこげ茶の四角で囲む
    ・いちばん最後に読む。index.html から外せば、前の見た目にもどる
    ============================================================ */
 
@@ -61,18 +61,22 @@ html, body { background: var(--bg); }   /* 背景 */
 .my-shifts__item.is-today { background: var(--brown); color: var(--cream); }   /* 今日はこげ茶 */
 
 /* ---------- 下のメニュー：浮いた丸い帯 ---------- */
-.tabbar {   /* 下のメニュー */
-  left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom));   /* 画面のはしから少しはなす */
-  height: var(--tabbar-h); padding-bottom: 0;   /* 高さ */
-  background: #E9DFCF; border: none; border-radius: 24px;   /* ベージュの丸い帯 */
-  box-shadow: 0 6px 20px rgba(58, 42, 32, 0.18);   /* 浮いて見える影 */
+.tabbar {   /* 下のメニュー（2026年11月17日：下にすきまを作らない＝メニューの下に画面が見えないように） */
+  left: 0; right: 0; bottom: 0;   /* 画面の下にぴったり */
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);   /* iPhone の下のすきまもメニューの色でうめる */
+  background: var(--bg); border: none; border-radius: 0; box-shadow: none;   /* 帯の後ろは背景の色でうめる（丸い角のすきまに画面が見えないように） */
+}
+.tabbar::before {   /* ベージュの帯（上の角だけ丸い） */
+  content: ""; position: absolute; inset: 0; z-index: -1;   /* 帯の後ろいっぱいに */
+  background: #E9DFCF; border-radius: 24px 24px 0 0;   /* ベージュ・上の角を丸く */
+  box-shadow: 0 -4px 16px rgba(58, 42, 32, 0.12);   /* 上にうすい影 */
 }
 .tabbar__btn { color: #6B5B4E; }   /* ふだんの色 */
 .tabbar__btn svg { width: 32px; height: 32px; padding: 4px; border-radius: 12px; }   /* 絵（まわりに余白） */
 .tabbar__btn[aria-current="page"] { color: var(--brown); }   /* 今の画面の文字 */
 .tabbar__btn[aria-current="page"] svg { background: var(--brown); color: var(--cream); }   /* 今の画面の絵はこげ茶の四角 */
-.app { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 28px); }   /* 下のメニューにかくれないように */
+.app { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 20px); }   /* 下のメニューにかくれないように */
 .toast { bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 24px); }   /* お知らせはメニューの上 */
 @media (min-width: 800px) {   /* PC・タブレット */
-  .tabbar { left: 50%; right: auto; width: 640px; transform: translateX(-50%); border-radius: 24px; }   /* 真ん中に浮かせる */
+  .tabbar { left: 50%; right: auto; width: 640px; transform: translateX(-50%); }   /* 真ん中に置く（下にぴったり） */
 }
