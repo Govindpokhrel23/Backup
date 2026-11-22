@@ -67,20 +67,16 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
   function draw() {   // 画面を描く関数
     const isMain = storeId === state.user.storeId;   // 自分のメインの店舗か
     mount(app,   // 画面に入れる
-      screenHeader({   // 見出し
+      screenHeader({   // 見出し（2026年11月22日：小さくした。週は本文の「‹ 前の週 ／ 次の週 ›」で動く）
         title: "公開シフト",   // タイトル
-        sub: period ? weekLabel(period) : "",   // 週の日付
-        right: published.length > 1   // 週が2つ以上あれば
-          ? createElement("select", { class: "select", style: { width: "auto" }, "aria-label": "週を選ぶ", onchange: changeWeek },   // 週を選ぶ欄
-              published.map((eachPeriod) => createElement("option", { value: eachPeriod.id, selected: eachPeriod.id === period?.id }, weekLabel(eachPeriod))))   // 公開した週
-          : null,   // 1つなら出さない
+        slim: true,   // 小さい見出し
         // 3店舗の切り替え
         extra: createElement("div", { class: "store-switch" },   // 店舗を切りかえるボタン
           activeStores().map((eachStore) => createElement("button", {   // 店舗ごと
             class: "chip store-switch__btn",   // 見た目
             "aria-pressed": String(eachStore.id === storeId),   // 見ている店舗に印
             onclick: async () => { if (eachStore.id !== storeId) { await loadStore(eachStore.id); draw(); } },   // 押したらその店舗を読んで描く
-          }, eachStore.short, eachStore.id === state.user.storeId ? createElement("span", { class: "store-switch__mine" }, "メイン") : null))),   // 名前と「メイン」の印
+          }, eachStore.short, eachStore.id === state.user.storeId ? createElement("span", { class: "store-switch__mine" }, "★") : null))),   // 名前と、メインの店舗の印「★」
       }),
       period   // 週があれば
         ? createElement("div", { class: "screen-body" },   // 本文
@@ -93,8 +89,7 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
                     } }, "シフトを見ました（確認する）"))   // ボタンの文字
               : null,   // ほかの店舗では出さない
             period.note ? createElement("div", { class: "notice notice--warn", style: { fontWeight: 400, whiteSpace: "pre-line" } }, `連絡事項：${period.note}`) : null,   // 連絡事項
-            weekNav(),   // 前の週・次の週（2026年11月22日：先週も見られる）
-            viewSwitch(),   // 週／日の切りかえ
+            weekNav(),   // 前の週・次の週・週／日の切りかえを1行に（2026年11月22日：場所をとらないように）
             view === "week" ? paperWeekCard() : null,   // 1週間（紙のシフト表と同じ1日の枠を7つ。2026年11月22日）
             view === "day" ? dayTabs() : null,   // 日のタブ
             view === "day" ? paperDayCard() : null,   // 1日（紙のシフト表と同じ形。2026年11月22日）
@@ -164,10 +159,11 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
     const list = [...published].sort((first, second) => first.weekStart.localeCompare(second.weekStart));   // 古い順
     const index = list.findIndex((eachPeriod) => eachPeriod.id === period.id);   // 今の週の位置
     const move = async (step) => { await loadWeek(list[index + step]); draw(); };   // 週を動かす
-    return createElement("div", { class: "week-nav" },   // 入れ物
-      createElement("button", { class: "btn btn--small", disabled: index <= 0, onclick: () => move(-1) }, "‹ 前の週"),   // 前の週
+    return createElement("div", { class: "week-nav" },   // 入れ物（1行）
+      createElement("button", { class: "btn btn--icon", "aria-label": "前の週", disabled: index <= 0, onclick: () => move(-1) }, "‹"),   // 前の週
       createElement("strong", { class: "week-nav__label" }, weekShort(period)),   // 今の週（短く：11/16〜11/22）
-      createElement("button", { class: "btn btn--small", disabled: index >= list.length - 1, onclick: () => move(1) }, "次の週 ›"));   // 次の週
+      createElement("button", { class: "btn btn--icon", "aria-label": "次の週", disabled: index >= list.length - 1, onclick: () => move(1) }, "›"),   // 次の週
+      viewSwitch());   // 週／日の切りかえ
   }
 
   /** 日のタブ */
@@ -176,11 +172,6 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
       datesOf(period).map((eachDate) => createElement("button", { class: "chip", "aria-pressed": String(eachDate === date), onclick: () => { date = eachDate; draw(); } }, label(eachDate))));   // 7日分のボタン
   }
 
-  /** 週を変えた時 */
-  async function changeWeek(event) {   // 週を変えた時
-    await loadWeek(published.find((period) => period.id === event.target.value));   // 選んだ週を読む
-    draw();   // 描く
-  }
 }
 
 /** 公開シフトの見方を覚える名前 */
