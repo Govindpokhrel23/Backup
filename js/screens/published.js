@@ -68,7 +68,7 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
     const isMain = storeId === state.user.storeId;   // 自分のメインの店舗か
     mount(app,   // 画面に入れる
       screenHeader({   // 見出し（2026年11月22日：小さくした。週は本文の「‹ 前の週 ／ 次の週 ›」で動く）
-        title: "公開シフト",   // タイトル
+        title: "",   // タイトルは出さない（下のメニューで「公開シフト」と分かる。2026年11月22日：場所をとらないように）
         slim: true,   // 小さい見出し
         // 3店舗の切り替え
         extra: createElement("div", { class: "store-switch" },   // 店舗を切りかえるボタン

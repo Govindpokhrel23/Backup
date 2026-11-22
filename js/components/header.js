@@ -18,11 +18,11 @@ export function screenHeader({ title, sub, right, extra, slim }) {   // 画面�
   // 店長は3店舗を切り替えるので、どの店舗を見ているか、いつも見出しに出す
   const store = isManager() ? currentStore() : null;   // 店長なら今の店舗を出す（店員は出さない）
   return createElement("header", { class: `screen-header${slim ? " screen-header--slim" : ""}` },   // 見出しの入れ物（slim なら小さく）
-    createElement("div", { class: "screen-header__row" },   // 1行目（タイトルと右のボタン）
-      createElement("h1", { class: "screen-header__title" }, title,   // 大きいタイトル
-        store ? createElement("span", { class: "store-badge" }, store.name) : null),   // 店舗の名前のバッジ（店長だけ）
+    title || right ? createElement("div", { class: "screen-header__row" },   // 1行目（タイトルと右のボタン。どちらもなければ出さない）
+      title ? createElement("h1", { class: "screen-header__title" }, title,   // 大きいタイトル
+        store ? createElement("span", { class: "store-badge" }, store.name) : null) : null,   // 店舗の名前のバッジ（店長だけ）
       right || null,   // 右上に置くもの（なければ何も置かない）
-    ),
+    ) : null,
     sub ? createElement("div", { class: "screen-header__sub" }, sub) : null,   // タイトルの下の小さい説明
     extra || null,   // 見出しの下に足すもの（お知らせなど）
   );
