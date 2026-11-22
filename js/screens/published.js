@@ -13,11 +13,10 @@ import { createElement, mount, toast } from "../lib/dom.js";   // 画面の部�
 import { api } from "../api/index.js";   // データの窓口を読む
 import { state, activeStores } from "../store.js";   // アプリの状態・店舗の一覧を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
-import { timeline } from "../components/timeline.js";   // タイムラインの部品を読む
+import { paperDay, paperRows } from "../components/paper-day.js";   // 紙のシフト表と同じ1日の枠を読む（2026年11月22日）
 import { dayList } from "../components/day-list.js";   // 1日の一覧の部品を読む
 import { weekLabel, datesOf } from "../lib/period.js";   // 週の表示の道具を読む
 import { label, today, dayType } from "../lib/date.js";   // 日付の道具を読む
-import { CONFIG } from "../config.js";   // 設定を読む
 import { weekGrid, weekLegend } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月15日：店員も週で見られるように）
 import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む
 
@@ -98,16 +97,7 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
             viewSwitch(),   // 週／日の切りかえ
             view === "week" ? weekCard() : null,   // 1週間の表（紙のシフト表と同じ形）
             view === "day" ? dayTabs() : null,   // 日のタブ
-            view === "day" ? createElement("div", { class: "card" },   // カード
-              timeline({   // タイムライン
-                ...dayRange(),   // 表示する時間のはば
-                hours: hoursOn(storeHours, date, dayType(date, holidays)),     // 「立」「締」の印に使う
-                members: members.filter((member) => member.active),   // 休止していない店員
-                assignments: assignments.filter((shift) => shift.date === date),   // その日の勤務
-                selectedId: state.user.id,                      // 自分の行に色をつける
-                editable: false,   // 見るだけ（動かせない）
-              }),
-            ) : null,   // 1日の見方の時だけ
+            view === "day" ? paperDayCard() : null,   // 1日（紙のシフト表と同じ形。2026年11月22日）
             view === "day" ? dayList({ assignments: assignments.filter((shift) => shift.date === date), members, hours: hoursOn(storeHours, date, dayType(date, holidays)) }) : null,   // 1日の一覧
           )
         : createElement("div", { class: "screen-body" }, createElement("div", { class: "card" }, "この店舗には、まだ公開されたシフトはありません")),   // 週がない時の文
@@ -142,12 +132,21 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
     );
   }
 
-  /** 表の左端と右端（7:00〜22:00 より外の勤務があれば広げる） */
-  function dayRange() {   // 表示する時間のはばを出す関数
-    const day = assignments.filter((shift) => shift.date === date);   // その日の勤務
-    const start = Math.min(CONFIG.DAY_START, ...day.map((shift) => shift.from));   // 左端（分）
-    const end = Math.max(CONFIG.DAY_END, ...day.map((shift) => shift.to));   // 右端（分）
-    return { start: Math.floor(start / 60) * 60, end: Math.ceil(end / 60) * 60 };   // 1時間きざみにそろえる
+  /**
+   * 1日のカード：紙のシフト表の「1日の枠」と同じ形（色つき）
+   * 氏名・時刻・トータル時間。勤務は線（< >）、休憩は ○。自分の行はうすい黄色
+   */
+  function paperDayCard() {   // 1日のカードを作る関数
+    const shown = members.filter((member) => member.active && ((member.rankHere ?? 1) === 1 || assignments.some((shift) => shift.memberId === member.id)));   // この店の人と、この週に入っている応援の人
+    const { rows, split } = paperRows(shown);   // 社員が上
+    return createElement("section", { class: "card card--tight paper-day" },   // カード
+      paperDay({ date, rows, split, work: assignments, color: true, selectedId: state.user.id, width: 64, rowH: 4.6, font: 2.5 }),   // 1日の枠
+      createElement("div", { class: "wk-legend" },   // 色の説明
+        createElement("span", { class: "wk-legend__item" }, createElement("span", { class: "paper-key paper-key--hall" }), "ホール"),   // 青
+        createElement("span", { class: "wk-legend__item" }, createElement("span", { class: "paper-key paper-key--kitchen" }), "キッチン"),   // オレンジ
+        createElement("span", { class: "wk-legend__item" }, "○ 休憩"),   // 休憩
+        createElement("span", { class: "wk-legend__item" }, createElement("span", { class: "paper-key paper-key--mine" }), "自分")),   // 自分の行
+    );
   }
 
   /** 日のタブ */

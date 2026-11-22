@@ -76,3 +76,10 @@
   .wk__away { padding: 8px 6px; text-align: left; }   /* ほかの店舗の箱 */
   .wk-legend .is-phone-only { display: none; }   /* PCでは休憩の文字が出るので、点線の説明はいらない */
 }
+
+/* ---------- 公開シフトの「日」：紙のシフト表と同じ1日の枠（2026年11月22日） ---------- */
+.paper-day svg { display: block; width: 100%; height: auto; font-family: "Hiragino Sans", "Noto Sans CJK JP", sans-serif; }   /* 幅いっぱい */
+.paper-key { display: inline-block; width: 16px; height: 3px; border-radius: 2px; vertical-align: middle; }   /* 色の見本の線 */
+.paper-key--hall { background: #3F7DCB; }   /* ホール */
+.paper-key--kitchen { background: #D9782D; }   /* キッチン */
+.paper-key--mine { height: 10px; background: #FBEFD9; border: 1px solid #E9D3A8; }   /* 自分の行 */
