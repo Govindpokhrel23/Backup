@@ -93,3 +93,5 @@
 .paper-badge { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 3px; color: #fff; font-size: 11px; }   /* 「立」「締」の見本 */
 .paper-badge--open { background: #2F6B4F; }   /* 立ち上げ（緑） */
 .paper-badge--close { background: #7A3E8E; }   /* 締め（むらさき） */
+.hope-actions { display: flex; gap: 8px; flex-wrap: wrap; }   /* 希望のボタンの行（2026年11月22日） */
+.paper-key--hope { background: #2F8F5B; }   /* 希望の時間指定（緑） */

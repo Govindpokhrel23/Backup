@@ -63,6 +63,7 @@ function totalText(minutes) {   // 時間を短い文字にする関数
  * @param {object[]} props.rows        並べる人（社員が上）
  * @param {number}   props.split       何人目までが社員か（そこに太い線）
  * @param {object[]} props.work        勤務（ほかの日がまざっていてもよい）
+ * @param {object[]} [props.hopes]     希望（渡すと、勤務の代わりに希望をかく。出していない人は空欄。2026年11月22日）
  * @param {boolean}  [props.color]     色をつけるか（ホール＝青・キッチン＝オレンジ）
  * @param {string}   [props.selectedId] 色をつける人（自分）
  * @param {number}   [props.width]     枠の横（単位。印刷では mm）
@@ -124,12 +125,48 @@ export function paperDay(props) {   // 1日の枠を作る関数
     return size;   // 大きさを返す
   };
 
+  /**
+   * 希望をかく（希望の枠の時。2026年11月22日）
+   * 時間指定＝緑の線（< >）／いつでもOK＝緑の点線と「いつでもOK」／入れない＝「×」／休み希望＝「休み希望」
+   * 出していない人は何もかかない（空欄）
+   */
+  const drawHope = (member, mid) => {   // 1人の希望をかく関数
+    const hope = props.hopes.find((each) => each.memberId === member.id && each.date === props.date);   // その日の希望
+    if (!hope) return;   // 出していなければ空欄
+    const green = props.color ? "#2F8F5B" : "#000";   // 入れる時の色
+    const red = props.color ? "#B3402B" : "#000";   // 入れない時の色
+    const tick = Math.min(1, rowH * 0.32);   // はしの印の大きさ
+    const word = (text, color) => {   // 真ん中に文字を書く
+      const x = NAME_W + (W - NAME_W - TOTAL_W) / 2;   // 時刻の部分の真ん中
+      root.append(svg("text", { x, y: mid + font * 0.35, "font-size": font, "font-weight": 700, fill: color, "text-anchor": "middle" }, text));   // 文字
+    };
+    if (hope.kind === "time") {   // 時間指定
+      const x1 = xOf(hope.from), x2 = xOf(hope.to);   // 始まりと終わり
+      root.append(svg("line", { x1, y1: mid, x2, y2: mid, stroke: green, "stroke-width": 0.55 }));   // 線
+      root.append(svg("polyline", { points: `${x1 + tick},${mid - tick} ${x1},${mid} ${x1 + tick},${mid + tick}`, fill: "none", stroke: green, "stroke-width": 0.45 }));   // 「<」
+      root.append(svg("polyline", { points: `${x2 - tick},${mid - tick} ${x2},${mid} ${x2 - tick},${mid + tick}`, fill: "none", stroke: green, "stroke-width": 0.45 }));   // 「>」
+    } else if (hope.kind === "any") {   // いつでもOK
+      const open = hours && !hours.closed ? hours.open : HOUR_FROM * 60, close = hours && !hours.closed ? hours.close : HOUR_TO * 60;   // 営業時間（なければ全部）
+      root.append(svg("line", { x1: xOf(open), y1: mid, x2: xOf(close), y2: mid, stroke: green, "stroke-width": 0.45, "stroke-dasharray": "1 0.7" }));   // 点線
+      const x = (xOf(open) + xOf(close)) / 2, w = font * 5.4;   // 文字の場所と横はば
+      root.append(svg("rect", { x: x - w / 2, y: mid - font * 0.6, width: w, height: font * 1.2, fill: "#fff" }));   // 文字の下を白く
+      root.append(svg("text", { x, y: mid + font * 0.35, "font-size": font * 0.9, "font-weight": 700, fill: green, "text-anchor": "middle" }, "いつでもOK"));   // 文字
+    } else if (hope.kind === "no") {   // 入れない
+      word("×　入れない", red);   // 文字
+    } else if (hope.kind === "off") {   // 休み希望
+      word("休み希望", red);   // 文字
+    } else if (hope.kind === "offx") {   // 特別許可待ち
+      word("休み希望（許可待ち）", red);   // 文字
+    }
+  };
+
   // ---- 1人1行 ----
   props.rows.forEach((member, index) => {   // 人ごとに
     const top = HEAD_H + index * rowH;   // 行の上
     const mid = top + rowH / 2;   // 行の真ん中
     root.append(svg("line", { x1: 0, y1: top + rowH, x2: W, y2: top + rowH, stroke: "#000", "stroke-width": 0.12 }));   // 行の下の線
     root.append(svg("text", { x: 0.8, y: mid + font * 0.35, "font-size": font, "font-weight": index === mine ? 700 : null, textLength: [...member.name].length * font > NAME_W - 1.4 ? NAME_W - 1.4 : null, lengthAdjust: "spacingAndGlyphs" }, member.name));   // 名前（長い名前は枠に入るよう縮める）
+    if (props.hopes) { drawHope(member, mid); return; }   // 希望の枠なら、希望をかいて次の人へ（2026年11月22日）
     const shifts = props.work.filter((shift) => shift.memberId === member.id && shift.date === props.date).sort((first, second) => first.from - second.from);   // その人のその日の勤務
     let total = 0;   // その日の時間
     for (const shift of shifts) {   // 勤務ごとに
@@ -156,11 +193,15 @@ export function paperDay(props) {   // 1日の枠を作る関数
 }
 
 /**
- * 並べる順（社員が上、そのあとバイト）と、社員の人数
+ * 並べる順（社員が上、そのあとバイト。いつも同じ順番）と、社員の人数
  * @param {object[]} members 店員
  * @returns {{rows:object[], split:number}}
  */
 export function paperRows(members) {   // 並べる順を決める関数
-  const shain = members.filter((member) => member.kind === "shain");   // 社員
-  return { rows: [...shain, ...members.filter((member) => member.kind !== "shain")], split: shain.length };   // 社員が上
+  // いつも同じ順番にする（2026年11月22日）：社員 → その店の人 → 応援の人。同じなかまの中はログインIDの順
+  const byId = (first, second) => String(first.loginId || "").localeCompare(String(second.loginId || ""), "ja", { numeric: true }) || String(first.name).localeCompare(String(second.name), "ja");   // ログインIDの順（同じなら名前）
+  const helper = (member) => ((member.rankHere ?? 1) === 1 ? 0 : 1);   // その店の人が先
+  const shain = members.filter((member) => member.kind === "shain").sort((first, second) => helper(first) - helper(second) || byId(first, second));   // 社員
+  const others = members.filter((member) => member.kind !== "shain").sort((first, second) => helper(first) - helper(second) || byId(first, second));   // バイト・フル
+  return { rows: [...shain, ...others], split: shain.length };   // 社員が上
 }

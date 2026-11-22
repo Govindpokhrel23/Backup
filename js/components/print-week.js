@@ -66,3 +66,54 @@ export function printWeek(props) {   // 週のシフト表を印刷する関数
   );
   window.print();   // 印刷の画面を開く
 }
+
+/** 希望の記号の説明の枠（希望の印刷の8つ目。2026年11月22日） */
+function hopeKeyBox() {   // 記号の説明の枠を作る関数
+  const root = svg("svg", { viewBox: `0 0 ${BOX_W} ${BOX_H}`, width: `${BOX_W}mm`, height: `${BOX_H}mm`, class: "paper-box" });   // 枠の絵
+  root.append(svg("rect", { x: 0.2, y: 0.2, width: BOX_W - 0.4, height: BOX_H - 0.4, fill: "#fff", stroke: "#000", "stroke-width": 0.4 }));   // 外の枠
+  root.append(svg("text", { x: BOX_W / 2, y: 5, "font-size": 2.8, "font-weight": 700, "text-anchor": "middle" }, "記 号 の 説 明"));   // 見出し
+  const rows = [   // 説明
+    ["<――>", "時間指定（この時間なら入れる）"],   // 時間指定
+    ["- - - いつでもOK - - -", "いつでもOK（営業時間の中）"],   // いつでも
+    ["×　入れない", "その日は入れない"],   // 入れない
+    ["休み希望", "休みたい"],   // 休み
+    ["休み希望（許可待ち）", "特別な休み（店長の許可待ち）"],   // 許可待ち
+    ["（空欄）", "希望をまだ出していない"],   // 空欄
+  ];
+  rows.forEach(([mark, text], index) => {   // 1つずつ
+    root.append(svg("text", { x: 3, y: 14 + index * 9, "font-size": 2.4, "font-weight": 700 }, mark));   // 記号
+    root.append(svg("text", { x: 3, y: 17.6 + index * 9, "font-size": 2.2 }, text));   // 説明
+  });
+  return root;   // 枠を返す
+}
+
+/**
+ * 希望を印刷する（紙の「週間勤務予定表」と同じ形。2026年11月22日）
+ * 並び順はシフトの表と同じ（社員 → バイト。いつも同じ順番）。出していない人は空欄
+ * @param {object} props
+ * @param {string}   props.storeName      店舗の名前
+ * @param {string[]} props.dates          7日分
+ * @param {object[]} props.members        その店の人
+ * @param {object[]} props.availabilities その週の希望
+ * @param {(date:string)=>object|null} [props.hoursOf] その日の営業時間（「いつでもOK」の線のはば）
+ */
+export function printHopes(props) {   // 希望を印刷する関数
+  let area = document.getElementById("print-area");   // 印刷用の入れ物（なければ作る）
+  if (!area) {   // まだなければ
+    area = createElement("div", { id: "print-area" });   // 作る
+    document.body.appendChild(area);   // ページに置く
+  }
+  const { rows, split } = paperRows(props.members);   // いつも同じ順番
+  const year = toDate(props.dates[0]).getFullYear();   // 年
+  mount(area,   // 印刷用の場所に入れる
+    createElement("div", { class: "paper" },   // 紙1枚
+      createElement("div", { class: "paper__head" },   // 上の見出し
+        createElement("span", { class: "paper__title" }, `コメダ珈琲　${props.storeName || ""}　希望シフト表　-${year}年-`),   // タイトル
+        createElement("span", { class: "paper__company" }, "株式会社 21 CAFE")),   // 会社の名前
+      createElement("div", { class: "paper__grid" },   // 8つの枠（4×2）
+        props.dates.map((date) => paperDay({ date, rows, split, work: [], hopes: props.availabilities, hoursOf: props.hoursOf, width: BOX_W, height: BOX_H, mm: true, total: false })),   // 7日（白黒）
+        hopeKeyBox()),   // 記号の説明
+    ),
+  );
+  window.print();   // 印刷の画面を開く
+}

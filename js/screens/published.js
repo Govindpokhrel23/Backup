@@ -142,10 +142,10 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
 
   /**
    * 1週間：紙のシフト表と同じ「1日の枠」を月〜日の7つ、たてに並べる（2026年11月22日）
-   * この週に入っている人と自分だけ出す。日を押すと、その日の「日」の見方へ
+   * この店の人みんな（いつも同じ順番）＋この週に入っている応援の人。日を押すと、その日の「日」の見方へ
    */
   function paperWeekCard() {   // 1週間のカードを作る関数
-    const { rows, split } = paperRows(shownMembers().filter((member) => member.id === state.user.id || assignments.some((shift) => shift.memberId === member.id)));   // 出す人（社員が上）
+    const { rows, split } = paperRows(shownMembers());   // 出す人（この店の人みんな＋入っている応援の人。いつも同じ順番。2026年11月22日）
     return createElement("div", { class: "paper-week" },   // 入れ物
       paperLegend(),   // 色と印の説明
       datesOf(period).map((eachDate) => createElement("section", { class: `card card--tight paper-day${eachDate === today() ? " is-today" : ""}`, onclick: () => { date = eachDate; view = "day"; saveView("day"); draw(); window.scrollTo(0, 0); } },   // 1日（押すとその日へ）
