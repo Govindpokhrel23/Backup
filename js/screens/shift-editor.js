@@ -418,6 +418,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
   function printButton() {   // 印刷ボタンを作る関数
     return createElement("button", { class: "btn btn--tiny", onclick: () => printWeek({   // 印刷ボタン
       title: `${state.stores.find((store) => store.id === period.storeId)?.name || ""} ${weekLabel(period)}${period.status === "published" ? "" : "（下書き）"}`,   // タイトル（店舗と週）
+      storeName: state.stores.find((store) => store.id === period.storeId)?.name || "", draft: period.status !== "published",   // 紙の見出し用（店舗の名前・下書きか。2026年11月22日）
       dates: datesOf(period), members: active, assignments: work, note: period.note,   // 7日・店員・勤務・連絡事項
     }) }, "印刷");   // ボタンの文字
   }
