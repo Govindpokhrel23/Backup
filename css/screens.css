@@ -295,11 +295,12 @@
 #print-area { display: none; }   /* 印刷用の場所（ふだんは隠す） */
 @media print {   /* 印刷する時（2026年11月22日：紙の「週間勤務予定表」と同じ形・いつも1ページ） */
   @page { size: A4 landscape; margin: 6mm; }   /* A4横（iPhone など横にできない時は下の「縦の紙」） */
-  html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }   /* 背景は白・余白なし */
+  html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; height: auto !important; min-height: 0 !important; }   /* 背景は白・余白なし・高さは中身だけ */
   body > *:not(#print-area) { display: none !important; }   /* 印刷用の場所以外は隠す */
-  /* 紙の中身（277×190mm）を 0.92倍にして、上下にURLや日付が入っても1ページにおさめる。外にはみ出す分は切る＝2ページ目を作らない */
-  #print-area { display: block; color: #000; width: 255mm; height: 175mm; overflow: hidden; page-break-after: avoid; break-after: avoid; }   /* 印刷用の場所 */
-  .paper { width: 277mm; height: 190mm; transform: scale(0.92); transform-origin: top left; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; }   /* 紙1枚 */
+  /* 紙の中身（277×190mm）を小さくして、上下にURLや日付が入っても1ページにおさめる。外にはみ出す分は切る＝2ページ目を作らない
+     2026年11月22日：iPhone で2ページになったので、もう少し小さくした（横 0.88倍・縦 0.8倍） */
+  #print-area { display: block; color: #000; width: 249mm; height: 168mm; overflow: hidden; page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; break-after: avoid; }   /* 印刷用の場所（1ページの中で切れない・次のページを作らない） */
+  .paper { width: 277mm; height: 190mm; transform: scale(0.88); transform-origin: top left; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; }   /* 紙1枚 */
   .paper__head { display: flex; justify-content: space-between; align-items: baseline; height: 8mm; padding: 0 2mm; }   /* 上の見出し */
   .paper__title { font-size: 15pt; font-weight: 700; letter-spacing: 0.15em; }   /* 「コメダ珈琲 ○○店 週間勤務予定表」 */
   .paper__company { font-size: 10pt; font-weight: 700; }   /* 「株式会社 21 CAFE」 */
@@ -308,8 +309,8 @@
 }
 /* iPhone などで縦向きの紙に印刷される時は、表を90度回して1ページにおさめる（紙を横にして見る） */
 @media print and (orientation: portrait) {   /* 縦の紙の時 */
-  #print-area { width: 175mm; height: 255mm; }   /* 回したあとの大きさ */
-  .paper { transform: scale(0.92) rotate(90deg) translateY(-100%); transform-origin: top left; }   /* 右に90度回して 0.92倍 */
+  #print-area { width: 152mm; height: 222mm; }   /* 回したあとの大きさ（iPhone のURL・日付の分をあけても1ページ） */
+  .paper { transform: scale(0.8) rotate(90deg) translateY(-100%); transform-origin: top left; }   /* 右に90度回して 0.8倍 */
 }
 
 /* 公開シフトの店舗ボタン：自分のメインの店舗に小さく「メイン」 */
