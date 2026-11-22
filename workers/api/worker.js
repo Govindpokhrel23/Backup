@@ -22,6 +22,7 @@
 // ============================================================
 
 import { sendWebPush } from "./lib/webpush.js";   // 通知を1つ送る道具を読む（暗号の計算は lib/webpush.js）
+import { sendTomorrowReminders } from "./lib/reminder.js";   // 「明日はシフトです」の通知を送る道具を読む（2026年11月22日）
 
 /** 初回コードを何日使えるか */
 const CODE_DAYS = 7;   // 初回コードは7日まで
@@ -35,6 +36,24 @@ const ALLOWED_MODELS = ["gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemi
 const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models";   // Google の Gemini の住所
 
 export default {   // Worker の本体
+  /**
+   * 決まった時間の仕事（Cron Trigger。wrangler.toml の [triggers]）2026年11月22日
+   * 毎日 18:00（日本）に、明日の勤務がある人へ「明日のシフト」の通知を送る
+   * @param {object} event  Cloudflare から（いつ動いたか）
+   * @param {object} env    Cloudflare に入れた値
+   * @param {object} ctx    Cloudflare の道具（waitUntil：終わるまで待つ）
+   * @param {object} [deps] テストの時に、にせものの fetch・今の時間を入れる
+   */
+  async scheduled(event, env, ctx, deps = {}) {   // 決まった時間に動く関数
+    const http = deps.fetch || fetch;   // 外へのお願いに使う fetch
+    if (!env.VAPID_PRIVATE_JWK || !env.VAPID_PUBLIC_KEY) return;   // 通知の鍵がなければ何もしない
+    const now = deps.now || new Date(event?.scheduledTime || Date.now());   // 今の時間
+    const job = sendTomorrowReminders(rest(env, http), (sub, payload) => sendWebPush(sub, payload, env, http), now)   // 明日の通知を送る
+      .then((result) => console.log("明日のシフトの通知", JSON.stringify(result)))   // 結果を記録（Cloudflare のログ）
+      .catch((error) => console.error("明日のシフトの通知でエラー", error?.message));   // エラーを記録（中身は外に出さない）
+    if (ctx?.waitUntil) ctx.waitUntil(job); else await job;   // 終わるまで待つ
+  },
+
   /**
    * アプリから届いたお願いを受ける
    * @param {Request} request アプリからのお願い

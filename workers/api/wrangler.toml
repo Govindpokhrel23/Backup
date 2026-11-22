@@ -18,3 +18,7 @@ keep_vars = true
 [vars]
 SUPABASE_URL = "https://stvaodfduawfbiuvgrji.supabase.co"   # お店の Supabase の住所
 ALLOWED_ORIGIN = "https://aichi21cafe-shift.pages.dev"      # アプリの URL（ここ以外のサイトからは使わせない）
+
+# 決まった時間の仕事（2026年11月22日）：毎日 09:00 UTC ＝ 日本の 18:00 に、明日の勤務がある人へ通知（worker.js の scheduled）
+[triggers]
+crons = ["0 9 * * *"]

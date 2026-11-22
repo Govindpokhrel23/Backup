@@ -35,7 +35,7 @@ function pushCard() {   // 通知のカードを作る関数
     box.replaceChildren(   // 中身を入れかえる
       createElement("h2", { class: "card__title" }, "スマホへの通知"),   // 見出し
       on   // オンなら
-        ? createElement("div", { class: "notice notice--ok" }, "このスマホで通知を受け取っています（シフトの公開・変更・人が足りない時）")   // 受け取っている（ボタンなし）
+        ? createElement("div", { class: "notice notice--ok" }, "このスマホで通知を受け取っています（シフトの公開・変更・人が足りない時・前の日18時の「明日のシフト」）")   // 受け取っている（ボタンなし）
         : createElement("div", { class: "home-muted" }, "シフトが公開された時・変わった時・人が足りない時に、このスマホに通知が届きます。一度オンにすると、ずっと届きます"),   // 説明
       on ? null : createElement("button", { class: "btn btn--primary", onclick: async () => {   // オンにするボタン
         try {   // 失敗しても止まらないように
