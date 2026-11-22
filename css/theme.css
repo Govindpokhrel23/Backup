@@ -94,3 +94,35 @@ html, body { background: var(--bg); }   /* 背景 */
 .screen-header--slim .store-switch__mine { font-size: 11px; opacity: 0.9; }   /* メインの印「★」 */
 .week-nav .published-seg { margin: 0 0 0 4px; }   /* 週／日の切りかえ（前の週・次の週と同じ行） */
 .week-nav .btn--icon { font-size: 20px; font-weight: 700; }   /* ‹ › */
+
+/* ============================================================
+   文字を全体に少し小さく（2026年11月22日：大きすぎて見た目がよくないので）
+   ・ふつうの文字 16 → 15px（入力欄は iPhone が拡大しないように 16px のまま）
+   ・見出し・数字・ボタンも1〜4px 小さく。いちばん小さい文字（12px）は変えない
+   ============================================================ */
+body { font-size: 15px; }   /* ふつうの文字 */
+input, select, textarea { font-size: 16px; }   /* 入力欄（16px より小さいと iPhone が画面を拡大する） */
+.screen-header { padding-top: calc(10px + env(safe-area-inset-top)); padding-bottom: 12px; }   /* 見出しの上下を少しせまく */
+.screen-header__title { font-size: 19px; }   /* 画面の名前 22 → 19 */
+.screen-header__sub { font-size: 12px; }   /* 見出しの下の説明 */
+.card__title { font-size: 15px; }   /* カードの見出し 17 → 15 */
+.btn { font-size: 14px; }   /* ボタン 15 → 14 */
+.btn--small { font-size: 13px; min-height: 38px; }   /* 小さいボタン */
+.store-bar .store-switch__btn { font-size: 13px; min-height: 40px; }   /* 店舗のボタン */
+.sum-tile { min-height: 70px; padding: 8px 10px; }   /* まとめのマス（低く） */
+.sum-tile__title { font-size: 12px; }   /* マスの名前 */
+.sum-tile__value { font-size: 18px; }   /* マスの数字 22 → 18 */
+.call-row__what { font-size: 13px; }   /* 募集の1行 */
+.my-shifts__time { font-size: 16px; }   /* 自分のシフトの時間 18 → 16 */
+.next-shift__time { font-size: 17px; }   /* 次のシフトの時間 */
+.home-kibou { font-size: 15px; min-height: 56px; }   /* 希望を入れるボタン */
+.cal-detail__time { font-size: 18px; }   /* カレンダーの時間 */
+.labor strong, .month-total strong { font-size: 17px; }   /* 集計の数字 */
+.ai-result__big strong { font-size: 16px; }   /* AIの結果 */
+.ai-stat strong { font-size: 15px; }   /* AIの結果の数字 */
+.dialog__title { font-size: 17px; }   /* 小さい画面のタイトル */
+.check-list li { font-size: 13px; }   /* 一覧の1行 */
+
+/* ホームの右上：「店長｜店員」の切りかえ（2026年11月22日） */
+.view-toggle { flex: none; }   /* 縮まない */
+.view-toggle .seg__btn { min-height: 34px; min-width: 52px; font-size: 13px; padding: 0 10px; }   /* ボタン */

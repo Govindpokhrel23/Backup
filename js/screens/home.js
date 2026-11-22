@@ -19,7 +19,7 @@
 
 import { createElement, mount, toast, confirmDialog } from "../lib/dom.js";   // 画面の部品の道具を読む
 import { api } from "../api/index.js";   // データの窓口を読む
-import { state, isManager, switchStore, activeStores } from "../store.js";   // アプリの状態・店舗の道具を読む
+import { state, isManager, isRealManager, setViewAsStaff, switchStore, activeStores } from "../store.js";   // アプリの状態・店舗の道具・店長／店員の画面の切りかえを読む
 import { go } from "../router.js";   // 画面を移動する道具を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
 import { myShifts } from "../components/my-shifts.js";   // 自分のシフトの部品を読む
@@ -35,9 +35,17 @@ export async function renderHome(app) {   // ホームを描く関数
   return renderStaffHome(app);   // 店員なら店員のホーム
 }
 
-/** 右上の「設定」ボタン（ログアウトなど） */
-function settingsButton() {   // 設定ボタンを作る関数
-  return createElement("button", { class: "btn btn--small", onclick: () => go("/settings") }, "設定");   // 押すと設定へ
+/**
+ * 右上のボタン
+ * ・店長（と開発者）：「店長｜店員」の切りかえ（2026年11月22日：設定ボタンの代わり。設定は「店舗」タブの中）
+ * ・店員：「設定」ボタン（ログアウトなど）
+ */
+function settingsButton() {   // 右上のボタンを作る関数
+  if (!isRealManager()) return createElement("button", { class: "btn btn--small", onclick: () => go("/settings") }, "設定");   // 店員は設定へ
+  const pick = (staff) => { if (state.viewAsStaff !== staff) { setViewAsStaff(staff); go("/home"); } };   // 見る画面を変えてホームを描きなおす
+  return createElement("div", { class: "seg view-toggle", role: "group", "aria-label": "見る画面" },   // 切りかえの枠
+    createElement("button", { class: "seg__btn", "aria-pressed": String(!state.viewAsStaff), onclick: () => pick(false) }, "店長"),   // 店長の画面
+    createElement("button", { class: "seg__btn", "aria-pressed": String(state.viewAsStaff), onclick: () => pick(true) }, "店員"));   // 店員の画面
 }
 
 // ------------------------------------------------------------
