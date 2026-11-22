@@ -126,3 +126,5 @@ input, select, textarea { font-size: 16px; }   /* 入力欄（16px より小さ�
 /* ホームの右上：「店長｜店員」の切りかえ（2026年11月22日） */
 .view-toggle { flex: none; }   /* 縮まない */
 .view-toggle .seg__btn { min-height: 34px; min-width: 52px; font-size: 13px; padding: 0 10px; }   /* ボタン */
+/* 下のメニューが5つになったので、文字が2行にならないように少しせまく（2026年11月22日） */
+.tabbar__btn { min-width: 0; padding: 0 2px; white-space: nowrap; letter-spacing: -0.02em; }   /* タブのボタン */

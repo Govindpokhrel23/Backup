@@ -36,20 +36,18 @@ import { openAddPerson } from "../components/add-person.js";   // 人を追加�
 import { mergeNeeds } from "../rules/candidates.js";   // 足りない時間をまとめる道具を読む
 import { go } from "../router.js";   // 画面を移動する道具を読む
 import { STATUS_LABEL, weekLabel, weekShort, datesOf, workingPeriod } from "../lib/period.js";   // 週の表示の道具を読む
-import { label, dayType, addDays, mondayOf, toIso, monthStart, monthEnd, today as todayIso } from "../lib/date.js";   // 日付の道具を読む
+import { label, dayType, addDays, mondayOf, toIso, monthStart, monthEnd } from "../lib/date.js";   // 日付の道具を読む
 import { checkLabor, usageOf } from "../rules/labor-rules.js";   // 働き方のルールの道具を読む
 import { state, switchStore, activeStores } from "../store.js";   // アプリの状態・店舗を切りかえる道具を読む
 import { range, EDIT_MIN, EDIT_MAX } from "../lib/time.js";   // 時間の道具を読む
 import { createHistory } from "../lib/history.js";   // 元に戻す・やり直しの道具を読む
 import { assignmentPanel } from "../components/assignment-panel.js";   // 右の欄の部品を読む
 import { dayList } from "../components/day-list.js";   // 1日の一覧の部品を読む
-import { printWeek, printHopes } from "../components/print-week.js";   // 印刷の道具（シフト・希望）を読む
-import { paperDay, paperRows } from "../components/paper-day.js";   // 紙のシフト表と同じ1日の枠を読む（希望を紙の形で見る。2026年11月22日）
+import { printWeek } from "../components/print-week.js";   // 印刷の道具を読む
 import { laborCost, minutesByMember, hoursText, yen } from "../lib/labor.js";
 import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む（2026年11月15日）
 import { defaultBreak } from "../lib/breaks.js";   // 休憩の目安の位置を決める道具を読む
 import { openQuickTime } from "../components/quick-time.js";   // 時間をすぐ直す小さい画面を読む（2026年11月15日）
-import { hopeList } from "../components/hope-list.js";   // 希望の一覧の部品を読む（2026年11月15日）
 import { weekGrid, weekLegend } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月10日）   // 時間とお金の計算の道具を読む
 
 /** シフト作成の画面を描く（店長） */
@@ -83,7 +81,6 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
   let elsewhere = [];      // この週にほかの店舗に入っている勤務（重ねないため・見るだけ）
   let others = [];         // この週以外の勤務（全部の店舗）＋この週のほかの店舗の勤務。月・年の上限と連勤を数える（2026年11月6日）
   let unlocked = false;    // 公開済みの週で「編集する」を押したか
-  let hopePaper = false;   // 希望を「紙の形（日ごと）」で見ているか（2026年11月22日）
   let aiResult = null;     // 一番上に出す「AIの結果」{result, kind, before}（閉じたら null）
   const history = createHistory();   // 「元に戻す」用
   let view = loadView();   // 見方："week"＝1週間の表 ／ "day"＝1日のタイムライン（前に選んだ方を覚えておく）
@@ -377,10 +374,7 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
         ),
       ),
       createElement("div", { class: "screen-body" },   // 本文
-        // いちばん上に「希望の一覧」（店舗ごと。2026年11月15日）
-        hopeList({ dates: datesOf(period), members: active, availabilities: hopes, stores: state.stores, storeId: state.storeId, onPick: pickFromWeek }),   // 希望の一覧
-        hopeActions(),   // 希望を紙の形で見る・印刷する（2026年11月22日）
-        hopePaper ? hopePaperBody() : null,   // 希望（紙の形）
+        // 希望の一覧は、下のメニューの「希望」タブに移した（2026年11月22日）
         summary ? batchCard() : null,   // 全店舗まとめて作った結果
         aiResult ? resultCard() : null,   // AIの結果があれば出す
         view === "week" ? weekBody() : dayBody(today, checks),   // 1週間の表か、1日のタイムライン
@@ -416,33 +410,6 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
           await renderShiftEditor(app, { weekStart: period.weekStart });   // この店舗のシフトで描きなおす（同じ週のまま）
         },
       }, eachStore.short || eachStore.name)));   // 短い名前（例「福釜」）
-  }
-
-  /** 希望に出す人：この店の人（休止中・開発者はのぞく）。並びはシフトの表と同じ（いつも同じ順番） */
-  function hopeMembers() {   // 希望の表に出す人を決める関数
-    return active.filter((member) => (member.rankHere ?? 1) === 1 && !member.developer);   // この店の人
-  }
-
-  /** 希望のボタン：紙の形（日ごと）で見る／一覧にもどる・印刷（2026年11月22日） */
-  function hopeActions() {   // 希望のボタンを作る関数
-    const storeName = state.stores.find((store) => store.id === period.storeId)?.name || "";   // 店舗の名前
-    return createElement("div", { class: "hope-actions" },   // ボタンの行
-      createElement("button", { class: "btn btn--small", onclick: () => { hopePaper = !hopePaper; draw(); } }, hopePaper ? "希望を閉じる" : "希望を日ごとに見る（紙の形）"),   // 見る・閉じる
-      createElement("button", { class: "btn btn--small", onclick: () => printHopes({ storeName, dates: datesOf(period), members: hopeMembers(), availabilities: hopes, hoursOf }) }, "希望を印刷"));   // 印刷
-  }
-
-  /** 希望を紙の形で：1日の枠を7つたてに並べる（出していない人は空欄） */
-  function hopePaperBody() {   // 希望の紙の形を作る関数
-    const { rows, split } = paperRows(hopeMembers());   // いつも同じ順番
-    return createElement("div", { class: "paper-week" },   // 入れ物
-      createElement("div", { class: "wk-legend" },   // 記号の説明
-        createElement("span", { class: "wk-legend__item" }, createElement("span", { class: "paper-key paper-key--hope" }), "時間指定"),   // 緑の線
-        createElement("span", { class: "wk-legend__item" }, "- - いつでもOK"),   // 点線
-        createElement("span", { class: "wk-legend__item" }, "× 入れない・休み希望（赤）"),   // 赤い文字
-        createElement("span", { class: "wk-legend__item" }, "空欄＝まだ出していない")),   // 空欄
-      datesOf(period).map((eachDate) => createElement("section", { class: `card card--tight paper-day${eachDate === todayIso() ? " is-today" : ""}` },   // 1日（今日は緑の枠）
-        paperDay({ date: eachDate, rows, split, work: [], hopes, color: true, width: 64, rowH: 4.2, font: 2.4, total: false, hoursOf }))),   // 1日の枠（希望）
-    );
   }
 
   /** 印刷ボタン（お店に貼る用。PDFにも保存できる） */

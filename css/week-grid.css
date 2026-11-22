@@ -95,3 +95,5 @@
 .paper-badge--close { background: #7A3E8E; }   /* 締め（むらさき） */
 .hope-actions { display: flex; gap: 8px; flex-wrap: wrap; }   /* 希望のボタンの行（2026年11月22日） */
 .paper-key--hope { background: #2F8F5B; }   /* 希望の時間指定（緑） */
+.hope-status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }   /* 希望の画面：受付の状態・締切・提出・印刷の行 */
+.hope-status .btn { margin-left: auto; }   /* 印刷は右に */

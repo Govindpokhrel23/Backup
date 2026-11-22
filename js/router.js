@@ -24,6 +24,7 @@ import { renderSettings } from "./screens/settings.js";   // 設定
 import { renderStores } from "./screens/stores.js";   // 店舗の管理
 import { renderAi } from "./screens/ai.js";   // AIの設定
 import { renderReport } from "./screens/report.js";   // 勤務時間の集計
+import { renderHopes } from "./screens/hopes.js";   // 希望（店長。2026年11月22日）
 import { renderHelp } from "./screens/help.js";   // ヘルプ（使い方）（2026年11月15日）
 
 /**
@@ -39,6 +40,7 @@ const ROUTES = [   // 画面の表
   { path: "/calendar", render: renderCalendar, who: "all" },   // 自分の勤務のカレンダー
   { path: "/published", render: renderPublished, who: "all" },   // 公開したシフト（お店全員の分）
   { path: "/shift", render: renderShiftEditor, who: "manager" },   // シフト作成（店長だけ）
+  { path: "/hopes", render: renderHopes, who: "manager" },   // 希望（店長だけ。2026年11月22日：シフト作成の上から別のタブにした）
   { path: "/store", render: renderStoreMenu, who: "manager" },   // 店舗メニュー（店長だけ）
   { path: "/staff", render: renderStaff, who: "manager" },   // スタッフの登録・設定（追加・時給・働き方のルール）
   { path: "/map", render: renderMap, who: "manager" },   // お店の地図（人の配置）
@@ -51,8 +53,9 @@ const ROUTES = [   // 画面の表
 
 /** 下のタブバー（役割で中身が変わる） */
 const TABS = {   // 下のタブ
-  manager: [                                                          // 店長のタブ（4つ）
+  manager: [                                                          // 店長のタブ（5つ）
     { path: "/home", label: "ホーム", icon: "home" },                  // 今日の様子・お知らせ・やること
+    { path: "/hopes", label: "希望", icon: "hope" },                   // みんなの希望を見る・印刷する（2026年11月22日）
     { path: "/shift", label: "シフト作成", icon: "edit" },             // 週のシフトを作る・AIに下書きを頼む・公開する
     { path: "/calendar", label: "自分の勤務", icon: "calendar" },      // 店長も仕事に入るので、自分の勤務を見るタブ
     { path: "/store", label: "店舗", icon: "store" },                  // スタッフの登録・設定・地図・集計・店舗の追加などのメニュー

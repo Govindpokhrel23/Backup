@@ -63,7 +63,7 @@ export function hopeList(props) {   // 希望の一覧を作る関数
   const groups = order   // 店舗ごとに
     .map((storeId) => ({ store: props.stores.find((store) => store.id === storeId), list: people.filter((member) => member.storeId === storeId) }))   // その店舗がメインの人
     .filter((group) => group.store && group.list.length)   // いない店舗は出さない
-    .map((group) => ({ ...group, list: group.list.sort((memberA, memberB) => kindRank(memberA) - kindRank(memberB)) }));   // 社員 → フル → バイト の順
+    .map((group) => ({ ...group, list: group.list.sort((memberA, memberB) => kindRank(memberA) - kindRank(memberB) || String(memberA.loginId || "").localeCompare(String(memberB.loginId || ""), "ja", { numeric: true })) }));   // 社員 → バイト（同じ中はログインIDの順。紙の形・シフトの表と同じ並び。2026年11月22日）
 
   const box = createElement("details", { class: "card hope-list", open: readOpen() || null },   // 開け閉めできるカード
     createElement("summary", { class: "hope-list__summary" },   // 見出し（押すと開け閉め）
@@ -104,7 +104,7 @@ function dayClass(date) {   // 曜日の色の class を出す関数
   return weekday === 0 ? "is-sun" : weekday === 6 ? "is-sat" : "";   // 日曜・土曜・平日
 }
 
-/** 並べる順番（社員 → フル → バイト） */
+/** 並べる順番（社員 → それ以外） */
 function kindRank(member) {   // 立場の順番を出す関数
-  return { shain: 0, full: 1, baito: 2 }[member.kind] ?? 3;   // 社員が先
+  return member.kind === "shain" ? 0 : 1;   // 社員が先（フルとバイトは同じなかま。2026年11月22日：紙の形と同じ並びに）
 }
