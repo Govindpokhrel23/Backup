@@ -17,6 +17,7 @@
 //       「AIで作成」→ Gemini が作る（ai/draft-service.js）。結果は一番上の「AIの結果」に出る
 //       「AIに直してもらう」→ 守れていないルールだけ AI が直す
 //       公開した時、AIの下書きから店長が直した所を覚える（ai/learning.js）
+//       作る時、過去4週の公開したシフトから「いつもの形」も学ぶ（ai/past-patterns.js。2026年11月22日）
 //       公開した時、人が足りない時間があれば、入れそうな人に自動で連絡する（api/mock-calls.js）
 //       「＋ 人を追加」→ ほかの店舗の人・まだアカウントがない人を足す（components/add-person.js）
 // 変えた内容はすぐ下書きとして保存する（閉じても消えない）。
@@ -28,6 +29,7 @@ import { CONFIG } from "../config.js";   // 設定を読む
 import { timeline } from "../components/timeline.js";   // タイムラインの部品を読む
 import { checkDay, checkWeek, onlyProblems, requiredAt, assignedAt, findShortages } from "../rules/shift-rules.js";   // シフトのルールの道具を読む
 import { runAiDraft, fixWithAi } from "../ai/draft-service.js";   // AIで下書き・直す道具を読む
+import { findPatterns, PAST_WEEKS } from "../ai/past-patterns.js";   // 過去のシフトから「いつもの形」を見つける道具を読む（2026年11月22日）
 import { aiReady } from "../ai/ai-settings.js";   // AIを使えるか調べる道具を読む
 import { aiResultCard } from "../components/ai-result.js";   // AIの結果のカードを読む
 import { openAddPerson } from "../components/add-person.js";   // 人を追加の小さい画面を読む
@@ -280,11 +282,24 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
   }
 
   /** AIに渡す情報（ai/draft-service.js の ctx） */
-  function aiContext(past = []) {   // AIに渡す中身を作る関数
+  /**
+   * 過去のシフトを読む（2026年11月22日）
+   * past＝前の週の勤務（よく入っている人の参考）／patterns＝過去4週の公開したシフトの「いつもの形」
+   */
+  async function loadPast() {   // 過去のシフトを読む関数
+    const prev = periods.find((eachPeriod) => eachPeriod.weekStart === addDays(period.weekStart, -7));   // 前の週
+    const past = prev ? await api.listAssignments(prev.id) : [];   // 前の週の勤務
+    const oldest = addDays(period.weekStart, -7 * PAST_WEEKS);   // 何週前から見るか
+    const published = periods.filter((eachPeriod) => eachPeriod.status === "published" && eachPeriod.weekStart < period.weekStart && eachPeriod.weekStart >= oldest);   // 過去4週の公開した週
+    const lists = await Promise.all(published.map((eachPeriod) => eachPeriod === prev ? past : api.listAssignments(eachPeriod.id)));   // その勤務（前の週はもう読んだ分を使う）
+    return { past, patterns: findPatterns(lists.flat(), active) };   // 前の週といつもの形
+  }
+
+  function aiContext(past = [], patterns = null) {   // AIに渡す中身を作る関数
     return {   // 返す
       dates: datesOf(period).filter((date) => !isClosed(date)), members: active.map(withLimits),   // お休みの日はAIに作らせない
       availabilities: hopes, requirements, positions,   // 7日・店員・希望・必要人数など
-      fixed: work.filter((shift) => shift.fixed), past, dayTypeOf, hoursOf, elsewhere, rules, learnings,   // 固定した勤務・前の週など
+      fixed: work.filter((shift) => shift.fixed), past, patterns, dayTypeOf, hoursOf, elsewhere, rules, learnings,   // 固定した勤務・前の週・過去のいつもの形など
       problemsOf: (rows) => allProblems(rows),   // 問題を調べる関数
     };
   }
@@ -739,12 +754,11 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
     if (locked()) { toast("公開済みです。直す時は「編集する」を押してください"); return null; }   // 公開済みは作らない
     const wait = busy(where ? `${where}：準備しています` : "準備しています");                                // 待っている間の画面
     try {   // 成功でも失敗でも「考えています」を消す
-      // 過去の勤務：前の週の分を「よく入っている人」の参考にする
-      const prev = periods.find((eachPeriod) => eachPeriod.weekStart === addDays(period.weekStart, -7));   // 前の週
-      const past = prev ? await api.listAssignments(prev.id) : [];   // 前の週の勤務
+      // 過去の勤務：前の週の分を「よく入っている人」の参考に、過去4週の分から「いつもの形」を学ぶ（2026年11月22日）
+      const { past, patterns } = await loadPast();   // 過去のシフト
       const before = work.map((shift) => ({ ...shift }));                       // AIの前（「変わった所」を出すため）
       learnings = await api.listLearnings();   // 覚えたことを読みなおす（同じ画面で前の週を公開して覚えた分も使う。2026年11月17日）
-      const result = await runAiDraft(aiContext(past), { onStep: (text) => wait.update(where ? `${where}：${text}` : text) });   // AIの結果（全店舗の時は店舗の名前つき）
+      const result = await runAiDraft(aiContext(past, patterns), { onStep: (text) => wait.update(where ? `${where}：${text}` : text) });   // AIの結果（全店舗の時は店舗の名前つき）
       history.push(work);   // 今の状態を記録
       work = result.rows;   // 下書きにする
       await api.saveAiDraft(period.id, work);                           // 公開の時に「店長がどう直したか」を比べるため
@@ -772,11 +786,10 @@ export async function renderShiftEditor(app, { weekStart: openWeek, batch = null
     }
     const wait = busy("AIが直しています（30秒〜1分くらい）");   // 待っている間の画面
     try {   // 成功でも失敗でも「考えています」を消す
-      const prev = periods.find((eachPeriod) => eachPeriod.weekStart === addDays(period.weekStart, -7));   // 前の週
-      const past = prev ? await api.listAssignments(prev.id) : [];   // 前の週の勤務
+      const { past, patterns } = await loadPast();   // 過去のシフト（前の週・いつもの形。2026年11月22日）
       const before = work.map((shift) => ({ ...shift }));   // AIの前の勤務
       learnings = await api.listLearnings();   // 覚えたことを読みなおす（2026年11月17日）
-      const result = await fixWithAi(aiContext(past), work, problems, { onStep: wait.update });   // AIが直した結果
+      const result = await fixWithAi(aiContext(past, patterns), work, problems, { onStep: wait.update });   // AIが直した結果
       if (!result.applied) {   // 直せなかったら
         toast(result.error ? `AIで直せませんでした：${result.error}` : `AIの案は問題が減らなかったので使いませんでした（${result.before}件 → ${result.after}件）`);   // お知らせ
         return;   // 止める

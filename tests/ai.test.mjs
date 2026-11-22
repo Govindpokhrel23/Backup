@@ -175,6 +175,17 @@ test("覚えた直し方：AI（Gemini）が守らなくても、2回覚えた�
   assert.deepEqual([monday.from, monday.to], [hoursToMin(10), hoursToMin(14)]);   // 覚えた時間になっている
 });
 
+test("過去のシフト：4週続けて同じ時間なら、AIの答えもその時間になる（2026年11月22日）", async () => {   // テスト：過去から学ぶ
+  saveAiSettings({ mode: "gemini", apiKey: "test-key", model: "gemini-3-flash-preview" });   // AIの設定
+  const { findPatterns } = await import("../js/ai/past-patterns.js");   // いつもの形を見つける道具
+  const past = ["2026-10-12", "2026-10-19", "2026-10-26", "2026-11-02"].map((date) => ({ memberId: "b", date, from: hoursToMin(10), to: hoursToMin(15), area: "hall" }));   // Bは4週とも月曜 10〜15
+  const fakeFetch = async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ shifts: [{ staff: "S2", date: "2026-11-09", start: "09:00", end: "13:00", area: "hall", reason: "" }], summary: "" }) }] } }] }) });   // AIは 9〜13 と答える
+  const result = await runAiDraft({ ...ctx, patterns: findPatterns(past, members) }, { fetchImpl: fakeFetch });   // 「AIで作成」
+  const monday = result.rows.find((row) => row.memberId === "b" && row.date === "2026-11-09");   // Bの月曜
+  assert.deepEqual([monday.from, monday.to], [hoursToMin(10), hoursToMin(15)]);   // いつもの形（希望 9〜15 の中）
+  assert.equal(result.patternCount, 1);   // 使ったいつもの形は1つ
+});
+
 test("覚えた直し方：1回だけの直しは、まだ使わない（たまたまかもしれない）", async () => {   // テスト：1回はまだ
   const learnings = [{ id: "l1", kind: "time", memberId: "b", date: "2026-11-02", weekday: 1, from: hoursToMin(10), to: hoursToMin(14), at: "2026-11-01" }];   // 1回だけ
   const fakeFetch = async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ shifts: [{ staff: "S2", date: "2026-11-09", start: "09:00", end: "15:00", area: "hall", reason: "" }], summary: "" }) }] } }] }) });   // AIの答え

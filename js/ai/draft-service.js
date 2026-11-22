@@ -16,13 +16,14 @@
 //
 // ctx（画面から渡す情報）：
 //   dates, members, availabilities, requirements, positions, fixed, past,
-//   dayTypeOf, hoursOf, elsewhere, rules, learnings,
+//   dayTypeOf, hoursOf, elsewhere, rules, learnings, patterns（過去のシフトのいつもの形。past-patterns.js）,
 //   problemsOf(rows) … その勤務の一覧で守れていないルールの一覧を返す関数
 // ============================================================
 
 import { CONFIG } from "../config.js";   // 設定を読む
 import { makeDraft } from "./simple-draft.js";   // AIなしで作るたたき台の関数を読む
 import { summarize } from "./learning.js";   // 覚えたことをまとめる関数を読む
+import { withPatterns } from "./past-patterns.js";   // 過去のシフトの「いつもの形」を足す関数を読む（2026年11月22日）
 import { buildDraftPrompt, buildFixPrompt } from "./prompt.js";   // AIに送る文を作る関数を読む
 import { askGemini } from "./gemini.js";   // Gemini に送る関数を読む
 import { cleanShifts } from "./validate.js";   // AIの答えを確かめて直す関数を読む
@@ -61,9 +62,10 @@ async function askWithFallback(settings, prompt, schema, fetchImpl) {   // だ�
 export async function runAiDraft(ctx, opt = {}) {   // AIで1週間の下書きを作る関数
   const step = opt.onStep || (() => {});                                // 進み具合を知らせる
   // ① 学びをまとめる
-  step("店長の直し方を読んでいます");   // 進み具合を画面に出す
-  const learned = summarize(ctx.learnings || [], ctx.members);          // 学びのまとめ
+  step("店長の直し方・過去のシフトを読んでいます");   // 進み具合を画面に出す
+  const learned = withPatterns(summarize(ctx.learnings || [], ctx.members), ctx.patterns);   // 学びのまとめ＋過去のシフトのいつもの形
   const learnedCount = learned.notes.filter((note) => note.strong).length;    // 覚えている数（2回以上）
+  const patternCount = learned.patternCount;   // 使った「いつもの形」の数（2026年11月22日）
 
   // ② たたき台
   step("たたき台を作っています");   // 進み具合を画面に出す
@@ -74,7 +76,7 @@ export async function runAiDraft(ctx, opt = {}) {   // AIで1週間の下書き�
   const settings = getAiSettings();                                     // AIの設定
   const ready = aiReady(settings);   // 使えるかどうかと、使えない理由
   if (!ready.ok) {   // AIを使えない時は
-    return { rows: baseline, source: "local", summary: "", concerns: [], dropped: [], problems: baseProblems, why: ready.why, learnedCount };   // たたき台をそのまま返す（理由つき）
+    return { rows: baseline, source: "local", summary: "", concerns: [], dropped: [], problems: baseProblems, why: ready.why, learnedCount, patternCount };   // たたき台をそのまま返す（理由つき）
   }
 
   try {   // AIが失敗しても止まらないように
@@ -96,15 +98,15 @@ export async function runAiDraft(ctx, opt = {}) {   // AIで1週間の下書き�
     if (!aiUsable) {   // AIの案の方が悪ければ
       return {   // たたき台を返す
         rows: baseline, source: "local", model, summary: answer.summary || "", concerns: answer.concerns || [], dropped,   // たたき台・AIのまとめ・気になる点・外したもの
-        problems: baseProblems, compare, learnedCount,   // 問題の一覧・くらべた数・覚えた数
+        problems: baseProblems, compare, learnedCount, patternCount,   // 問題の一覧・くらべた数・覚えた数
         why: `AIの案は守れていないルールが ${aiProblems.length}件 で、たたき台（${baseProblems.length}件）より多かったので、たたき台を使いました`,   // たたき台を使った理由
       };
     }
     // ⑥ 結果
-    return { rows, source: "gemini", model, summary: answer.summary || "", concerns: answer.concerns || [], dropped, problems: aiProblems, compare, learnedCount };   // AIの案を返す
+    return { rows, source: "gemini", model, summary: answer.summary || "", concerns: answer.concerns || [], dropped, problems: aiProblems, compare, learnedCount, patternCount };   // AIの案を返す
   } catch (error) {   // AIが失敗した時
     // エラー → たたき台を使う（止まらない）
-    return { rows: baseline, source: "local", summary: "", concerns: [], dropped: [], problems: baseProblems, error: error.message, learnedCount };   // たたき台を返す（エラーの文つき）
+    return { rows: baseline, source: "local", summary: "", concerns: [], dropped: [], problems: baseProblems, error: error.message, learnedCount, patternCount };   // たたき台を返す（エラーの文つき）
   }
 }
 
@@ -122,7 +124,7 @@ export async function fixWithAi(ctx, current, problems, opt = {}) {   // 今の�
   if (!ready.ok) return { applied: false, rows: current, summary: "", concerns: [], dropped: [], before: problems.length, after: problems.length, error: ready.why };   // AIを使えなければ、そのまま返す
   try {   // AIが失敗しても止まらないように
     opt.onStep?.("AIが直しています");   // 進み具合を画面に出す
-    const learned = summarize(ctx.learnings || [], ctx.members);   // 店長の直し方のまとめ
+    const learned = withPatterns(summarize(ctx.learnings || [], ctx.members), ctx.patterns);   // 店長の直し方＋過去のシフトのいつもの形
     const { prompt, schema, toId } = buildFixPrompt({ ...ctx, learned }, current, problems);   // 送る文・答えの形・番号→IDの表
     const { answer, model } = await askWithFallback(settings, prompt, schema, opt.fetchImpl);   // AIの答えと、使ったモデル
     const { rows, dropped } = cleanShifts(answer.shifts, { ...ctx, fixed: current.filter((shift) => shift.fixed) }, toId);   // 使える勤務と外した理由（固定は今のまま）

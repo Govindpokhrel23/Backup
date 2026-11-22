@@ -65,6 +65,7 @@ export function aiResultCard(props) {   // AIの結果のカードを作る関�
       stat("勤務の数", `${work.length}`),   // 勤務の数
       stat("人件費（週）", props.costText),   // 人件費
       stat("店長の直し方", `${result.learnedCount}件 使用`),   // 使った店長の直し方
+      stat("過去のいつもの形", `${result.patternCount || 0}件 使用`),   // 過去のシフトから学んだ形（2026年11月22日）
     ),
 
     // ---- ③ AIのひとこと ----

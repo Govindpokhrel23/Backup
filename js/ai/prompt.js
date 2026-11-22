@@ -146,6 +146,12 @@ function storeFacts(ctx, toAlias) {   // お店の情報の文を作る関数
     lines.push("\n## 店長のいつもの直し方（前に店長がAIの下書きを直した記録。回数が多いものほど大事）");   // 見出し
     notes.forEach((note) => lines.push(`- ${hideNames(note.text, ctx.members, toAlias)}（${note.count}回）`));   // 1つずつ書く
   }
+  // ---- 過去のシフトのいつもの形（2026年11月22日） ----
+  const patterns = (ctx.learned?.patternNotes || []).slice(0, 60);   // 多すぎないように
+  if (patterns.length) {   // あれば
+    lines.push("\n## 過去のシフトのいつもの形（前の数週間に公開したシフト。希望とルールに合えば、この形を優先する）");   // 見出し
+    patterns.forEach((note) => lines.push(`- ${hideNames(note.text, ctx.members, toAlias)}（${note.weeks}週中${note.count}週）`));   // 1つずつ書く
+  }
   return lines.join("\n");   // 改行でつないで返す
 }
 
