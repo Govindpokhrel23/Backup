@@ -83,3 +83,13 @@
 .paper-key--hall { background: #3F7DCB; }   /* ホール */
 .paper-key--kitchen { background: #D9782D; }   /* キッチン */
 .paper-key--mine { height: 10px; background: #FBEFD9; border: 1px solid #E9D3A8; }   /* 自分の行 */
+
+/* ---------- 公開シフトの「週」：1日の枠を7つたてに並べる・前の週／次の週（2026年11月22日） ---------- */
+.paper-week { display: flex; flex-direction: column; gap: 10px; }   /* 7日を縦に */
+.paper-week .paper-day { cursor: pointer; }   /* 押せる */
+.paper-week .paper-day.is-today { outline: 3px solid #2F6B4F; outline-offset: -1px; }   /* 今日の日は緑の枠 */
+.week-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }   /* 前の週・次の週の行 */
+.week-nav__label { font-size: 15px; text-align: center; flex: 1; }   /* 今の週 */
+.paper-badge { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 3px; color: #fff; font-size: 11px; }   /* 「立」「締」の見本 */
+.paper-badge--open { background: #2F6B4F; }   /* 立ち上げ（緑） */
+.paper-badge--close { background: #7A3E8E; }   /* 締め（むらさき） */

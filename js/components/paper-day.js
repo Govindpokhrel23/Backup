@@ -5,6 +5,8 @@
 //   ・左に氏名、上に時刻（6 7 8 … 12 1 2 … 11）、右に「トータル時間」
 //   ・社員が上、太い線のあとにバイト
 //   ・勤務は横の線（両はしに < >）、休憩は ○
+//   ・立ち上げの人は線の始まりに「立」、締めの人は終わりに「締」（営業時間 hoursOf を渡した時）
+//   ・画面では「トータル時間」の列を出さない（total:false）
 // 使う所：
 //   ・components/print-week.js … 印刷（白黒・mm の大きさ）
 //   ・screens/published.js     … 公開シフトの「日」（色つき・スマホの幅いっぱい）
@@ -13,6 +15,7 @@
 
 import { toDate } from "../lib/date.js";   // 日付の道具を読む
 import { workedMinutes } from "../lib/labor.js";   // 働いた時間（休憩を引く）の道具を読む
+import { roleMarks } from "../lib/roles.js";   // 立ち上げ・締めの印を出す道具を読む（2026年11月22日）
 
 /** SVG の決まりの名前 */
 const SVG_NS = "http://www.w3.org/2000/svg";   // SVG の部品を作る時に使う
@@ -67,12 +70,14 @@ function totalText(minutes) {   // 時間を短い文字にする関数
  * @param {number}   [props.rowH]      1行の高さ（height を決めない時）
  * @param {number}   [props.font]      名前の文字の大きさ
  * @param {boolean}  [props.mm]        印刷用（大きさを mm で決める）
+ * @param {boolean}  [props.total]     右に「トータル時間」の列を出すか（はじめは出す）
+ * @param {(date:string)=>({open:number,close:number}|null)} [props.hoursOf] その日の営業時間（「立」「締」の印に使う）
  * @returns {SVGSVGElement} 枠の絵
  */
 export function paperDay(props) {   // 1日の枠を作る関数
   const W = props.width ?? 67;   // 枠の横
   const NAME_W = W * 0.19;   // 氏名の列
-  const TOTAL_W = W * 0.09;   // トータル時間の列
+  const TOTAL_W = props.total === false ? 0 : W * 0.09;   // トータル時間の列（出さない時は 0）
   const HEAD_H = 9;   // 上の見出し（日付・曜日＋時刻）
   const minRows = props.height ? 18 : props.rows.length;   // 印刷では人が少なくても18行分の高さ
   const rowH = props.height ? (props.height - HEAD_H) / Math.max(props.rows.length, minRows) : (props.rowH ?? 4.6);   // 1行の高さ
@@ -96,8 +101,8 @@ export function paperDay(props) {   // 1日の枠を作る関数
 
   // ---- 時刻の目もりと縦の線 ----
   root.append(svg("text", { x: NAME_W / 2, y: 7.8, "font-size": 2.2, "text-anchor": "middle" }, "氏名"));   // 「氏名」
-  root.append(svg("text", { x: W - TOTAL_W / 2, y: 6.9, "font-size": Math.min(1.6, TOTAL_W * 0.25), "text-anchor": "middle" }, "トータル"));   // 「トータル」
-  root.append(svg("text", { x: W - TOTAL_W / 2, y: 8.6, "font-size": 1.6, "text-anchor": "middle" }, "時間"));   // 「時間」
+  if (TOTAL_W) root.append(svg("text", { x: W - TOTAL_W / 2, y: 6.9, "font-size": Math.min(1.6, TOTAL_W * 0.25), "text-anchor": "middle" }, "トータル"));   // 「トータル」
+  if (TOTAL_W) root.append(svg("text", { x: W - TOTAL_W / 2, y: 8.6, "font-size": 1.6, "text-anchor": "middle" }, "時間"));   // 「時間」
   for (let hour = HOUR_FROM; hour <= HOUR_TO; hour++) {   // 1時間ごとに
     const x = NAME_W + (hour - HOUR_FROM) * hourW;   // 横の位置
     if (hour < HOUR_TO) root.append(svg("text", { x: x + hourW / 2, y: 7.9, "font-size": Math.min(2, hourW * 0.8), "text-anchor": "middle" }, hourLabel(hour)));   // 時刻の数字
@@ -105,8 +110,19 @@ export function paperDay(props) {   // 1日の枠を作る関数
     if (hour < HOUR_TO) root.append(svg("line", { x1: x + hourW / 2, y1: HEAD_H, x2: x + hourW / 2, y2: H, stroke: "#999", "stroke-width": 0.1, "stroke-dasharray": "0.6 0.6" }));   // 30分の点線
   }
   root.append(svg("line", { x1: NAME_W, y1: 4.8, x2: NAME_W, y2: H, stroke: "#000", "stroke-width": 0.3 }));   // 氏名の右の線
-  root.append(svg("line", { x1: W - TOTAL_W, y1: 4.8, x2: W - TOTAL_W, y2: H, stroke: "#000", "stroke-width": 0.3 }));   // トータルの左の線
+  if (TOTAL_W) root.append(svg("line", { x1: W - TOTAL_W, y1: 4.8, x2: W - TOTAL_W, y2: H, stroke: "#000", "stroke-width": 0.3 }));   // トータルの左の線
   root.append(svg("line", { x1: 0, y1: HEAD_H, x2: W, y2: HEAD_H, stroke: "#000", "stroke-width": 0.3 }));   // 時刻の下の線
+
+  // ---- 立ち上げ・締めの印のための、その日の勤務と営業時間 ----
+  const dayWork = props.work.filter((shift) => shift.date === props.date);   // その日の勤務（この店舗）
+  const hours = props.hoursOf ? props.hoursOf(props.date) : null;   // その日の営業時間（なければ印なし）
+  /** 線の上に小さい四角の印（「立」「締」） */
+  const badge = (x, y, text, color) => {   // 印をかく関数
+    const size = Math.min(2.8, rowH * 0.7);   // 印の大きさ
+    root.append(svg("rect", { x, y: y - size / 2, width: size, height: size, rx: 0.5, fill: color }));   // 四角
+    root.append(svg("text", { x: x + size / 2, y: y + size * 0.34, "font-size": size * 0.78, "font-weight": 700, fill: "#fff", "text-anchor": "middle" }, text));   // 文字
+    return size;   // 大きさを返す
+  };
 
   // ---- 1人1行 ----
   props.rows.forEach((member, index) => {   // 人ごとに
@@ -125,9 +141,13 @@ export function paperDay(props) {   // 1日の枠を作る関数
       root.append(svg("polyline", { points: `${x1 + tick},${mid - tick} ${x1},${mid} ${x1 + tick},${mid + tick}`, fill: "none", stroke: color, "stroke-width": width * 0.85 }));   // 始まりの印「<」
       root.append(svg("polyline", { points: `${x2 - tick},${mid - tick} ${x2},${mid} ${x2 - tick},${mid + tick}`, fill: "none", stroke: color, "stroke-width": width * 0.85 }));   // 終わりの印「>」
       if (shift.breakAt != null) root.append(svg("circle", { cx: xOf(shift.breakAt), cy: mid, r: Math.min(0.95, rowH * 0.33), fill: "#fff", stroke: color, "stroke-width": width * 0.85 }));   // 休憩の ○
+      const marks = hours && !hours.closed ? roleMarks(shift, dayWork, hours) : [];   // 「立」「締」
+      const size = Math.min(2.8, rowH * 0.7);   // 印の大きさ
+      if (marks.includes("立")) badge(x1 + tick + 0.3, mid, "立", props.color ? "#2F6B4F" : "#000");   // 始まりのそばに「立」
+      if (marks.includes("締")) badge(x2 - tick - 0.3 - size, mid, "締", props.color ? "#7A3E8E" : "#000");   // 終わりのそばに「締」
       total += workedMinutes(shift);   // 時間を足す
     }
-    if (total) root.append(svg("text", { x: W - TOTAL_W / 2, y: mid + font * 0.35, "font-size": font, "text-anchor": "middle" }, totalText(total)));   // トータル時間
+    if (total && TOTAL_W) root.append(svg("text", { x: W - TOTAL_W / 2, y: mid + font * 0.35, "font-size": font, "text-anchor": "middle" }, totalText(total)));   // トータル時間
   });
   // 人が少ない時も、紙と同じように下まで行の線を引く（印刷）
   for (let index = props.rows.length; index < Math.floor((H - HEAD_H) / rowH + 0.001); index++) root.append(svg("line", { x1: 0, y1: HEAD_H + (index + 1) * rowH, x2: W, y2: HEAD_H + (index + 1) * rowH, stroke: "#000", "stroke-width": 0.12 }));   // 空の行の線

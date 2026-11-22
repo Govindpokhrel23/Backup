@@ -15,9 +15,8 @@ import { state, activeStores } from "../store.js";   // アプリの状態・店
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
 import { paperDay, paperRows } from "../components/paper-day.js";   // 紙のシフト表と同じ1日の枠を読む（2026年11月22日）
 import { dayList } from "../components/day-list.js";   // 1日の一覧の部品を読む
-import { weekLabel, datesOf } from "../lib/period.js";   // 週の表示の道具を読む
+import { weekLabel, weekShort, datesOf } from "../lib/period.js";   // 週の表示の道具を読む
 import { label, today, dayType } from "../lib/date.js";   // 日付の道具を読む
-import { weekGrid, weekLegend } from "../components/week-grid.js";   // 1週間の表の部品を読む（2026年11月15日：店員も週で見られるように）
 import { hoursOn } from "../lib/store-hours.js";   // その日の営業時間（休み・時間の変更も入れる）の道具を読む
 
 /** 公開シフトの画面を描く */
@@ -94,8 +93,9 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
                     } }, "シフトを見ました（確認する）"))   // ボタンの文字
               : null,   // ほかの店舗では出さない
             period.note ? createElement("div", { class: "notice notice--warn", style: { fontWeight: 400, whiteSpace: "pre-line" } }, `連絡事項：${period.note}`) : null,   // 連絡事項
+            weekNav(),   // 前の週・次の週（2026年11月22日：先週も見られる）
             viewSwitch(),   // 週／日の切りかえ
-            view === "week" ? weekCard() : null,   // 1週間の表（紙のシフト表と同じ形）
+            view === "week" ? paperWeekCard() : null,   // 1週間（紙のシフト表と同じ1日の枠を7つ。2026年11月22日）
             view === "day" ? dayTabs() : null,   // 日のタブ
             view === "day" ? paperDayCard() : null,   // 1日（紙のシフト表と同じ形。2026年11月22日）
             view === "day" ? dayList({ assignments: assignments.filter((shift) => shift.date === date), members, hours: hoursOn(storeHours, date, dayType(date, holidays)) }) : null,   // 1日の一覧
@@ -112,41 +112,62 @@ export async function renderPublished(app) {   // 公開シフトの画面を描
       createElement("button", { class: "seg__btn", "aria-pressed": String(view === "day"), onclick: () => pick("day") }, "日"));   // 1日の線
   }
 
-  /** 1週間の表（たて＝人・よこ＝7日。マスを押すとその日の線の見方へ） */
-  function weekCard() {   // 1週間の表のカードを作る関数
-    const dates = datesOf(period);   // 7日
-    return createElement("section", { class: "card card--tight" },   // カード
-      weekGrid({   // 1週間の表（シフト作成と同じ部品）
-        dates,   // 7日
-        members: members.filter((member) => member.active && assignments.some((shift) => shift.memberId === member.id)),   // この週に入っている人だけ
-        assignments,   // この週の勤務
-        elsewhere: [],   // ほかの店舗の勤務は出さない
-        availabilities: [],   // 希望は出さない（店長だけが見る）
-        problemDays: new Set(),   // 問題の印は出さない
-        closedDays: new Set(dates.filter((eachDate) => hoursOn(storeHours, eachDate, dayType(eachDate, holidays)).closed)),   // お休みの日
-        selectedId: state.user.id,   // 自分の行に色をつける
-        onPick: (pickedDate) => { date = pickedDate; view = "day"; saveView("day"); draw(); window.scrollTo(0, 0); },   // マスを押したらその日へ
-      }),
-      weekLegend(),   // 色と記号の説明（2026年11月17日）
-      createElement("div", { class: "home-muted wk__help" }, "マスを押すと、その日を時間の線で見られます。色の行が自分です"),   // 使い方
+  /**
+   * 1日のカード：紙のシフト表の「1日の枠」と同じ形（色つき。2026年11月22日）
+   * 氏名・時刻。勤務は線（< >）、休憩は ○、立ち上げ「立」・締め「締」。自分の行はうすい黄色
+   */
+  function paperDayCard() {   // 1日のカードを作る関数
+    const { rows, split } = paperRows(shownMembers());   // 社員が上
+    return createElement("section", { class: "card card--tight paper-day" },   // カード
+      paperDay({ date, rows, split, work: assignments, color: true, selectedId: state.user.id, width: 64, rowH: 4.6, font: 2.5, total: false, hoursOf }),   // 1日の枠（トータル時間なし）
+      paperLegend(),   // 色と印の説明
     );
   }
 
+  /** 色と印の説明 */
+  function paperLegend() {   // 説明を作る関数
+    return createElement("div", { class: "wk-legend" },   // 説明の行
+      createElement("span", { class: "wk-legend__item" }, createElement("span", { class: "paper-key paper-key--hall" }), "ホール"),   // 青
+      createElement("span", { class: "wk-legend__item" }, createElement("span", { class: "paper-key paper-key--kitchen" }), "キッチン"),   // オレンジ
+      createElement("span", { class: "wk-legend__item" }, "○ 休憩"),   // 休憩
+      createElement("span", { class: "wk-legend__item" }, createElement("b", { class: "paper-badge paper-badge--open" }, "立"), "立ち上げ"),   // 立
+      createElement("span", { class: "wk-legend__item" }, createElement("b", { class: "paper-badge paper-badge--close" }, "締"), "締め"),   // 締
+      createElement("span", { class: "wk-legend__item" }, createElement("span", { class: "paper-key paper-key--mine" }), "自分"));   // 自分の行
+  }
+
+  /** 表に出す人：この店の人と、この週に入っている応援の人（休止中はのぞく） */
+  function shownMembers() {   // 出す人を決める関数
+    return members.filter((member) => member.active && ((member.rankHere ?? 1) === 1 || assignments.some((shift) => shift.memberId === member.id)));   // 出す人
+  }
+
+  /** その日の営業時間（「立」「締」の印に使う） */
+  function hoursOf(eachDate) {   // 営業時間を出す関数
+    return hoursOn(storeHours, eachDate, dayType(eachDate, holidays));   // その日の営業時間
+  }
+
   /**
-   * 1日のカード：紙のシフト表の「1日の枠」と同じ形（色つき）
-   * 氏名・時刻・トータル時間。勤務は線（< >）、休憩は ○。自分の行はうすい黄色
+   * 1週間：紙のシフト表と同じ「1日の枠」を月〜日の7つ、たてに並べる（2026年11月22日）
+   * この週に入っている人と自分だけ出す。日を押すと、その日の「日」の見方へ
    */
-  function paperDayCard() {   // 1日のカードを作る関数
-    const shown = members.filter((member) => member.active && ((member.rankHere ?? 1) === 1 || assignments.some((shift) => shift.memberId === member.id)));   // この店の人と、この週に入っている応援の人
-    const { rows, split } = paperRows(shown);   // 社員が上
-    return createElement("section", { class: "card card--tight paper-day" },   // カード
-      paperDay({ date, rows, split, work: assignments, color: true, selectedId: state.user.id, width: 64, rowH: 4.6, font: 2.5 }),   // 1日の枠
-      createElement("div", { class: "wk-legend" },   // 色の説明
-        createElement("span", { class: "wk-legend__item" }, createElement("span", { class: "paper-key paper-key--hall" }), "ホール"),   // 青
-        createElement("span", { class: "wk-legend__item" }, createElement("span", { class: "paper-key paper-key--kitchen" }), "キッチン"),   // オレンジ
-        createElement("span", { class: "wk-legend__item" }, "○ 休憩"),   // 休憩
-        createElement("span", { class: "wk-legend__item" }, createElement("span", { class: "paper-key paper-key--mine" }), "自分")),   // 自分の行
+  function paperWeekCard() {   // 1週間のカードを作る関数
+    const { rows, split } = paperRows(shownMembers().filter((member) => member.id === state.user.id || assignments.some((shift) => shift.memberId === member.id)));   // 出す人（社員が上）
+    return createElement("div", { class: "paper-week" },   // 入れ物
+      paperLegend(),   // 色と印の説明
+      datesOf(period).map((eachDate) => createElement("section", { class: `card card--tight paper-day${eachDate === today() ? " is-today" : ""}`, onclick: () => { date = eachDate; view = "day"; saveView("day"); draw(); window.scrollTo(0, 0); } },   // 1日（押すとその日へ）
+        paperDay({ date: eachDate, rows, split, work: assignments, color: true, selectedId: state.user.id, width: 64, rowH: 4.2, font: 2.4, total: false, hoursOf }))),   // 1日の枠
+      createElement("div", { class: "home-muted wk__help" }, "日を押すと、その日だけを見られます。黄色の行が自分・緑の枠が今日です"),   // 使い方
     );
+  }
+
+  /** 前の週・次の週（公開した週の中で動く。先週のシフトも見られる。2026年11月22日） */
+  function weekNav() {   // 週を動かすボタンを作る関数
+    const list = [...published].sort((first, second) => first.weekStart.localeCompare(second.weekStart));   // 古い順
+    const index = list.findIndex((eachPeriod) => eachPeriod.id === period.id);   // 今の週の位置
+    const move = async (step) => { await loadWeek(list[index + step]); draw(); };   // 週を動かす
+    return createElement("div", { class: "week-nav" },   // 入れ物
+      createElement("button", { class: "btn btn--small", disabled: index <= 0, onclick: () => move(-1) }, "‹ 前の週"),   // 前の週
+      createElement("strong", { class: "week-nav__label" }, weekShort(period)),   // 今の週（短く：11/16〜11/22）
+      createElement("button", { class: "btn btn--small", disabled: index >= list.length - 1, onclick: () => move(1) }, "次の週 ›"));   // 次の週
   }
 
   /** 日のタブ */
