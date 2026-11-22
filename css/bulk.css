@@ -1,0 +1,26 @@
+/* ============================================================
+   bulk.css — アンケートからまとめて登録の見た目（2026年11月22日）
+   ------------------------------------------------------------
+   このファイルは、「スタッフの登録・設定」の「アンケートからまとめて登録」の見た目のファイルです。
+   ・1人1行（ベージュの角丸）。外した人はうすく、送った人は緑の線
+   ・電話番号がおかしい時は赤い文字、注意はうすい黄色の箱
+   ============================================================ */
+
+.bulk__open { width: 100%; }   /* 開くボタン（幅いっぱい） */
+.bulk { display: flex; flex-direction: column; gap: 10px; }   /* 入れ物（縦に並べる） */
+.bulk__how { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); }   /* やり方の説明 */
+.bulk__pick { position: relative; overflow: hidden; }   /* ファイルを選ぶボタン */
+.bulk__file { position: absolute; inset: 0; opacity: 0; cursor: pointer; }   /* 本物のファイル欄は見えなくしてボタンに重ねる */
+.bulk__paste { min-height: 120px; font-size: 16px; }   /* はりつける欄（16px で iPhone が拡大しない） */
+.bulk__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }   /* 1人の行 */
+.bulk__row.is-off { opacity: 0.5; }   /* 外した人 */
+.bulk__row.is-sent { box-shadow: inset 4px 0 0 #2F6B4F; }   /* 送った人（左に緑の線） */
+.bulk__check { display: flex; align-items: center; gap: 8px; min-height: 36px; }   /* チェックと名前 */
+.bulk__check input { width: 20px; height: 20px; }   /* チェックの箱を大きく */
+.bulk__store { flex: 1 1 140px; min-height: 36px; }   /* 店舗を選ぶ欄 */
+.bulk__bad { color: var(--danger); font-weight: 700; }   /* 電話番号がおかしい */
+.bulk__warn { padding: 8px 12px; border-radius: 10px; background: #FFF3D6; color: #7A4B00; font-size: 13px; }   /* 注意 */
+.bulk .badge--ok { background: #2F6B4F; margin-left: 6px; }   /* 送った印 */
+.bulk .badge { color: #fff; }   /* 印の文字 */
+.bulk a.btn { text-decoration: none; color: var(--ink); display: inline-flex; align-items: center; justify-content: center; }   /* SMS・LINE のリンクをボタンの見た目に（下線・青い文字をやめる） */
+.bulk a.btn--primary { color: var(--cream); }   /* SMS（こげ茶のボタン）の文字はクリーム */

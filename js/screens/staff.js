@@ -9,6 +9,7 @@
 //   ・行ける店舗と順番：メイン／2nd／3rd（2026年11月3日）
 //     人が足りない時、2nd・3rd の人を AI がその店舗に入れる
 // 作ると「ID」と「初回コード（6桁）」が出るので、本人に渡す。
+// 2026年11月22日：アンケート（Google フォーム）の回答から、まとめて作れる（components/bulk-register.js）
 // ============================================================
 
 import { createElement, mount, toast, confirmDialog } from "../lib/dom.js";   // 画面の部品の道具を読む
@@ -16,6 +17,7 @@ import { api } from "../api/index.js";   // データの窓口を読む
 import { CONFIG } from "../config.js";   // 設定を読む
 import { state, isDeveloper } from "../store.js";   // アプリの状態・開発者か調べる道具を読む
 import { screenHeader } from "../components/header.js";   // 見出しの部品を読む
+import { bulkRegister } from "../components/bulk-register.js";   // まとめて登録の部品を読む（2026年11月22日）
 
 /** 順番の呼び方 */
 const rankWord = (rank) => ({ 1: "メイン", 2: "2nd", 3: "3rd" }[rank] || "");   // 順位の文字（1→メイン）
@@ -29,6 +31,7 @@ export async function renderStaff(app) {   // スタッフの登録・設定の�
   // 行ける店舗の選択には、営業している店舗だけを出す（休止した店舗は出さない）
   const stores = state.stores.filter((store) => store.active !== false);   // 営業中の店舗
   let editing = null;      // 直している店員（新しく作る時は "new"）
+  let bulkBox = null;      // まとめて登録の部品（開いている時だけ。描きなおしても中身が消えないように取っておく）
 
   draw();   // はじめに描く
 
@@ -41,12 +44,24 @@ export async function renderStaff(app) {   // スタッフの登録・設定の�
         right: createElement("button", { class: "btn btn--small btn--primary", onclick: () => { editing = "new"; draw(); } }, "＋ アカウント作成"),   // アカウントを作るボタン
       }),
       createElement("div", { class: "screen-body" },   // 本文
+        bulkBox || createElement("button", { class: "btn btn--dashed bulk__open", onclick: openBulk }, "📋 アンケートからまとめて登録"),   // まとめて登録（開いていればその部品）
         editing ? form(editing === "new" ? null : members.find((member) => member.id === editing)) : null,   // 編集中なら入力の所
         ...["shain", "full", "baito"].map((kind) => group(kind)),   // 社員・フル・バイトのまとまり
         helpers(),   // 応援に来られる人
         developerCard(),   // 開発者アカウント
       ),
     );
+  }
+
+  /** まとめて登録を開く */
+  async function openBulk() {   // まとめて登録を開く関数
+    editing = null;   // 1人ずつの編集は閉じる
+    const everyone = await api.listCompanyMembers();   // 3店舗の全員（ほかの店で登録ずみの人も見つけるため）
+    bulkBox = bulkRegister({   // 部品を作る
+      stores, members: everyone,   // 店舗・今いる人（会社の全員）
+      onClose: async () => { bulkBox = null; members = await api.listMembers(); draw(); },   // 閉じたら一覧を読みなおす
+    });
+    draw();   // 描く
   }
 
   /** 立場ごとのまとまり（社員を上に）。この店舗がメインの人だけ */

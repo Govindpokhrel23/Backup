@@ -8,7 +8,7 @@
 // ・シフトのデータ自体は lib/offline-cache.js がスマホに保存する
 // ============================================================
 
-const CACHE = "shiftapp-v19";   // 中身を大きく変えたら番号を上げる（古い保存を消すため）
+const CACHE = "shiftapp-v20";   // 中身を大きく変えたら番号を上げる（古い保存を消すため）
 
 self.addEventListener("install", (event) => {   // インストールの時
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(["./", "./index.html"])).then(() => self.skipWaiting()));   // 最初のページをしまって、すぐ新しい版にする
