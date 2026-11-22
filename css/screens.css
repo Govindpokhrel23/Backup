@@ -293,22 +293,23 @@
 
 /* ---------- 印刷（紙に貼る用。画面には出さない） ---------- */
 #print-area { display: none; }   /* 印刷用の場所（ふだんは隠す） */
-@media print {   /* 印刷する時（2026年11月22日：紙の「週間勤務予定表」と同じ形） */
-  @page { size: A4 landscape; margin: 8mm; }   /* A4横 */
+@media print {   /* 印刷する時（2026年11月22日：紙の「週間勤務予定表」と同じ形・いつも1ページ） */
+  @page { size: A4 landscape; margin: 6mm; }   /* A4横（iPhone など横にできない時は下の「縦の紙」） */
   html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }   /* 背景は白・余白なし */
   body > *:not(#print-area) { display: none !important; }   /* 印刷用の場所以外は隠す */
-  #print-area { display: block; color: #000; }   /* 印刷用の場所を出す */
-  .paper { width: 277mm; height: 190mm; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; }   /* 紙1枚（A4横の中） */
+  /* 紙の中身（277×190mm）を 0.92倍にして、上下にURLや日付が入っても1ページにおさめる。外にはみ出す分は切る＝2ページ目を作らない */
+  #print-area { display: block; color: #000; width: 255mm; height: 175mm; overflow: hidden; page-break-after: avoid; break-after: avoid; }   /* 印刷用の場所 */
+  .paper { width: 277mm; height: 190mm; transform: scale(0.92); transform-origin: top left; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; }   /* 紙1枚 */
   .paper__head { display: flex; justify-content: space-between; align-items: baseline; height: 8mm; padding: 0 2mm; }   /* 上の見出し */
   .paper__title { font-size: 15pt; font-weight: 700; letter-spacing: 0.15em; }   /* 「コメダ珈琲 ○○店 週間勤務予定表」 */
   .paper__company { font-size: 10pt; font-weight: 700; }   /* 「株式会社 21 CAFE」 */
   .paper__grid { display: grid; grid-template-columns: repeat(4, 67mm); grid-auto-rows: 86mm; gap: 3mm 3.3mm; margin-top: 2mm; }   /* 8つの枠（4×2） */
   .paper-box { display: block; font-family: "Hiragino Sans", "Noto Sans CJK JP", sans-serif; }   /* 1つの枠 */
 }
-/* iPhone などで縦向きに印刷された時は、紙を横にして見られるように回す */
+/* iPhone などで縦向きの紙に印刷される時は、表を90度回して1ページにおさめる（紙を横にして見る） */
 @media print and (orientation: portrait) {   /* 縦の紙の時 */
-  .paper { transform: rotate(90deg) translateY(-100%) scale(0.97); transform-origin: top left; }   /* 右に90度回す（少しだけ小さく） */
-  #print-area { width: 190mm; height: 275mm; overflow: hidden; }   /* 紙の中におさめる（はみ出して2枚目や縮小にならないように） */
+  #print-area { width: 175mm; height: 255mm; }   /* 回したあとの大きさ */
+  .paper { transform: scale(0.92) rotate(90deg) translateY(-100%); transform-origin: top left; }   /* 右に90度回して 0.92倍 */
 }
 
 /* 公開シフトの店舗ボタン：自分のメインの店舗に小さく「メイン」 */
